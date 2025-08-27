@@ -1,0 +1,176 @@
+{
+  "$id": "https://example.com/schemas/song_facts_enrichment.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SongFactsEnrichment",
+  "type": "object",
+  "required": ["identity", "provenance", "ingest"],
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["title", "artist_credit"],
+      "properties": {
+        "title": { "type": "string" },
+        "normalized_title": { "type": "string", "description": "Lowercased, punctuation-stripped" },
+        "artist_credit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "mbid": { "type": "string" },
+              "spotify_id": { "type": "string" },
+              "wikidata_id": { "type": "string" }
+            }
+          }
+        },
+        "isrc": { "type": "string" },
+        "recording_mbid": { "type": "string" },
+        "work_mbid": { "type": "string" },
+        "release": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "release_group_mbid": { "type": "string" },
+            "release_mbid": { "type": "string" },
+            "discogs_release_id": { "type": "string" },
+            "spotify_album_id": { "type": "string" },
+            "label": { "type": "string" },
+            "catalog_number": { "type": "string" },
+            "date": { "type": "string", "format": "date" },
+            "country": { "type": "string" }
+          }
+        },
+        "external_ids": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Any other provider IDs (Apple, YouTube, Deezer, etc.)"
+        }
+      }
+    },
+    "audio_features": {
+      "type": "object",
+      "properties": {
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "bpm": { "type": "number", "minimum": 0 },
+        "key": { "type": "integer", "minimum": 0, "maximum": 11, "description": "0=C, 1=C#, … 11=B" },
+        "mode": { "type": "integer", "enum": [0, 1], "description": "0=minor, 1=major" },
+        "time_signature": { "type": "integer", "minimum": 1 },
+        "energy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "danceability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "valence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "acousticness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "instrumentalness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "liveness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "loudness_db": { "type": "number" }
+      }
+    },
+    "categorization": {
+      "type": "object",
+      "properties": {
+        "genres": { "type": "array", "items": { "type": "string" } },
+        "moods": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "era": { "type": "string", "description": "e.g., 'late 90s', '2010s'" }
+      }
+    },
+    "contextual_facts": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "string", "description": "1-2 sentence neutral summary" },
+        "trivia": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string" },
+              "source_refs": { "type": "array", "items": { "type": "string" } },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "related_artists": { "type": "array", "items": { "type": "string" } },
+        "similar_tracks": { "type": "array", "items": { "type": "string" } },
+        "chart_highlights": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "region": { "type": "string" },
+              "position": { "type": "integer" },
+              "date": { "type": "string", "format": "date" },
+              "source": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "artwork": {
+      "type": "object",
+      "properties": {
+        "embedded": { "type": "boolean" },
+        "url": { "type": "string", "format": "uri" },
+        "provider": { "type": "string" },
+        "copyright": { "type": "string" }
+      }
+    },
+    "popularity": {
+      "type": "object",
+      "properties": {
+        "streams_score": { "type": "number" },
+        "playlist_count": { "type": "integer" },
+        "listener_count": { "type": "integer" },
+        "trend": { "type": "string", "enum": ["rising", "stable", "falling", "unknown"] }
+      }
+    },
+    "lyrics": {
+      "type": "object",
+      "properties": {
+        "available": { "type": "boolean" },
+        "provider": { "type": "string" },
+        "copyright": { "type": "string" },
+        "snippet": { "type": "string", "description": "Short excerpt if license permits" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Per-field sources and timestamps",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["provider", "fetched_at"],
+          "properties": {
+            "provider": { "type": "string", "enum": ["musicbrainz", "discogs", "spotify", "lastfm", "wikidata", "wikipedia", "local_tags", "other"] },
+            "url": { "type": "string" },
+            "fetched_at": { "type": "string", "format": "date-time" },
+            "license": { "type": "string" },
+            "notes": { "type": "string" }
+          }
+        }
+      }
+    },
+    "confidence_overrides": {
+      "type": "object",
+      "description": "Optional per-field confidence scores after merge",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "ingest": {
+      "type": "object",
+      "required": ["cache_key", "version"],
+      "properties": {
+        "cache_key": { "type": "string" },
+        "version": { "type": "string", "description": "Schema/merger version" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "fingerprints": {
+          "type": "object",
+          "properties": {
+            "acoustid": { "type": "string" },
+            "fpcalc": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
