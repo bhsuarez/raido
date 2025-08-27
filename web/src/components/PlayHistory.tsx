@@ -6,6 +6,9 @@ import LoadingSpinner from './LoadingSpinner'
 
 export default function PlayHistory() {
   const { data: history, isLoading, error } = usePlayHistory()
+  
+  // Debug logging
+  console.log('PlayHistory debug:', { history, isLoading, error, tracks: history?.tracks?.length })
 
   if (isLoading) {
     return (
@@ -64,7 +67,7 @@ export default function PlayHistory() {
 }
 
 interface HistoryItemProps {
-  item: any // TODO: type this properly
+  item: any // Could be enhanced with proper TypeScript interfaces
   isRecent: boolean
 }
 

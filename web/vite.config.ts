@@ -12,13 +12,21 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      'raido.zorro.network',
+      '.zorro.network', // Allow all subdomains on your Tailscale network
+      '.ts.net', // Allow Tailscale Magic DNS
+    ],
     proxy: {
       '/api': {
-        target: 'http://api:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://api:8000',
+        target: 'ws://localhost:8001',
         ws: true,
         changeOrigin: true,
       },
