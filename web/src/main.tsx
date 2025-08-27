@@ -10,14 +10,17 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000, // 30 seconds
-      gcTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 60 * 1000, // 1 minute - data is considered fresh for this long
+      gcTime: 10 * 60 * 1000, // 10 minutes - cache cleanup time
+      refetchOnWindowFocus: false, // Don't refetch when window gains focus
+      refetchOnMount: true, // Do refetch when component mounts
+      refetchInterval: false, // Don't auto-refetch by default (individual hooks can override)
       retry: (failureCount, error: any) => {
         // Don't retry on 4xx errors
         if (error?.response?.status >= 400 && error?.response?.status < 500) {
           return false
         }
-        return failureCount < 3
+        return failureCount < 2 // Reduce retries from 3 to 2
       },
     },
   },
