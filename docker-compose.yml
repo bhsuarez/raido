@@ -1,0 +1,58 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: raido
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: raido
+    volumes: [db:/var/lib/postgresql/data]
+
+  icecast:
+    image: infiniteproject/icecast
+    ports: ["8000:8000"]
+    environment:
+      - ICECAST_SOURCE_PASSWORD=hackme
+      - ICECAST_ADMIN_PASSWORD=hackme
+      - ICECAST_PASSWORD=hackme
+      - ICECAST_RELAY_PASSWORD=hackme
+    volumes:
+      - ./logs/icecast:/var/log/icecast
+
+  liquidsoap:
+    image: savonet/liquidsoap:v2.2.5
+    depends_on: [icecast]
+    volumes:
+      - /mnt/music:/mnt/music:ro
+      - ./infra/liquidsoap/radio.liq:/radio.liq:ro
+      - shared:/shared
+    command: ["liquidsoap","/radio.liq"]
+    ports: ["1234:1234","8080:8080"]
+
+  api:
+    build: ./services/api
+    env_file: .env
+    depends_on: [db]
+    volumes: [shared:/shared]
+
+  dj-worker:
+    build: ./services/dj-worker
+    env_file: .env
+    depends_on: [api]
+    volumes: [shared:/shared]
+
+  proxy:
+    image: caddy:2
+    ports: ["80:80","443:443"]
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+      - shared:/shared
+    depends_on: [api, icecast]
+
+  web:
+    build: ./web
+    environment: { VITE_API_URL: "https://{{your-domain}}" }
+    depends_on: [api]
+
+volumes: { db: {}, caddy: {}, shared: {} }

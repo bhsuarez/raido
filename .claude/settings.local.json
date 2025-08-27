@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(apt:*)",
+      "Bash(apt install:*)",
+      "Bash(systemctl:*)",
+      "Bash(systemctl start:*)",
+      "Bash(dockerd:*)",
+      "Bash(docker:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(ss:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(chown:*)",
+      "Bash(sudo chown:*)",
+      "Bash(sudo mkdir:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(/tmp/**)",
+      "Bash(sox:*)",
+      "Bash(wget:*)",
+      "Read(/var/lib/docker/volumes/raido_shared/_data/**)",
+      "Read(/var/lib/docker/volumes/raido_shared/_data/music/**)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/var/lib/docker/volumes/raido_shared/_data/tts"
+    ]
+  }
+}
