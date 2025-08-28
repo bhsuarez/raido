@@ -23,6 +23,8 @@ class TrackChangeRequest(BaseModel):
     album: Optional[str] = None
     filename: Optional[str] = None
     duration: Optional[float] = None
+    year: Optional[str] = None
+    genre: Optional[str] = None
     metadata: Dict[str, Any] = {}
 
 @router.post("/track_change")
@@ -66,10 +68,17 @@ async def track_change_notification(
             # Try to get artwork URL
             artwork_url = await _lookup_artwork(request.artist, request.title, request.album)
             
+            # Parse year as integer if provided
+            year_int = None
+            if request.year and request.year.strip() and request.year.strip().isdigit():
+                year_int = int(request.year.strip())
+            
             track = Track(
                 title=request.title or "Unknown Title",
                 artist=request.artist or "Unknown Artist",
                 album=request.album,
+                year=year_int,
+                genre=request.genre,
                 file_path=file_path,
                 duration_sec=request.duration,
                 artwork_url=artwork_url,
@@ -77,6 +86,26 @@ async def track_change_notification(
             )
             db.add(track)
             await db.flush()  # Get the ID
+        else:
+            # Update existing track with any new metadata we received
+            updated = False
+            if request.duration and not track.duration_sec:
+                track.duration_sec = request.duration
+                updated = True
+            if request.year and not track.year:
+                year_int = None
+                if request.year.strip() and request.year.strip().isdigit():
+                    year_int = int(request.year.strip())
+                    track.year = year_int
+                    updated = True
+            if request.genre and not track.genre:
+                track.genre = request.genre
+                updated = True
+            if not track.artwork_url:
+                artwork_url = await _lookup_artwork(request.artist, request.title, request.album)
+                if artwork_url:
+                    track.artwork_url = artwork_url
+                    updated = True
         
         # End any current playing track
         current_play_result = await db.execute(
