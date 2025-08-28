@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
-import { formatDistanceToNow } from 'date-fns'
+// Removed date-fns import to avoid build issues
 
 interface TTSStatistics {
   total_24h: number
@@ -272,7 +272,7 @@ const TTSMonitor: React.FC = () => {
                       </p>
                     </div>
                     <div className="text-right text-sm text-gray-400 flex-shrink-0 ml-4">
-                      <div>{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</div>
+                      <div>{new Date(item.created_at).toLocaleTimeString()}</div>
                       {(item.generation_time_ms || item.tts_time_ms) && (
                         <div className="text-xs">
                           {item.generation_time_ms && `Gen: ${formatDuration(item.generation_time_ms)}`}
