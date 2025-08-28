@@ -62,13 +62,13 @@ class DJWorker:
             should_generate = await self._should_generate_commentary()
             
             if should_generate:
-                # Get current track info
-                current_track = await self.api_client.get_now_playing()
+                # Get the most recent completed track (not current playing)
+                recent_completed = await self._get_recent_completed_track()
                 
-                if current_track and current_track.get('track'):
+                if recent_completed and recent_completed.get('track'):
                     job = CommentaryJob(
-                        track_info=current_track['track'],
-                        play_info=current_track.get('play'),
+                        track_info=recent_completed['track'],
+                        play_info=recent_completed.get('play'),
                         context=await self._build_context()
                     )
                     
@@ -81,6 +81,10 @@ class DJWorker:
     async def _should_generate_commentary(self) -> bool:
         """Determine if commentary should be generated"""
         try:
+            # Check if DJ provider is disabled
+            if settings.DJ_PROVIDER == "disabled":
+                return False
+                
             # Check settings for commentary interval
             settings_response = await self.api_client.get_settings()
             if not settings_response:
@@ -110,6 +114,26 @@ class DJWorker:
         except Exception as e:
             logger.error("Error checking if commentary should be generated", error=str(e))
             return False
+    
+    async def _get_recent_completed_track(self) -> Optional[Dict[str, Any]]:
+        """Get the most recent completed track that needs commentary"""
+        try:
+            # Get recent history of completed tracks
+            history = await self.api_client.get_history(limit=5)
+            if not history or 'tracks' not in history:
+                return None
+            
+            # Find the most recent track without commentary
+            for track_play in history['tracks']:
+                if not track_play.get('commentary'):
+                    # This completed track doesn't have commentary yet
+                    return track_play
+            
+            return None
+        
+        except Exception as e:
+            logger.error("Error getting recent completed track", error=str(e))
+            return None
     
     async def _build_context(self) -> Dict[str, Any]:
         """Build context information for commentary generation"""
