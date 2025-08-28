@@ -20,16 +20,21 @@ class Settings(BaseSettings):
     OPENAI_TTS_MODEL: str = "tts-1"
     
     # Ollama
-    OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
-    OLLAMA_MODEL: str = "llama3.1"
+    OLLAMA_BASE_URL: str = "http://ollama:11434"
+    OLLAMA_MODEL: str = "llama3.2:1b"
     
     # XTTS
     XTTS_BASE_URL: Optional[str] = None
     XTTS_VOICE: str = "pirate_dj"
     
+    # Kokoro TTS
+    KOKORO_BASE_URL: str = "http://localhost:8090"
+    KOKORO_VOICE: str = "af_bella"
+    KOKORO_SPEED: float = 1.0
+    
     # DJ Configuration
-    DJ_PROVIDER: str = "openai"  # openai, ollama
-    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, xtts
+    DJ_PROVIDER: str = "templates"  # openai, ollama, templates, disabled
+    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, xtts
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"

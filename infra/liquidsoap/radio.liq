@@ -95,15 +95,14 @@ end
 # Attach the combined callback to the music source
 music = source.on_metadata(music, track_change_handler)
 
-# Smooth crossfades on music with longer transition for TTS insertion
-music = crossfade(duration=4.0, music)
+# Try a simpler approach: rotate between TTS and music using add weights
+# This creates a round-robin style approach where TTS plays before tracks
 
-# Sine backup for emergency fallback
+# Sine backup for emergency fallback  
 sine_src = sine()
 
-# Priority: DJ/TTS first, then music, then sine as emergency fallback  
-# This ensures intros play before songs
-# Use track_sensitive=true to wait for song transitions
+# Create a rotation between TTS and music
+# TTS gets priority when available, then falls back to music
 primary = fallback(track_sensitive=true, [tts_q, music])
 
 # Log track changes on the primary source for debugging
