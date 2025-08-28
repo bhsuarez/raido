@@ -169,3 +169,102 @@ async def create_commentary(
         logger.error("Failed to create commentary", error=str(e), data=commentary_data)
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create commentary: {str(e)}")
+
+@router.get("/tts-status")
+async def get_tts_status(db: AsyncSession = Depends(get_db)):
+    """Get TTS generation status and statistics"""
+    try:
+        logger = structlog.get_logger()
+        
+        # Get recent commentary records with generation stats
+        from sqlalchemy import func, desc
+        from datetime import timedelta
+        
+        now = datetime.now(timezone.utc)
+        last_24h = now - timedelta(hours=24)
+        last_hour = now - timedelta(hours=1)
+        
+        # Count total commentary in last 24h
+        total_result = await db.execute(
+            select(func.count(Commentary.id))
+            .where(Commentary.created_at >= last_24h)
+        )
+        total_24h = total_result.scalar() or 0
+        
+        # Count successful commentary in last 24h
+        success_result = await db.execute(
+            select(func.count(Commentary.id))
+            .where(Commentary.created_at >= last_24h)
+            .where(Commentary.status == "ready")
+        )
+        success_24h = success_result.scalar() or 0
+        
+        # Count failed commentary in last 24h
+        failed_result = await db.execute(
+            select(func.count(Commentary.id))
+            .where(Commentary.created_at >= last_24h)
+            .where(Commentary.status == "failed")
+        )
+        failed_24h = failed_result.scalar() or 0
+        
+        # Get recent activity (last hour)
+        recent_result = await db.execute(
+            select(Commentary)
+            .where(Commentary.created_at >= last_hour)
+            .order_by(desc(Commentary.created_at))
+            .limit(10)
+        )
+        recent_commentary = recent_result.scalars().all()
+        
+        # Get average generation times
+        avg_gen_time_result = await db.execute(
+            select(func.avg(Commentary.generation_time_ms))
+            .where(Commentary.created_at >= last_24h)
+            .where(Commentary.generation_time_ms.is_not(None))
+        )
+        avg_gen_time = avg_gen_time_result.scalar() or 0
+        
+        avg_tts_time_result = await db.execute(
+            select(func.avg(Commentary.tts_time_ms))
+            .where(Commentary.created_at >= last_24h)
+            .where(Commentary.tts_time_ms.is_not(None))
+        )
+        avg_tts_time = avg_tts_time_result.scalar() or 0
+        
+        # Format recent activity
+        recent_activity = []
+        for comment in recent_commentary:
+            recent_activity.append({
+                "id": comment.id,
+                "text": comment.text[:100] + "..." if len(comment.text) > 100 else comment.text,
+                "status": comment.status,
+                "provider": comment.provider,
+                "voice_provider": comment.voice_provider,
+                "generation_time_ms": comment.generation_time_ms,
+                "tts_time_ms": comment.tts_time_ms,
+                "created_at": comment.created_at,
+                "audio_url": comment.audio_url
+            })
+        
+        return {
+            "status": "success",
+            "statistics": {
+                "total_24h": total_24h,
+                "success_24h": success_24h,
+                "failed_24h": failed_24h,
+                "success_rate": round((success_24h / total_24h * 100) if total_24h > 0 else 0, 1),
+                "avg_generation_time_ms": round(float(avg_gen_time), 1) if avg_gen_time else None,
+                "avg_tts_time_ms": round(float(avg_tts_time), 1) if avg_tts_time else None
+            },
+            "recent_activity": recent_activity,
+            "system_status": {
+                "tts_service": "running",  # Could check actual service health
+                "dj_worker": "running",    # Could check actual worker health
+                "kokoro_tts": "running"    # Could check Kokoro health
+            }
+        }
+        
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.error("Failed to get TTS status", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get TTS status: {str(e)}")

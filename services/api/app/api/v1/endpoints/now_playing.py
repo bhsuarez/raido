@@ -70,7 +70,7 @@ async def get_now_playing(db: AsyncSession = Depends(get_db)):
                 "genre": track.genre,
                 "duration_sec": track.duration_sec,
                 "artwork_url": track.artwork_url,
-                "tags": track.tags or []
+                "tags": track.tags if isinstance(track.tags, list) else []
             },
             play={
                 "id": play.id,
@@ -138,7 +138,7 @@ async def get_play_history(
                     "genre": track.genre,
                     "duration_sec": track.duration_sec,
                     "artwork_url": track.artwork_url,
-                    "tags": track.tags or []
+                    "tags": track.tags if isinstance(track.tags, list) else []
                 },
                 "play": {
                     "id": play.id,

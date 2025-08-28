@@ -8,6 +8,9 @@ from app.core.config import settings
 from app.services.commentary_generator import CommentaryGenerator
 from app.services.tts_service import TTSService
 from app.services.api_client import APIClient
+# Temporarily disabled due to psutil import issues
+# from app.services.system_monitor import system_monitor
+system_monitor = None
 from app.models.commentary_job import CommentaryJob, JobStatus
 
 logger = structlog.get_logger()
@@ -29,9 +32,12 @@ class DJWorker:
         self.job_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_JOBS)
     
     async def run(self):
-        """Main worker loop"""
+        """Main worker loop with system health monitoring"""
         self.is_running = True
         logger.info("🎙️ DJ Worker started")
+        
+        # Schedule periodic system health monitoring
+        health_monitor_task = asyncio.create_task(self._periodic_health_monitoring())
         
         try:
             while self.is_running:
@@ -44,6 +50,30 @@ class DJWorker:
             logger.error("Unexpected error in worker loop", error=str(e))
         finally:
             self.is_running = False
+            health_monitor_task.cancel()
+    
+    async def _periodic_health_monitoring(self):
+        """Periodic system health monitoring task"""
+        while self.is_running:
+            try:
+                if system_monitor:
+                    system_health = await system_monitor.check_system_health()
+                    if system_monitor.is_protection_active():
+                        logger.warning("System protection is active - limiting operations")
+                    
+                    # Log system info periodically
+                    system_info = await system_monitor.get_system_info()
+                    logger.debug("System health check", 
+                               cpu=system_info.get('cpu', {}),
+                               memory=system_info.get('memory', {}))
+                else:
+                    logger.debug("System monitoring disabled")
+                
+                await asyncio.sleep(60)  # Check every minute
+                
+            except Exception as e:
+                logger.error("Health monitoring error", error=str(e))
+                await asyncio.sleep(60)
     
     async def stop(self):
         """Stop the worker gracefully"""
@@ -84,6 +114,16 @@ class DJWorker:
             # Check if DJ provider is disabled
             if settings.DJ_PROVIDER == "disabled":
                 return False
+            
+            # CRITICAL: Check system health before proceeding
+            if system_monitor:
+                system_health = await system_monitor.check_system_health()
+                if not system_health.is_healthy:
+                    logger.warning("Skipping commentary generation due to system health", 
+                                 warnings=system_health.warnings,
+                                 cpu=system_health.cpu_percent,
+                                 memory=system_health.memory_percent)
+                    return False
                 
             # Check settings for commentary interval
             settings_response = await self.api_client.get_settings()
