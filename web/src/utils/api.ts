@@ -70,6 +70,9 @@ export const apiHelpers = {
   createUser: (userData: any) => api.post('/admin/users', userData),
   updateUser: (userId: number, userData: any) => api.put(`/admin/users/${userId}`, userData),
   deleteUser: (userId: number) => api.delete(`/admin/users/${userId}`),
+  
+  // Stream controls
+  skipTrack: () => api.post('/liquidsoap/skip'),
 }
 
 export default api

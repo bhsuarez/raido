@@ -16,7 +16,8 @@ settings.server.telnet.port := 1234
 
 # ---------- Sources ----------
 # Queue for DJ/TTS lines - this will play intros with timeout
-tts_q = request.queue(id="tts", timeout=30.0)
+# Use a more aggressive timeout and make it interactive
+tts_q = request.queue(id="tts", timeout=10.0, interactive=true)
 
 # Fallback playlist for when no music available
 backup_music = playlist(
@@ -37,42 +38,8 @@ end
 # Global variable to track last processed track (to avoid duplicates)
 last_processed_track = ref("")
 
-# Auto-generate DJ intro for upcoming track
-def auto_generate_dj_intro(m)
-  artist = meta_get(m, "artist", "Unknown Artist")
-  title  = meta_get(m, "title",  "Unknown Title")
-  
-  # Create a unique key for this track
-  track_key = artist ^ "|" ^ title
-  
-  # Only generate if this is a different track than last time
-  if last_processed_track() != track_key then
-    last_processed_track := track_key
-    
-    log("🏴‍☠️ AUTO-DJ: Requesting intro for upcoming track: " ^ title ^ " by " ^ artist)
-    
-    # Call our API to trigger DJ commentary
-    url = "http://api:8000/api/v1/liquidsoap/track_change"
-    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '"}'
-    # Use thread to avoid blocking liquidsoap
-    thread.run(fun () -> ignore(http.post(url, data=payload, headers=[("Content-Type", "application/json")])))
-  end
-end
-
-# Log each song start to API (non-blocking)  
-def announce_song(m)
-  artist = meta_get(m, "artist", "Unknown artist")
-  title  = meta_get(m, "title",  "Unknown title")
-  album  = meta_get(m, "album",  "")
-  filename = meta_get(m, "filename", "")
-  
-  log("🎵 Now playing: " ^ title ^ " by " ^ artist)
-  
-  # Notify our API about track start
-  payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '"}'
-  cmd = "curl -fsS -X POST -H 'Content-Type: application/json' -d '" ^ payload ^ "' http://api:8000/api/v1/liquidsoap/track_change >/dev/null 2>&1 &"
-  ignore(process.run(cmd))
-end
+# Note: auto_generate_dj_intro and announce_song functions have been
+# consolidated into track_change_handler below to avoid duplicate callbacks
 
 # Ensure sane metadata defaults
 def rm_key(m, k)  list.filter(fun (kv) -> fst(kv) != k, m) end
@@ -95,22 +62,51 @@ end
 # Normalize metadata
 music = metadata.map(update_metadata, all_music)
 
-# AUTO-DJ: Generate intros when tracks are selected/ready
-music = source.on_metadata(music, auto_generate_dj_intro)
+# Combined callback function that handles both commentary generation and logging
+def track_change_handler(m)
+  artist = meta_get(m, "artist", "Unknown artist")
+  title  = meta_get(m, "title",  "Unknown title")
+  album  = meta_get(m, "album",  "")
+  
+  # Create a unique key for this track
+  track_key = artist ^ "|" ^ title
+  
+  # Only process if this is a different track than last time
+  if last_processed_track() != track_key then
+    last_processed_track := track_key
+    
+    log("🎵 Now playing: " ^ title ^ " by " ^ artist)
+    log("🏴‍☠️ AUTO-DJ: Requesting intro for upcoming track: " ^ title ^ " by " ^ artist)
+    
+    # Call our API to trigger both logging and DJ commentary using Liquidsoap's http.post
+    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '"}'
+    url = "http://api:8000/api/v1/liquidsoap/track_change"
+    
+    # Use thread to avoid blocking liquidsoap
+    def make_api_call()
+      response = http.post(url, data=payload, headers=[("Content-Type", "application/json")])
+      log("✅ API call response: " ^ response)
+    end
+    
+    thread.run(make_api_call)
+  end
+end
 
-# Smooth crossfades on music
-music = crossfade(music)
+# Attach the combined callback to the music source
+music = source.on_metadata(music, track_change_handler)
 
-# Announce every real track start
-music = source.on_metadata(music, announce_song)
+# Smooth crossfades on music with longer transition for TTS insertion
+music = crossfade(duration=4.0, music)
 
 # Sine backup for emergency fallback
 sine_src = sine()
 
-# Priority: DJ/TTS first, then music, then sine as emergency fallback
+# Priority: DJ/TTS first, then music, then sine as emergency fallback  
 # This ensures intros play before songs
+# Use track_sensitive=true to wait for song transitions
 primary = fallback(track_sensitive=true, [tts_q, music])
-# Log track changes
+
+# Log track changes on the primary source for debugging
 primary = source.on_track(primary, fun (m) -> log("🎤 Track starting: " ^ meta_get(m, "artist", "Unknown") ^ " - " ^ meta_get(m, "title", "Unknown")))
 radio   = fallback(track_sensitive=false, [primary, sine_src])
 

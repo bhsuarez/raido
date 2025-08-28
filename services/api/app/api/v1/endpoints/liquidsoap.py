@@ -121,8 +121,8 @@ async def track_change_notification(
                 }
             })
         
-        # TODO: Trigger commentary generation if needed
-        # This would be handled by the DJ worker service
+        # Commentary generation is handled by the DJ worker service
+        # which monitors track changes and generates commentary based on settings
         
         return {"status": "success", "track_id": track.id, "play_id": new_play.id}
         
@@ -147,6 +147,48 @@ async def liquidsoap_status():
     except Exception as e:
         logger.error("Failed to get Liquidsoap status", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to get stream status")
+
+@router.post("/skip")
+async def skip_current_track(db: AsyncSession = Depends(get_db)):
+    """Skip the currently playing track"""
+    try:
+        logger.info("Track skip requested")
+        
+        # Mark current play as skipped in database
+        current_play_result = await db.execute(
+            select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
+        )
+        current_play = current_play_result.scalar_one_or_none()
+        
+        if current_play:
+            current_play.was_skipped = True
+            await db.commit()
+        
+        # Connect to Liquidsoap telnet and skip track
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5.0)
+        
+        try:
+            # Connect to Liquidsoap telnet interface
+            sock.connect(("liquidsoap", 1234))
+            
+            # Send skip command
+            command = "playlist.next\n"
+            sock.send(command.encode())
+            
+            # Read response
+            response = sock.recv(1024).decode().strip()
+            logger.info("Liquidsoap skip response", command=command.strip(), response=response)
+            
+            return {"status": "success", "message": "Track skipped", "liquidsoap_response": response}
+            
+        finally:
+            sock.close()
+        
+    except Exception as e:
+        logger.error("Failed to skip track", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to skip track: {str(e)}")
 
 @router.post("/inject_commentary")
 async def inject_commentary_file(
