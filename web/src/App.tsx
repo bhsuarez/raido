@@ -7,7 +7,7 @@ import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import AdminPanel from './components/AdminPanel'
-import TTSMonitor from './components/TTSMonitor'
+import TTSMonitorSimple from './components/TTSMonitorSimple'
 
 function App() {
 
@@ -35,7 +35,7 @@ function App() {
           />
           <Route 
             path="/tts" 
-            element={<TTSMonitor />} 
+            element={<TTSMonitorSimple />} 
           />
           <Route 
             path="*" 
