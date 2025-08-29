@@ -49,6 +49,8 @@ class CommentaryGenerator:
                 return await self._generate_with_openai(prompt_context)
             elif provider == "ollama":
                 return await self._generate_with_ollama(prompt_context)
+            elif provider == "templates":
+                return await self._generate_with_templates(prompt_context)
             else:
                 logger.info("DJ provider not available", provider=provider, 
                            has_openai=bool(self.openai_client and settings.OPENAI_API_KEY))
@@ -81,7 +83,7 @@ class CommentaryGenerator:
             'year': track_info.get('year', 'Unknown'),
             'genre': track_info.get('genre', 'Various'),
             'duration_sec': int(track_info.get('duration_sec', 0)) if track_info.get('duration_sec') else 'Unknown',
-            'play_index_in_block': 1,  # TODO: Calculate based on recent commentary
+            'play_index_in_block': 1,  # Could be enhanced to track position in commentary interval
             'total_songs_in_block': dj_settings.get('dj_commentary_interval', settings.DJ_COMMENTARY_INTERVAL),
             'recent_history': history_str,
             'up_next': up_next_str,
@@ -141,4 +143,37 @@ class CommentaryGenerator:
         
         except Exception as e:
             logger.error("Ollama commentary generation failed", error=str(e))
+            return None
+
+    async def _generate_with_templates(self, prompt_context: Dict[str, Any]) -> Optional[str]:
+        """Generate commentary using pre-written templates (fast fallback)"""
+        try:
+            import random
+            
+            # Pre-written DJ commentary templates
+            templates = [
+                "Ahoy there, mateys! Here's {artist} with {song_title}. Let's rock!",
+                "All hands on deck for this classic! {artist} bringing you {song_title}!",
+                "Sailing the airwaves with {artist} and {song_title}. Enjoy the ride!",
+                "From the crow's nest, here's {artist} with {song_title}. Turn it up!",
+                "Batten down the hatches! {artist}'s {song_title} is coming in hot!",
+                "Yo ho ho! {artist} with {song_title}. This one's a treasure!",
+                "Set sail with this beauty - {artist} performing {song_title}!",
+                "Captain's orders: crank up {song_title} by {artist}!",
+                "Smooth sailing ahead with {artist} and {song_title}. Ahoy!",
+                "From the radio galley, here's {artist} with {song_title}!"
+            ]
+            
+            # Select random template and format it
+            template = random.choice(templates)
+            commentary = template.format(
+                artist=prompt_context.get('artist', 'Unknown Artist'),
+                song_title=prompt_context.get('song_title', 'Unknown Title')
+            )
+            
+            # Add SSML structure
+            return f'<speak><break time="400ms"/>{commentary}</speak>'
+            
+        except Exception as e:
+            logger.error("Template commentary generation failed", error=str(e))
             return None

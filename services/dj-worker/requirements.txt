@@ -17,3 +17,4 @@ tenacity==8.2.3
 soundfile==0.12.1
 librosa==0.10.1
 numpy==1.24.4
+psutil==5.9.6
