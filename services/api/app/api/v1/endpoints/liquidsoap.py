@@ -164,15 +164,20 @@ async def track_change_notification(
 async def liquidsoap_status():
     """Get Liquidsoap status via telnet interface"""
     try:
-        # This would connect to Liquidsoap telnet interface
-        # For now, return mock data
+        from app.services.liquidsoap_client import LiquidsoapClient
+        
+        client = LiquidsoapClient()
+        status = client.get_all_status()
+        
         return {
             "status": "running",
-            "uptime": 3600,
-            "current_song": "Unknown",
-            "queue_length": 0,
-            "listeners": 0
+            "liquidsoap_metadata": status.get('metadata', {}),
+            "queue_info": status.get('queue', {}),
+            "uptime_seconds": status.get('uptime'),
+            "available_commands": status.get('available_commands', []),
+            "raw_status": status
         }
+        
     except Exception as e:
         logger.error("Failed to get Liquidsoap status", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to get stream status")
@@ -202,8 +207,8 @@ async def skip_current_track(db: AsyncSession = Depends(get_db)):
             # Connect to Liquidsoap telnet interface
             sock.connect(("liquidsoap", 1234))
             
-            # Send skip command
-            command = "playlist.next\n"
+            # Send skip command; matches LiquidsoapClient implementation
+            command = "music.skip\n"
             sock.send(command.encode())
             
             # Read response

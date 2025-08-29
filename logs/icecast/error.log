@@ -2939,3 +2939,994 @@
 [2025-08-29  02:46:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
 [2025-08-29  02:46:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
 [2025-08-29  02:46:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lupe Fiasco - Gotta Eat"
+[2025-08-29  02:49:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  02:49:27] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  02:49:27] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Regina Spektor - Oedipus"
+[2025-08-29  02:54:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  02:54:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  02:54:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  02:54:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "A$AP Ferg - Shabba (feat. A$AP Rocky)"
+[2025-08-29  02:59:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  02:59:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  02:59:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  02:59:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Prem Joshua - Lahore Connection"
+[2025-08-29  03:06:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:06:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:06:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:06:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Prince And The Revolution - The Beautiful Ones"
+[2025-08-29  03:11:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:11:24] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:11:24] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:11:24] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bob Marley - Cry To Me"
+[2025-08-29  03:14:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:14:00] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:14:00] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Big Boi - Mama Told Me feat. Kelly Rowland"
+[2025-08-29  03:17:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:17:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:17:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:17:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Yeasayer - Tightrope"
+[2025-08-29  03:20:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:20:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:20:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Putumayo - Rusty Nails"
+[2025-08-29  03:25:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:25:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:25:07] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:25:07] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Harvey Danger - Flagpole Sitta"
+[2025-08-29  03:28:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:28:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:28:47] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:28:47] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Charles Bradley - You Think I Don't Know (But I Know)"
+[2025-08-29  03:32:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:32:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:32:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:32:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Summer Walker, Jhené Aiko - I'll Kill You"
+[2025-08-29  03:35:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:35:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:35:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:35:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "El Guincho - Lycra Mistral"
+[2025-08-29  03:39:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:39:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:39:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:39:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Chief Keef - Diamonds (Feat. French Montana)"
+[2025-08-29  03:42:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:42:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:42:27] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:42:27] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Toro Y Moi - Us 2"
+[2025-08-29  03:43:41] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:43:41] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:43:41] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Of Montreal - The Gay Parade Outro"
+[2025-08-29  03:44:29] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:44:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:44:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:44:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Death Cab For Cutie - Expo '86"
+[2025-08-29  03:48:45] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:48:49] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:48:49] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:48:49] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Kanye West - Don't Look Down (Feat. Mos Def, Lupe Fiasco & Big Sean)"
+[2025-08-29  03:54:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:54:44] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:54:44] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Who - I'm a Boy"
+[2025-08-29  03:57:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:57:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  03:57:26] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  03:57:26] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Weezer - Smile"
+[2025-08-29  04:00:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:00:05] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:00:05] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Foster the People - Pumped Up Kicks"
+[2025-08-29  04:04:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:04:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:04:08] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:04:08] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Rage Against the Machine - Mic Check"
+[2025-08-29  04:07:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:07:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:07:46] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:07:46] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Built To Spill - Sidewalk"
+[2025-08-29  04:11:38] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:11:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:11:42] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:11:42] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Brian Jonestown Massacre - Starcleaner"
+[2025-08-29  04:14:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:14:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:14:14] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:14:14] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "System Of A Down - Soldier Side - Intro"
+[2025-08-29  04:15:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:15:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:15:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:15:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Florence and The Machine - You've Got the Love (The xx Remix)"
+[2025-08-29  04:21:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:21:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:21:11] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:21:11] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Yeah Yeah Yeahs - Yeah! New York"
+[2025-08-29  04:23:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:23:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:23:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:23:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Juice WRLD - Intro"
+[2025-08-29  04:24:38] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:24:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:24:42] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:24:42] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Monsters Of Folk - His Master's Voice"
+[2025-08-29  04:29:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:29:32] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:29:32] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Unknown Artist - 05 - Focus On Sight"
+[2025-08-29  04:33:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:33:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:33:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:33:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Brian Jonestown Massacre - What Did You Say"
+[2025-08-29  04:34:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:34:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:34:12] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:34:12] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Phoenix - Bankrupt!"
+[2025-08-29  04:41:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:41:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:41:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sixto Rodriguez - Rich Folks' Hoax"
+[2025-08-29  04:44:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:44:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:44:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:44:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Cat Power - Speak For Me"
+[2025-08-29  04:47:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:47:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:47:12] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:47:12] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Ben Folds Five - Brick"
+[2025-08-29  04:51:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:51:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:51:46] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:51:46] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Flying Lotus - Intro: A Cosmic Drama"
+[2025-08-29  04:53:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:53:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:53:05] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:53:05] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Unknown Artist - 03 - Indra"
+[2025-08-29  04:58:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:58:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  04:58:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  04:58:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Travi$ Scott - Bacc (Bonus)"
+[2025-08-29  05:00:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:00:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:00:50] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:00:50] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Future; Drake - Life Is Good"
+[2025-08-29  05:04:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:04:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:04:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:04:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sublime - Cisco Kid"
+[2025-08-29  05:09:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:09:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:09:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:09:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Pink Floyd - More Blues"
+[2025-08-29  05:11:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:11:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:11:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:11:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jimi Hendrix - Dolly Dagger"
+[2025-08-29  05:16:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:16:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:16:39] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:16:39] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Vampire Weekend - 2021"
+[2025-08-29  05:18:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:18:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:18:22] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:18:22] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "J Cole - Mo Money (Interlude)"
+[2025-08-29  05:19:40] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:19:45] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:19:45] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:19:45] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bob Marley - Rocking Steady"
+[2025-08-29  05:21:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:21:51] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:21:51] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:21:51] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Animal Collective - Brother Sport"
+[2025-08-29  05:27:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:27:50] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:27:50] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Caribou - Barnowl"
+[2025-08-29  05:33:40] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:33:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:33:44] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:33:44] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Mac DeMarco - Nobody"
+[2025-08-29  05:37:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:37:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:37:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:37:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Radiohead - A Reminder"
+[2025-08-29  05:41:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:41:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:41:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:41:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Syd - Over (feat. 6LACK)"
+[2025-08-29  05:44:29] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:44:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:44:32] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:44:32] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Girl Talk - happen (feat. "chris glover")"
+[2025-08-29  05:47:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:47:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:47:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Syd - Nothin to Somethin"
+[2025-08-29  05:51:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:51:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:51:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:51:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "BROCKHAMPTON - BOY BYE"
+[2025-08-29  05:53:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:53:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:53:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:53:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Childish Gambino - All The Shine"
+[2025-08-29  05:59:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:59:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  05:59:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  05:59:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Devendra Banhart - The Beatles"
+[2025-08-29  06:01:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:01:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:01:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:01:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "ASAP Ferg - Fergsomnia ft. Twista (Prod by Very Rare & DRAM) (DatPiff Exclusive)"
+[2025-08-29  06:05:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:05:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:05:26] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:05:26] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Band of horses - ode to lrc"
+[2025-08-29  06:09:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:09:43] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:09:43] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Roy Ayers - Out of Sight"
+[2025-08-29  06:16:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:16:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:16:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:16:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bob Marley - Lively Up Yourself"
+[2025-08-29  06:21:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:21:26] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:21:26] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Unknown Artist - You Saved Me"
+[2025-08-29  06:21:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:21:27] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:21:27] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Echo & The Bunnymen - Thorn Of Crowns"
+[2025-08-29  06:26:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:26:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:26:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:26:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Various Jazz Artists - gene harris - losalamitos - latinfunklovesong"
+[2025-08-29  06:28:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:28:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:28:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:28:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The National - Afraid of Everyone"
+[2025-08-29  06:32:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:33:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:33:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:33:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lotus Plaza - Out of Touch"
+[2025-08-29  06:37:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:37:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:37:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Justice - D.A.N.C.E. (Alan Braxe And Fred Falke Remix)"
+[2025-08-29  06:42:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:42:49] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:42:49] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:42:49] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Britney Spears - Toxic"
+[2025-08-29  06:46:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:46:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:46:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:46:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Broken Bells - Your Head Is On Fire"
+[2025-08-29  06:49:21] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:49:21] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:49:21] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bob Dylan - You Ain't Goin' Nowhere"
+[2025-08-29  06:52:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:52:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:52:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "21 Savage - Famous"
+[2025-08-29  06:55:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:56:03] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  06:56:03] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  06:56:03] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Dr. Dog - Ain't It Strange"
+[2025-08-29  07:00:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:00:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:00:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jay-Z - Real As It Gets [Ft. Young Jeezy]"
+[2025-08-29  07:04:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:04:44] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:04:44] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Of Montreal - Faberge Falls for Shuggie"
+[2025-08-29  07:09:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:09:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:09:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:09:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Panda Bear - Search For Delicious"
+[2025-08-29  07:14:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:14:12] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:14:12] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Red Hot Chili Peppers - The Zephyr Song"
+[2025-08-29  07:18:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:18:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:18:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:18:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "M. Ward - Epistemology"
+[2025-08-29  07:21:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:22:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:22:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:22:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Frank Ocean - DHL"
+[2025-08-29  07:26:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:27:03] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:27:03] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:27:03] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "King Louie - L'$$$-Produced By DJ L"
+[2025-08-29  07:31:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:31:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:31:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:31:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "M.I.A. - Born Free"
+[2025-08-29  07:35:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:35:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:35:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:35:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Grimes - Dragvandil"
+[2025-08-29  07:36:58] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:37:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:37:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:37:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jimi Hendrix - Manic Depresion"
+[2025-08-29  07:40:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:40:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:40:48] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:40:48] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "A$AP Ferg - Psycho"
+[2025-08-29  07:43:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:43:51] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:43:51] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:43:51] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Felt - Primitive Painters"
+[2025-08-29  07:49:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:49:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:49:54] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:49:54] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Big Sean & Metro Boomin - So Good (feat. Kash Doll)"
+[2025-08-29  07:54:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:54:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:54:27] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:54:27] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Pink Floyd - Marooned"
+[2025-08-29  07:59:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  07:59:55] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  07:59:55] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Caetano Veloso - Michelangelo Antonioni"
+[2025-08-29  08:03:40] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:03:45] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:03:45] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:03:45] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Beck - Beck - Missing"
+[2025-08-29  08:08:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:08:49] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:08:49] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:08:49] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Doors - The Unknown Soldier"
+[2025-08-29  08:12:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:12:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:12:14] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:12:14] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Red Hot Chili Peppers - Porcelain"
+[2025-08-29  08:14:58] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:15:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:15:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:15:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Anderson .Paak - Saviers Road"
+[2025-08-29  08:17:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:17:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:17:32] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:17:32] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Big Sean - FEED"
+[2025-08-29  08:20:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:20:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:20:39] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:20:39] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Cage The Elephant - Sell Yourself"
+[2025-08-29  08:22:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:22:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:22:53] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:22:53] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Blur - Trimm Trabb"
+[2025-08-29  08:28:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:28:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:28:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Simon & Garfunkel - Kathy's Song"
+[2025-08-29  08:31:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:31:56] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:31:56] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:31:56] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Shins - Kissing The Lipless"
+[2025-08-29  08:35:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:35:16] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:35:16] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Vetiver - More Of This"
+[2025-08-29  08:39:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:39:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:39:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:39:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Albeniz - Asturias"
+[2025-08-29  08:45:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:45:21] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:45:21] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:45:21] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Mø - Glass"
+[2025-08-29  08:48:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:48:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:48:39] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:48:39] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Weird Tapes - The Walking Dead"
+[2025-08-29  08:53:49] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:53:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:53:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:53:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Marvin Gaye - You Ain't Livin' Till You're Lovin' (With Tammi Terrell)"
+[2025-08-29  08:56:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:56:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  08:56:42] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  08:56:42] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "A Tribe Called Quest - Conrad Tokyo"
+[2025-08-29  09:00:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:00:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:00:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:00:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Foxygen - Star Power Airlines"
+[2025-08-29  09:01:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:01:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:01:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:01:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sousa - Washington Post March"
+[2025-08-29  09:04:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:04:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:04:14] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:04:14] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Built To Spill - Center Of The Universe"
+[2025-08-29  09:06:57] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:07:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:07:01] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:07:01] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Led Zeppelin - Friends"
+[2025-08-29  09:10:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:10:55] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:10:55] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Million $ Mano - Modjo - Lady (Million $ Mano Mix)"
+[2025-08-29  09:14:29] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:14:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:14:33] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:14:33] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Radiohead - In Limbo"
+[2025-08-29  09:18:04] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:18:04] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:18:04] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Aaliyah - Never No More"
+[2025-08-29  09:22:03] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:22:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:22:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:22:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Mike WiLL - Smoke A Nigga (Feat. Juicy J)"
+[2025-08-29  09:26:25] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:26:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:26:28] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:26:28] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "M.I.A. - Double Bubble Trouble"
+[2025-08-29  09:29:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:29:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:29:33] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:29:33] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Iron and Wine - Dearest Forsaken"
+[2025-08-29  09:33:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:33:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:33:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:33:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Outkast - Last Call (Feat. Slimm Calhoun, Lil‚ Jon & The East Side Boyz & Mello)"
+[2025-08-29  09:37:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:37:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:37:32] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:37:32] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Beyonce - I Care"
+[2025-08-29  09:41:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:41:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:41:39] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:41:39] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Billie Holiday - God Bless The Child"
+[2025-08-29  09:44:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:44:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:44:36] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:44:36] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Tom Petty - Free Falling"
+[2025-08-29  09:48:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:48:56] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:48:56] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:48:56] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Josh Turner - Your Man"
+[2025-08-29  09:52:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:52:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:52:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:52:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Foxygen - Everyone Needs Love"
+[2025-08-29  09:59:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:59:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  09:59:22] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  09:59:22] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Arctic Monkeys - Florescent Adolescent"
+[2025-08-29  10:02:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:02:24] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:02:24] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:02:24] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Menomena - My My"
+[2025-08-29  10:06:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:06:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:06:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:06:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Thom Yorke - There Is No Ice (For My Drink)"
+[2025-08-29  10:13:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:13:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:13:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "M.I.A. - Bingo"
+[2025-08-29  10:16:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:16:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:16:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Ty Dolla $ign - Intro"
+[2025-08-29  10:16:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:16:58] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:16:58] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:16:58] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jay-Z - D.O.A. [Death Of Auto-Tune]"
+[2025-08-29  10:21:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:21:13] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:21:13] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Dum Dum Girls - Lord Knows"
+[2025-08-29  10:25:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:25:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:25:36] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:25:36] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sufjan Stevens - Holland"
+[2025-08-29  10:29:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:29:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:29:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Common - Testify"
+[2025-08-29  10:31:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:31:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:31:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:31:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Devendra Banhart - There Was Sun"
+[2025-08-29  10:33:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:33:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:33:10] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:33:10] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "MGMT - We Care"
+[2025-08-29  10:38:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:38:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:38:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:38:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Deerhunter - Blue Agent"
+[2025-08-29  10:41:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:41:50] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:41:50] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Real Estate - Green River"
+[2025-08-29  10:44:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:44:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:44:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Spoon - I Saw the Light"
+[2025-08-29  10:50:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:50:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:50:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:50:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Girls - Lust For Life"
+[2025-08-29  10:52:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:52:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:52:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Pink Floyd - One Slip"
+[2025-08-29  10:57:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  10:57:36] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  10:57:36] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Vulfpeck - Dean Town"
+[2025-08-29  11:01:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:01:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:01:13] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:01:13] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "James Blake - Where's the Catch? (feat. André 3000)"
+[2025-08-29  11:05:49] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:05:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:05:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:05:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Pixies - Gigantic"
+[2025-08-29  11:09:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:09:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:09:53] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:09:53] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Feist - I feel it all"
+[2025-08-29  11:13:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:13:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:13:36] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:13:36] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Wilco - We're Just Friends"
+[2025-08-29  11:16:21] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:16:21] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:16:21] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bob Marley - Put It On"
+[2025-08-29  11:20:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:20:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:20:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Thievery Corporation - The Time We Lost Our Way (Feat"
+[2025-08-29  11:24:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:24:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:24:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:24:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Nils Petter Molvaer  - Hurry Slowly (Herbert's Moving Mix By Matthew Herber)"
+[2025-08-29  11:30:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:30:37] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:30:37] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:30:37] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Moby - 904 Pale Horses"
+[2025-08-29  11:34:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:34:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:34:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:34:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Girl Talk - Once Again"
+[2025-08-29  11:37:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:37:00] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:37:00] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The La's - There She Goes"
+[2025-08-29  11:39:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:39:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:39:47] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:39:47] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Built to Spill - Carry The Zero"
+[2025-08-29  11:41:13] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  11:41:13] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  11:41:14] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  11:41:32] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:41:32] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:41:33] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:41:33] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  11:41:34] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  11:41:35] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:41:35] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:41:35] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:41:51] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:41:51] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:41:51] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:41:52] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:42:08] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:42:08] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:42:08] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  11:42:08] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  11:42:24] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  11:45:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:45:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:45:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:45:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Audiences - Audiences"
+[2025-08-29  11:51:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:51:44] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:51:44] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Putumayo - Adama Coly"
+[2025-08-29  11:57:24] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:57:29] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  11:57:29] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  11:57:29] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lady GaGa - The Fame"
+[2025-08-29  12:01:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:01:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:01:15] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:01:15] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lupe Fiasco - Put Em Up"
+[2025-08-29  12:01:30] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:01:31] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:01:31] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:01:47] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:01:47] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:02:03] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  12:02:50] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:02:51] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:02:51] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:03:07] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:03:07] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:03:23] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  12:05:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:05:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:05:15] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:05:15] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lil Wayne - Mrs. Officer (Ft. Bobby Valentino)"
+[2025-08-29  12:10:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:10:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:10:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:10:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Big Sean & Metro Boomin - Go Legend (feat. Travis Scott)"
+[2025-08-29  12:14:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:14:41] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:14:41] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:14:41] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Incubus - Make Yourself"
+[2025-08-29  12:17:44] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:17:44] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:17:44] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Radiohead - Bones"
+[2025-08-29  12:18:47] INFO fserve/fserve_client_create checking for file /api/v1/now/next (/usr/share/icecast/web/api/v1/now/next)
+[2025-08-29  12:18:47] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now/next" No such file or directory
+[2025-08-29  12:18:47] INFO fserve/fserve_client_create checking for file /api/v1/now/ (/usr/share/icecast/web/api/v1/now/)
+[2025-08-29  12:18:47] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now/" No such file or directory
+[2025-08-29  12:18:52] INFO fserve/fserve_client_create checking for file /api/v1/now/next (/usr/share/icecast/web/api/v1/now/next)
+[2025-08-29  12:18:52] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now/next" No such file or directory
+[2025-08-29  12:20:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:20:53] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:20:53] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "DJ Earworm - Reckoner Lockdown (Kanye West vs. Radiohead)"
+[2025-08-29  12:25:58] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:25:58] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:25:58] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Pink Floyd - The Narrow Way, Part I"
+[2025-08-29  12:29:25] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:29:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:29:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:29:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Beatles - Across The Universe"
+[2025-08-29  12:33:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:33:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:33:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "jj - my hopes and dreams"
+[2025-08-29  12:34:37] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:34:54] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:34:54] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:34:54] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  12:34:55] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  12:35:11] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  12:36:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:36:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:36:10] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:36:10] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Andrew Bird - ~"
+[2025-08-29  12:38:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:38:48] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:38:48] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Shins - Turn On Me"
+[2025-08-29  12:42:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:42:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:42:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Page France - Be My Pianist"
+[2025-08-29  12:44:40] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:44:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:44:43] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:44:43] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Marvin Gaye - Got To Give It Up, Pt. 1"
+[2025-08-29  12:48:56] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:49:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:49:00] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:49:00] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "J Cole/Jhene Aiko - Sparks Will Fly"
+[2025-08-29  12:53:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:53:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:53:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:53:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Death Cab For Cutie - Line Of Best Fit"
+[2025-08-29  12:59:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:59:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  12:59:11] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  12:59:11] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Elvis Costello - Little Boxes"
+[2025-08-29  13:00:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:00:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:00:11] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:00:11] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Thom Yorke - Black Swan (Vogel Bonus Beat Eraser remix)"
+[2025-08-29  13:01:47] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:01:47] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  13:01:47] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:02:25] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:02:34] INFO source/send_to_listener Client 288 (192.168.1.108) has fallen too far behind, removing
+[2025-08-29  13:02:34] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  13:03:26] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:03:29] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:03:29] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:03:29] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:03:30] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:03:30] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:03:30] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  13:03:30] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:03:46] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:03:48] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:03:48] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  13:03:48] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:04:04] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  13:04:04] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:04:04] INFO source/source_main listener count on /raido.mp3 now 3
+[2025-08-29  13:04:04] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:04:20] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:08:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:08:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:08:05] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:08:05] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Guster - Barrel Of A Gun"
+[2025-08-29  13:11:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:11:15] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:11:15] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Danny Brown - I Will"
+[2025-08-29  13:14:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:14:37] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:14:37] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:14:37] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Roy Ayers - It Ain't Your Sign, It's Your Mind"
+[2025-08-29  13:17:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:17:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:17:46] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:17:46] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Beck - "Rollins Power Sauce""
+[2025-08-29  13:18:13] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:18:13] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:18:13] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  13:18:13] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  13:18:23] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  13:19:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:19:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:19:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Kings Of Leon - Cold Desert"
+[2025-08-29  13:25:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:25:27] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:25:27] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Wilco - Dreamer In My Dreams"
+[2025-08-29  13:32:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:32:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:32:16] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:32:16] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Friend, Lover, Sister, Mother/Wife - Friend, Lover, Sister, Mother"
+[2025-08-29  13:39:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:39:58] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:39:58] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:39:58] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Weezer - Say It Ain't So"
+[2025-08-29  13:44:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  13:44:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  13:44:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sufjan Stevens - Djohariah"
+[2025-08-29  14:01:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:01:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:01:26] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:01:26] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Juicy J/Lil' Wayne/2 Chainz - Bandz a Make Her Dance"
+[2025-08-29  14:06:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:06:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:06:10] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:06:10] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Cults - Oh My God"
+[2025-08-29  14:09:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:09:30] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:09:30] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Tom Waits - Big Black Mariah"
+[2025-08-29  14:12:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:12:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:12:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:12:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sheck Wes - Danimals"
+[2025-08-29  14:12:45] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  14:12:45] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  14:12:45] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  14:16:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:16:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:16:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:16:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Eminem - Eminem - Infinite - Maxine"
+[2025-08-29  14:20:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:20:05] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:20:05] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:20:05] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Milo Greene - Polaroid"
+[2025-08-29  14:21:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:21:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:21:17] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:21:17] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Iron & Wine - Flightless Bird, American Mouth"
+[2025-08-29  14:25:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:25:20] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:25:20] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Alicia Keys - Fallin'"
+[2025-08-29  14:28:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:28:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:28:39] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:28:39] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Ty Dolla $ign - Blasé (feat. Future & Rae Sremmurd)"
+[2025-08-29  14:33:24] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:33:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:33:28] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:33:28] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Black Moth Super Rainbow - When the Sun Grows on Your Tongue"
+[2025-08-29  14:36:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:36:14] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:36:14] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:36:14] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Coldplay - Moses (Live)"
+[2025-08-29  14:41:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:41:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:41:48] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:41:48] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Brian Jonestown Massacre - Vacuum Boots"
+[2025-08-29  14:44:45] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:44:45] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:44:45] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Bad Bunny - <3"
+[2025-08-29  14:47:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:47:26] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:47:26] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:47:26] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Third Eye Blind - Palm Reader"
+[2025-08-29  14:52:20] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:52:23] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:52:23] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:52:23] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Tyler, The Creator - CHERRY BOMB"
+[2025-08-29  14:56:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  14:56:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  14:56:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Fever Ray - Triangle Walks"
+[2025-08-29  15:01:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:01:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:01:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:01:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Nujabes - Voice of Autumn"
+[2025-08-29  15:03:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:03:13] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:03:13] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "JAY-Z - Marcy Me"
+[2025-08-29  15:06:07] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:06:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:06:11] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:06:11] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Del tha Funkee Homosapien - Jaw Gymnastics"
+[2025-08-29  15:09:56] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:09:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:09:59] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:09:59] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Arctic Monkeys - When The Sun Goes Down"
+[2025-08-29  15:13:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:13:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:13:28] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:13:28] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Lumineers - 09-Charlie Boy"
+[2025-08-29  15:17:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:17:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:17:54] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:17:54] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jeff Buckley - Sweet Thing"
+[2025-08-29  15:28:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:28:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:28:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:28:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Flaming Lips - One More Robot/Sympathy 3000-21"
+[2025-08-29  15:33:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:33:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:33:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sharon Van Etten - Magic Chords"
+[2025-08-29  15:37:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:37:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:37:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:37:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Built to Spill - The Plan"
+[2025-08-29  15:41:03] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:41:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:41:08] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:41:08] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Air - Highschool Lover"
+[2025-08-29  15:43:50] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:43:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:43:54] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:43:54] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Jimi Hendrix Experience - Bold as Love"
+[2025-08-29  15:48:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:48:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:48:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:48:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "kanye west - stronger (mano remix)"
+[2025-08-29  15:51:17] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:51:22] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:51:22] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:51:22] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Hood Internet - Kells-tone For The Painfully In Love (R. Kelly vs Casiotone For the Painfully Alone)"
+[2025-08-29  15:54:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:54:12] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:54:12] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:54:12] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Broken Social Scene - Guilty Cubicles"
+[2025-08-29  15:57:16] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  15:57:16] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  15:57:16] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "System of a Down - Radio/Video"
+[2025-08-29  16:01:25] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:01:34] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:01:34] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:01:34] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Of Montreal - The Blank Husband Epidemic"
+[2025-08-29  16:04:13] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:04:18] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:04:18] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:04:18] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "People Under The Stairs - Talkin' Back to the Streets"
+[2025-08-29  16:08:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:08:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:08:53] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:08:53] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Black Moth Super Rainbow - Unfinished Sketch 3 (Unreleased 2006)"
+[2025-08-29  16:10:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:10:38] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:10:38] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:10:38] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lana Del Rey - Carmen"
+[2025-08-29  16:14:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:14:53] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:14:53] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:14:53] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Stevie Wonder - Don't you worry 'bout a thing"
+[2025-08-29  16:19:39] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:19:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:19:43] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:19:43] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Tyler, The Creator - THE BROWN STAINS OF DARKEESE LATIFAH PART 6-12 (REMIX)"
+[2025-08-29  16:22:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:22:55] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:22:55] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Boards Of Canada - Dayvan Cowboy"
+[2025-08-29  16:27:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:28:00] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:28:00] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:28:00] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "No Doubt - World Go 'Round"
+[2025-08-29  16:32:09] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:32:09] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:32:09] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Guster - Come Down Stairs And Say Hello"
+[2025-08-29  16:35:32] INFO source/send_to_listener Client 380 (192.168.1.170) has fallen too far behind, removing
+[2025-08-29  16:35:32] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  16:37:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:37:32] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:37:32] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:37:32] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Father John Misty - This Is Sally Hatchet"
+[2025-08-29  16:41:30] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:41:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:41:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:41:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Nicki Minaj - Finale"
+[2025-08-29  16:42:06] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  16:42:07] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  16:42:07] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  16:42:41] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:42:46] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:42:46] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:42:46] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Big Boi - CPU feat. Phantogram"
+[2025-08-29  16:46:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:47:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:47:02] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:47:02] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "YG - Meet the Flockers (feat. Tee Cee)"
+[2025-08-29  16:49:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:49:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:49:10] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:49:10] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Action Bronson - Alligator"
+[2025-08-29  16:54:42] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:54:47] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  16:54:47] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  16:54:47] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Lighthouse and the Whaler - Soon You'll Be Found"
+[2025-08-29  17:00:02] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:00:06] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:00:06] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:00:06] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Lauryn Hill - Interlude 2"
+[2025-08-29  17:01:28] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:01:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:01:33] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:01:33] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Replacements - I Will Dare"
+[2025-08-29  17:04:51] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:04:55] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:04:55] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:04:55] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Jay-Z and Kanye West - H.A.M"
+[2025-08-29  17:09:33] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:09:37] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:09:37] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:09:37] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Local Natives - Warning sign"
+[2025-08-29  17:13:48] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:13:52] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:13:52] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:13:52] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Deerhunter - Nothing Ever Happened"
+[2025-08-29  17:19:43] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:19:43] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:19:43] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Putumayo - Santi Ma (Congo)"
+[2025-08-29  17:24:27] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:24:31] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:24:31] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:24:31] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Presidents of the USA - Rot In The Sun"
+[2025-08-29  17:26:57] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:27:01] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:27:01] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:27:01] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Leon Bridges - Flowers"
+[2025-08-29  17:29:59] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:30:03] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:30:03] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:30:03] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Kanye West - Fade"
+[2025-08-29  17:33:11] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:33:15] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:33:15] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:33:15] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Gorillaz - Kids With Guns (Quiet Village Remix)"
+[2025-08-29  17:35:47] INFO source/source_shutdown Source from 172.18.0.7 at "/raido.mp3" exiting
+[2025-08-29  17:35:47] INFO source/source_clear_source 1 active listeners on /raido.mp3 released
+[2025-08-29  17:35:47] INFO main/_server_proc Caught halt request, shutting down...
+[2025-08-29  17:35:47] INFO main/main Shutting down
+[2025-08-29  17:35:47] INFO fserve/fserve_shutdown file serving stopped
+[2025-08-29  17:35:48] INFO slave/_slave_thread shutting down current relays
+[2025-08-29  17:35:48] INFO slave/_slave_thread Slave thread shutdown complete
+[2025-08-29  17:35:48] INFO auth/auth_shutdown Auth shutdown
+[2025-08-29  17:35:48] INFO yp/yp_shutdown YP thread down
+[2025-08-29  17:35:48] INFO stats/stats_shutdown stats thread finished
+[2025-08-29  17:40:14] INFO main/main Icecast 2.4.4 server started
+[2025-08-29  17:40:14] INFO yp/yp_update_thread YP update thread started
+[2025-08-29  17:40:14] INFO connection/get_ssl_certificate No SSL capability on any configured ports
+[2025-08-29  17:40:27] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:27] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:40:27] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:27] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:40:32] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:32] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:40:33] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:33] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:40:41] INFO main/main Icecast 2.4.4 server started
+[2025-08-29  17:40:41] INFO yp/yp_update_thread YP update thread started
+[2025-08-29  17:40:41] INFO connection/get_ssl_certificate No SSL capability on any configured ports
+[2025-08-29  17:40:47] INFO fserve/fserve_client_create checking for file /api/v1/now/next (/usr/share/icecast/web/api/v1/now/next)
+[2025-08-29  17:40:47] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now/next" No such file or directory
+[2025-08-29  17:40:52] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:52] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:40:52] INFO fserve/fserve_client_create checking for file /raido.mp3 (/usr/share/icecast/web/raido.mp3)
+[2025-08-29  17:40:52] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/raido.mp3" No such file or directory
+[2025-08-29  17:41:08] INFO connection/_handle_source_request Source logging in at mountpoint "/raido.mp3" from 172.18.0.7
+[2025-08-29  17:41:08] WARN format/format_get_type Unsupported or legacy stream type: "audio/mpeg". Falling back to generic minimal handler for best effort.
+[2025-08-29  17:41:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:41:08] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:41:08] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "The Doors - The Ghost Song"
+[2025-08-29  17:41:08] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  17:41:15] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  17:41:15] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  17:41:16] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  17:45:21] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:45:21] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:45:21] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Fleet Foxes - Sunblind"
+[2025-08-29  17:49:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:49:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:49:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Kid Sister - Let Me Bang"
+[2025-08-29  17:52:37] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  17:52:37] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  17:52:37] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Joanna Newsom - In California"
+[2025-08-29  17:58:07] INFO source/source_main listener count on /raido.mp3 now 0
+[2025-08-29  17:58:09] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  17:58:09] INFO source/source_main listener count on /raido.mp3 now 2
+[2025-08-29  17:58:09] INFO source/source_main listener count on /raido.mp3 now 1
+[2025-08-29  18:01:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:01:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:01:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sigur Rós - Fljótavík"

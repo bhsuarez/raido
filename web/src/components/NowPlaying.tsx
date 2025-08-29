@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
@@ -49,24 +49,46 @@ const NowPlaying: React.FC = () => {
     )
   }
 
-  const currentTrack = {
+  const currentTrack = useMemo(() => ({
     title: nowPlaying.track.title,
     artist: nowPlaying.track.artist,
     album: nowPlaying.track.album || 'Unknown Album',
     year: nowPlaying.track.year,
     duration: nowPlaying.track.duration_sec || 0,
     position: nowPlaying.progress?.elapsed_seconds || 0,
-    artwork: nowPlaying.track.artwork_url,
+    artwork: nowPlaying.track.artwork_url || '',
     genre: nowPlaying.track.genre || 'Unknown'
-  }
+  }), [nowPlaying])
 
-  const progress = {
-    percentage: currentTrack.duration > 0 ? (currentTrack.position / currentTrack.duration) * 100 : 0
-  }
+  const [elapsed, setElapsed] = useState<number>(currentTrack.position)
+  const prevTrackId = useRef<number | undefined>(nowPlaying.track.id)
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+  useEffect(() => {
+    if (prevTrackId.current !== nowPlaying.track.id) {
+      prevTrackId.current = nowPlaying.track.id
+      setElapsed(nowPlaying.progress?.elapsed_seconds || 0)
+    } else {
+      setElapsed(nowPlaying.progress?.elapsed_seconds || currentTrack.position)
+    }
+    const interval = setInterval(() => {
+      setElapsed((e) => {
+        const next = e + 1
+        if (currentTrack.duration > 0 && next > currentTrack.duration) return currentTrack.duration
+        return next
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [nowPlaying.track.id, nowPlaying.progress?.elapsed_seconds, currentTrack.duration, currentTrack.position])
+
+  const progress = useMemo(() => ({
+    percentage: currentTrack.duration > 0 ? (elapsed / currentTrack.duration) * 100 : 0
+  }), [elapsed, currentTrack.duration])
+
+  const formatTime = (seconds: number | null | undefined) => {
+    if (!seconds || isNaN(seconds)) return '0:00'
+    const totalSeconds = Math.floor(seconds)
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 

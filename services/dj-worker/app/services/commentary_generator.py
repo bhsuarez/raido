@@ -22,8 +22,19 @@ class CommentaryGenerator:
     
     def _load_prompt_template(self) -> Template:
         """Load the DJ prompt template"""
-        # This could be loaded from a file or database
-        template_text = """You're a pirate radio DJ. Write a brief 10-15 second intro for: "{{song_title}}" by {{artist}}. Be energetic and concise. End with "Let's go!" or similar. No SSML tags needed.""".strip()
+        # Enhanced template with upcoming track focus and fact-based commentary
+        template_text = """You're a pirate radio DJ introducing the NEXT song coming up. Create a brief 15-20 second intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}. 
+
+Share ONE interesting fact about the artist, song, or album. Be energetic, knowledgeable, and build excitement for what's coming up next. End with something like "Coming up next!" or "Here we go!" or "Let's dive in!"
+
+Examples of good facts:
+- Chart performance or awards
+- Recording stories or collaborations  
+- Cultural impact or covers by other artists
+- Band member changes or solo careers
+- Genre innovations or influences
+
+Keep it conversational and exciting. No SSML tags needed.""".strip()
         
         return Template(template_text)
     
@@ -150,18 +161,18 @@ class CommentaryGenerator:
         try:
             import random
             
-            # Pre-written DJ commentary templates
+            # Pre-written DJ commentary templates for upcoming tracks
             templates = [
-                "Ahoy there, mateys! Here's {artist} with {song_title}. Let's rock!",
-                "All hands on deck for this classic! {artist} bringing you {song_title}!",
-                "Sailing the airwaves with {artist} and {song_title}. Enjoy the ride!",
-                "From the crow's nest, here's {artist} with {song_title}. Turn it up!",
-                "Batten down the hatches! {artist}'s {song_title} is coming in hot!",
-                "Yo ho ho! {artist} with {song_title}. This one's a treasure!",
-                "Set sail with this beauty - {artist} performing {song_title}!",
-                "Captain's orders: crank up {song_title} by {artist}!",
-                "Smooth sailing ahead with {artist} and {song_title}. Ahoy!",
-                "From the radio galley, here's {artist} with {song_title}!"
+                "Ahoy there, mateys! Coming up next, we've got {artist} with {song_title}. This one's gonna be epic!",
+                "All hands on deck! Next up is {artist} bringing you {song_title}. Get ready to rock!",
+                "Sailing into our next treasure - {artist} and {song_title}. You're gonna love this one!",
+                "From the crow's nest, I can see our next adventure: {artist} with {song_title}. Coming up!",
+                "Batten down the hatches! {artist}'s {song_title} is next on the horizon!",
+                "Yo ho ho! Next up we've got {artist} with {song_title}. This one's pure gold!",
+                "Set your compass for this beauty coming next - {artist} performing {song_title}!",
+                "Captain's choice for our next voyage: {song_title} by {artist}. Here we go!",
+                "Smooth sailing continues with {artist} and {song_title} coming up next. Ahoy!",
+                "Next up from the radio galley - {artist} with {song_title}. Don't touch that dial!"
             ]
             
             # Select random template and format it

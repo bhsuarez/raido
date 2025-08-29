@@ -58,7 +58,7 @@ export const apiHelpers = {
   // Stream-related endpoints
   getNowPlaying: () => api.get('/now'),
   getHistory: (limit = 20, offset = 0) => api.get(`/now/history?limit=${limit}&offset=${offset}`),
-  getNextUp: () => api.get('/now/next'),
+  getNextUp: (limit = 1) => api.get(`/now/next?limit=${limit}`),
   
   // Admin endpoints
   getSettings: () => api.get('/admin/settings'),
