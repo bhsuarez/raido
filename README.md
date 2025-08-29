@@ -6,7 +6,7 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 - **🎵 24/7 Music Streaming**: Continuous music playback from your collection
 - **🤖 AI DJ Commentary**: Dynamic commentary generated using OpenAI or Ollama
-- **🎙️ Multiple TTS Options**: OpenAI TTS, XTTS, or basic speech synthesis
+- **🎙️ Multiple TTS Options**: Kokoro TTS, OpenAI TTS, XTTS, or basic speech synthesis
 - **📱 Modern Web Interface**: Responsive React frontend with real-time updates
 - **🔄 Live Updates**: WebSocket integration for real-time track changes
 - **📊 Admin Dashboard**: Configure DJ settings, monitor stats, manage users
@@ -141,8 +141,8 @@ Configure AI commentary in `.env`:
 DJ_PROVIDER=openai
 OPENAI_API_KEY=your-key-here
 
-# TTS Provider (openai_tts, liquidsoap, or xtts)
-DJ_VOICE_PROVIDER=openai_tts
+# TTS Provider (kokoro, openai_tts, liquidsoap, or xtts)
+DJ_VOICE_PROVIDER=kokoro
 
 # Commentary frequency (1 = after every song)
 DJ_COMMENTARY_INTERVAL=1
@@ -153,6 +153,28 @@ DJ_MAX_SECONDS=30
 # DJ personality
 DJ_TONE=energetic
 STATION_NAME="Raido Pirate Radio"
+```
+
+### Kokoro TTS Settings
+
+For high-quality neural TTS using Kokoro:
+
+```bash
+# TTS Provider
+DJ_VOICE_PROVIDER=kokoro
+
+# Kokoro TTS Configuration
+KOKORO_BASE_URL=http://localhost:8090
+KOKORO_VOICE=am_onyx  # Available voices: am_onyx, af_bella, etc.
+KOKORO_SPEED=1.0
+```
+
+**Starting Kokoro TTS:**
+```bash
+cd kokoro-tts
+./start-cpu.sh  # For CPU inference
+# or
+./start-gpu.sh  # For GPU inference (requires NVIDIA GPU)
 ```
 
 ### Stream Settings

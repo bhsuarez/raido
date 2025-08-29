@@ -62,8 +62,18 @@ app.add_middleware(
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
-# Mount static files for TTS audio
+# Inject websocket manager into liquidsoap endpoints
+from app.api.v1.endpoints import liquidsoap
+liquidsoap.websocket_manager = websocket_manager
+
+# Mount static files for TTS audio and artwork
 app.mount("/static/tts", StaticFiles(directory="/shared/tts"), name="tts_files")
+
+# Create artwork directory if it doesn't exist and mount it
+artwork_dir = "/shared/artwork"
+import os
+os.makedirs(artwork_dir, exist_ok=True)
+app.mount("/static/artwork", StaticFiles(directory=artwork_dir), name="artwork_files")
 
 @app.get("/health")
 async def health_check():

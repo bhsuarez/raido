@@ -1,25 +1,14 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { useWebSocket } from './hooks/useWebSocket'
-import { useNowPlaying } from './hooks/useNowPlaying'
 
 // Components
 import Layout from './components/Layout'
-import RadioPlayer from './components/RadioPlayer'
+import NowPlaying from './components/NowPlaying'
+import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
-import AdminPanel from './components/AdminPanel'
-import LoadingSpinner from './components/LoadingSpinner'
+import TTSMonitorSimple from './components/TTSMonitorSimple'
 
 function App() {
-  // Initialize WebSocket connection
-  useWebSocket()
-  
-  // Keep now playing data fresh
-  const { data: nowPlaying, isLoading } = useNowPlaying()
-
-  if (isLoading) {
-    return <LoadingSpinner />
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">
@@ -28,8 +17,9 @@ function App() {
           <Route 
             path="/" 
             element={
-              <div className="space-y-8">
-                <RadioPlayer nowPlaying={nowPlaying} />
+              <div className="space-y-6">
+                <NowPlaying />
+                <ComingUp />
                 <PlayHistory />
               </div>
             } 
@@ -39,8 +29,8 @@ function App() {
             element={<PlayHistory />} 
           />
           <Route 
-            path="/admin" 
-            element={<AdminPanel />} 
+            path="/tts" 
+            element={<TTSMonitorSimple />} 
           />
           <Route 
             path="*" 

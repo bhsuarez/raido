@@ -1,9 +1,28 @@
-import React from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useNowPlaying } from '../hooks/useNowPlaying'
+import { apiHelpers } from '../utils/api'
+import { toast } from 'react-hot-toast'
 import LoadingSpinner from './LoadingSpinner'
 
 const NowPlaying: React.FC = () => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
+  const [isSkipping, setIsSkipping] = useState(false)
+  
+  const handleSkipTrack = async () => {
+    if (isSkipping) return
+    
+    setIsSkipping(true)
+    try {
+      await apiHelpers.skipTrack()
+      toast.success('🎵 Track skipped!')
+    } catch (error) {
+      console.error('Failed to skip track:', error)
+      toast.error('Failed to skip track')
+    } finally {
+      setTimeout(() => setIsSkipping(false), 2000) // Prevent rapid clicking
+    }
+  }
   
   // Show loading state
   if (isLoading) {
@@ -30,24 +49,46 @@ const NowPlaying: React.FC = () => {
     )
   }
 
-  const currentTrack = {
+  const currentTrack = useMemo(() => ({
     title: nowPlaying.track.title,
     artist: nowPlaying.track.artist,
     album: nowPlaying.track.album || 'Unknown Album',
     year: nowPlaying.track.year,
     duration: nowPlaying.track.duration_sec || 0,
     position: nowPlaying.progress?.elapsed_seconds || 0,
-    artwork: nowPlaying.track.artwork_url,
+    artwork: nowPlaying.track.artwork_url || '',
     genre: nowPlaying.track.genre || 'Unknown'
-  }
+  }), [nowPlaying])
 
-  const progress = {
-    percentage: currentTrack.duration > 0 ? (currentTrack.position / currentTrack.duration) * 100 : 0
-  }
+  const [elapsed, setElapsed] = useState<number>(currentTrack.position)
+  const prevTrackId = useRef<number | undefined>(nowPlaying.track.id)
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+  useEffect(() => {
+    if (prevTrackId.current !== nowPlaying.track.id) {
+      prevTrackId.current = nowPlaying.track.id
+      setElapsed(nowPlaying.progress?.elapsed_seconds || 0)
+    } else {
+      setElapsed(nowPlaying.progress?.elapsed_seconds || currentTrack.position)
+    }
+    const interval = setInterval(() => {
+      setElapsed((e) => {
+        const next = e + 1
+        if (currentTrack.duration > 0 && next > currentTrack.duration) return currentTrack.duration
+        return next
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [nowPlaying.track.id, nowPlaying.progress?.elapsed_seconds, currentTrack.duration, currentTrack.position])
+
+  const progress = useMemo(() => ({
+    percentage: currentTrack.duration > 0 ? (elapsed / currentTrack.duration) * 100 : 0
+  }), [elapsed, currentTrack.duration])
+
+  const formatTime = (seconds: number | null | undefined) => {
+    if (!seconds || isNaN(seconds)) return '0:00'
+    const totalSeconds = Math.floor(seconds)
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
@@ -73,15 +114,19 @@ const NowPlaying: React.FC = () => {
         <div className="lg:col-span-1">
           <div className="relative group">
             <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-pirate-600/30">
-              <img
-                src={currentTrack.artwork}
-                alt={`${currentTrack.album} by ${currentTrack.artist}`}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOUI5Qjk1IiBmb250LWZhbWlseT0ic3lzdGVtLXVpLCAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICdTZWdvZSBVSScsIFJvYm90bywgT3h5Z2VuLCBVYnVudHUsIENhbnRhcmVsbCwgJ09wZW4gU2FucycsICdIZWx2ZXRpY2EgTmV1ZScsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iNzIiPvCfjbU8L3RleHQ+Cjwvc3ZnPgo='
-                }}
-              />
+              {currentTrack.artwork ? (
+                <img
+                  src={currentTrack.artwork}
+                  alt={`${currentTrack.album} by ${currentTrack.artist}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjMzc0MTUxIi8+CjxjaXJjbGUgY3g9IjE1MCIgY3k9IjE1MCIgcj0iMTAwIiBmaWxsPSIjMjkyODMxIi8+CjxjaXJjbGUgY3g9IjE1MCIgY3k9IjE1MCIgcj0iNjAiIGZpbGw9IiM0MzQxNGEiLz4KPHJlY3QgeD0iMTQ1IiB5PSI4MCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI0U2RTZFNiIvPgo8L3N2Zz4K'
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-6xl">🎵</div>
+              )}
               {/* Vinyl record overlay effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/20 rounded-2xl"></div>
             </div>
@@ -122,7 +167,7 @@ const NowPlaying: React.FC = () => {
           {/* Progress Bar */}
           <div className="space-y-3">
             <div className="flex justify-between text-sm text-gray-400">
-              <span>{formatTime(currentTrack.position)}</span>
+              <span>{formatTime(elapsed)}</span>
               <span>{formatTime(currentTrack.duration)}</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
@@ -134,6 +179,32 @@ const NowPlaying: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 animate-pulse"></div>
               </div>
             </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex justify-center pt-4">
+            <button
+              onClick={handleSkipTrack}
+              disabled={isSkipping}
+              className={`
+                flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm shadow-lg transition-all duration-200
+                ${isSkipping 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-pirate-600 to-pirate-500 text-white hover:from-pirate-700 hover:to-pirate-600 hover:scale-105 active:scale-95'
+                }
+              `}
+            >
+              {isSkipping ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  Skipping...
+                </>
+              ) : (
+                <>
+                  ⏭️ Skip Track
+                </>
+              )}
+            </button>
           </div>
 
           {/* Stream Info */}
@@ -159,10 +230,13 @@ const NowPlaying: React.FC = () => {
           </div>
 
           {/* AI Features */}
-          <div className="flex items-center gap-3">
-            <span className="bg-gradient-to-r from-pirate-600 to-pirate-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              🤖 AI Commentary Active
-            </span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Link 
+              to="/tts"
+              className="bg-gradient-to-r from-pirate-600 to-pirate-500 hover:from-pirate-700 hover:to-pirate-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
+            >
+              🤖 AI Commentary Active - Monitor
+            </Link>
             <span className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
               🎙️ Kokoro TTS
             </span>
