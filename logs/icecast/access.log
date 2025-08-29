@@ -1693,3 +1693,10 @@
 192.168.1.160 - - [29/Aug/2025:17:58:07 +0000] "GET /raido.mp3 HTTP/1.0" 200 16248726 "-" "VLC/3.0.21 LibVLC/3.0.21" 1012
 192.168.1.160 - - [29/Aug/2025:17:58:09 +0000] "GET /raido.mp3 HTTP/1.1" 200 66300 "-" "VLC/3.0.21 LibVLC/3.0.21" 0
 172.18.0.7 - - [29/Aug/2025:18:01:19 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0
+172.18.0.7 - - [29/Aug/2025:18:05:08 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0
+172.18.0.1 - - [29/Aug/2025:18:09:30 +0000] "GET /api/v1/now-playing HTTP/1.1" 404 394 "-" "curl/7.88.1" 0
+172.18.0.1 - - [29/Aug/2025:18:09:35 +0000] "GET /api/v1/now-playing HTTP/1.1" 404 394 "-" "curl/7.88.1" 0
+172.18.0.7 - - [29/Aug/2025:18:09:36 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0
+172.18.0.7 - - [29/Aug/2025:18:11:54 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0
+172.18.0.7 - - [29/Aug/2025:18:13:35 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0
+172.18.0.7 - - [29/Aug/2025:18:16:10 +0000] "GET /admin/metadata HTTP/1.0" 200 396 "-" "Liquidsoap/2.2.5 (Unix; OCaml 4.14.1)" 0

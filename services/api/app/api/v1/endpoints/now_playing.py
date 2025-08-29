@@ -68,6 +68,13 @@ async def get_now_playing(db: AsyncSession = Depends(get_db)):
                             "artwork_url": None,
                             "tags": [],
                         }
+                        try:
+                            from app.api.v1.endpoints.liquidsoap import _lookup_artwork
+                            art = await _lookup_artwork(payload["artist"], payload["title"], payload["album"])
+                            if art:
+                                payload["artwork_url"] = art
+                        except Exception:
+                            pass
                         duration = None
 
                     # Compute progress if possible using on_air_timestamp

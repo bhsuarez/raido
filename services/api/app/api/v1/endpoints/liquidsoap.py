@@ -260,7 +260,12 @@ async def inject_commentary_file(
         raise HTTPException(status_code=500, detail=f"Failed to inject commentary: {str(e)}")
 
 async def _lookup_artwork(artist: Optional[str], title: Optional[str], album: Optional[str] = None) -> Optional[str]:
-    """Simple iTunes API lookup for album artwork"""
+    """Lookup album artwork.
+
+    Order:
+    1) iTunes Search API (album preferred, then song)
+    2) MusicBrainz + Cover Art Archive fallback
+    """
     if not artist or not title:
         return None
         
@@ -299,7 +304,50 @@ async def _lookup_artwork(artist: Optional[str], title: Optional[str], album: Op
                         return artwork_url
             
             return None
-            
+
     except Exception as e:
-        logger.debug("Artwork lookup failed", error=str(e))
-        return None
+        logger.debug("Artwork lookup via iTunes failed", error=str(e))
+
+    # Fallback to MusicBrainz + Cover Art Archive
+    try:
+        import musicbrainzngs
+        musicbrainzngs.set_useragent("Raido", "1.0", "https://raido.local")
+
+        # Prefer album-based search first if available
+        if album:
+            res = musicbrainzngs.search_releases(artist=artist, release=album, limit=3)
+            for rel in res.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if not mbid:
+                    continue
+                url = f"https://coverartarchive.org/release/{mbid}/front-500"
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(url)
+                        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                            logger.debug("Found artwork via CAA (album)", url=url)
+                            return url
+                except Exception:
+                    pass
+
+        # Recording-based fallback
+        res = musicbrainzngs.search_recordings(artist=artist, recording=title, limit=3)
+        for rec in res.get("recording-list", []) or []:
+            for rel in rec.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if not mbid:
+                    continue
+                url = f"https://coverartarchive.org/release/{mbid}/front-500"
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(url)
+                        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                            logger.debug("Found artwork via CAA (recording)", url=url)
+                            return url
+                except Exception:
+                    pass
+
+    except Exception as e:
+        logger.debug("MusicBrainz lookup failed", error=str(e))
+
+    return None

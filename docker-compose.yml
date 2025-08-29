@@ -49,6 +49,12 @@ services:
     volumes: 
       - shared:/shared
       - /mnt/music:/mnt/music:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   ollama:
     image: ollama/ollama:latest
@@ -62,8 +68,18 @@ services:
     build: ./services/dj-worker
     restart: unless-stopped
     env_file: .env
-    depends_on: [api, ollama]
+    depends_on:
+      api:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     volumes: [shared:/shared]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   proxy:
     image: caddy:2

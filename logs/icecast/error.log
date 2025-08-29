@@ -3930,3 +3930,22 @@
 [2025-08-29  18:01:19] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
 [2025-08-29  18:01:19] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
 [2025-08-29  18:01:19] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Sigur Rós - Fljótavík"
+[2025-08-29  18:05:08] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:05:08] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:05:08] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Various Artists - You Are My Sunshine - Norman Blake"
+[2025-08-29  18:09:30] INFO fserve/fserve_client_create checking for file /api/v1/now-playing (/usr/share/icecast/web/api/v1/now-playing)
+[2025-08-29  18:09:30] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now-playing" No such file or directory
+[2025-08-29  18:09:35] INFO fserve/fserve_client_create checking for file /api/v1/now-playing (/usr/share/icecast/web/api/v1/now-playing)
+[2025-08-29  18:09:35] WARN fserve/fserve_client_create req for file "/usr/share/icecast/web/api/v1/now-playing" No such file or directory
+[2025-08-29  18:09:36] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:09:36] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:09:36] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Various Artists - Hound Dog"
+[2025-08-29  18:11:54] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:11:54] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:11:54] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "BECK - I've Seen the Land Beyond"
+[2025-08-29  18:13:35] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:13:35] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:13:35] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Incubus - I Miss You"
+[2025-08-29  18:16:10] INFO admin/admin_handle_request Received admin command metadata on mount "/raido.mp3"
+[2025-08-29  18:16:10] INFO util/util_conv_string converting metadata from UTF-8 to ISO8859-1
+[2025-08-29  18:16:10] INFO admin/command_metadata Metadata on mountpoint /raido.mp3 changed to "Tune-Yards - You Yes You"
