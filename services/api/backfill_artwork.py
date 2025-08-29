@@ -19,7 +19,7 @@ from app.models import Track
 logger = structlog.get_logger()
 
 async def lookup_artwork(artist: Optional[str], title: Optional[str], album: Optional[str] = None) -> Optional[str]:
-    """Simple iTunes API lookup for album artwork"""
+    """Lookup artwork via iTunes, falling back to MusicBrainz + CAA."""
     if not artist or not title:
         return None
         
@@ -39,7 +39,7 @@ async def lookup_artwork(artist: Optional[str], title: Optional[str], album: Opt
                         if artwork_url:
                             # Upgrade to higher resolution
                             artwork_url = artwork_url.replace("/100x100bb.", "/600x600bb.")
-                            logger.info("Found album artwork", artist=artist, album=album, url=artwork_url)
+                            logger.info("Found album artwork (iTunes)", artist=artist, album=album, url=artwork_url)
                             return artwork_url
             
             # Fallback to song search
@@ -55,12 +55,50 @@ async def lookup_artwork(artist: Optional[str], title: Optional[str], album: Opt
                     if artwork_url:
                         # Upgrade to higher resolution
                         artwork_url = artwork_url.replace("/100x100bb.", "/600x600bb.")
-                        logger.info("Found song artwork", artist=artist, title=title, url=artwork_url)
+                        logger.info("Found song artwork (iTunes)", artist=artist, title=title, url=artwork_url)
                         return artwork_url
                         
     except Exception as e:
-        logger.error("iTunes API lookup failed", artist=artist, title=title, error=str(e))
-    
+        logger.warn("iTunes API lookup failed", artist=artist, title=title, error=str(e))
+
+    # Fallback: MusicBrainz + Cover Art Archive
+    try:
+        import musicbrainzngs
+        musicbrainzngs.set_useragent("Raido", "1.0", "https://raido.local")
+
+        async def try_caa(mbid: str) -> Optional[str]:
+            url = f"https://coverartarchive.org/release/{mbid}/front-500"
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(url)
+                    if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                        logger.info("Found artwork (CAA)", url=url)
+                        return url
+            except Exception:
+                return None
+            return None
+
+        if album:
+            res = musicbrainzngs.search_releases(artist=artist, release=album, limit=3)
+            for rel in res.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if mbid:
+                    url = await try_caa(mbid)
+                    if url:
+                        return url
+
+        res = musicbrainzngs.search_recordings(artist=artist, recording=title, limit=3)
+        for rec in res.get("recording-list", []) or []:
+            for rel in rec.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if mbid:
+                    url = await try_caa(mbid)
+                    if url:
+                        return url
+
+    except Exception as e:
+        logger.warn("MusicBrainz/CAA lookup failed", artist=artist, title=title, error=str(e))
+
     return None
 
 async def main():

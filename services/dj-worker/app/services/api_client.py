@@ -16,17 +16,28 @@ class APIClient:
     
     async def get_now_playing(self) -> Optional[Dict[str, Any]]:
         """Get current playing track information"""
-        try:
-            response = await self.client.get(f"{self.base_url}/api/v1/now/")
-            if response.status_code == 200:
-                return response.json()
+        for attempt in range(3):
+            try:
+                response = await self.client.get(f"{self.base_url}/api/v1/now/")
+                if response.status_code == 200:
+                    return response.json()
+                
+                if attempt < 2:  # Don't log error on final attempt
+                    logger.warning("Failed to get now playing, retrying", status=response.status_code, attempt=attempt+1)
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                else:
+                    logger.error("Failed to get now playing after retries", status=response.status_code)
+                    return None
             
-            logger.error("Failed to get now playing", status=response.status_code)
-            return None
-        
-        except Exception as e:
-            logger.error("Error getting now playing", error=str(e))
-            return None
+            except Exception as e:
+                if attempt < 2:
+                    logger.warning("Error getting now playing, retrying", error=str(e), attempt=attempt+1)
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                else:
+                    logger.error("Error getting now playing after retries", error=str(e))
+                    return None
     
     async def get_history(self, limit: int = 20) -> Optional[Dict[str, Any]]:
         """Get play history"""
