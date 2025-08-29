@@ -87,15 +87,86 @@ async def get_now_playing(db: AsyncSession = Depends(get_db)):
 
 @router.get("/next", response_model=NextUpResponse)
 async def get_next_up(db: AsyncSession = Depends(get_db)):
-    """Get information about upcoming tracks"""
-    # This is a placeholder - in a real implementation, you'd need to 
-    # query Liquidsoap's queue or maintain a separate queue table
+    """Get information about upcoming tracks from Liquidsoap queue"""
     try:
+        import socket
+        import asyncio
+        from sqlalchemy import func
+        
+        # Try to get queue info from Liquidsoap first
+        liquidsoap_tracks = []
+        try:
+            # Connect to Liquidsoap telnet
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2.0)
+            sock.connect(("liquidsoap", 1234))
+            
+            # Get music queue length
+            sock.send(b"music.queue\n")
+            response = sock.recv(1024).decode().strip()
+            queue_length = int(response) if response.isdigit() else 0
+            
+            sock.close()
+            
+            logger.info(f"Liquidsoap music queue length: {queue_length}")
+            
+        except Exception as liq_error:
+            logger.warning(f"Could not query Liquidsoap queue: {liq_error}")
+            queue_length = 0
+        
+        # If no queue or small queue, show random tracks that could play next
+        if queue_length <= 1:
+            # Get some random tracks from the database
+            upcoming_query = select(Track).where(
+                Track.title != "Unknown"
+            ).order_by(func.random()).limit(3)
+            
+            result = await db.execute(upcoming_query)
+            upcoming_tracks = result.scalars().all()
+            
+            # Format the response
+            next_tracks = []
+            for track in upcoming_tracks:
+                next_tracks.append({
+                    "track": {
+                        "id": track.id,
+                        "title": track.title,
+                        "artist": track.artist,
+                        "album": track.album,
+                        "year": track.year,
+                        "genre": track.genre,
+                        "duration_sec": track.duration_sec,
+                        "artwork_url": track.artwork_url,
+                        "tags": track.tags if isinstance(track.tags, list) else []
+                    },
+                    "estimated_start_time": None,
+                    "commentary_before": False
+                })
+        else:
+            # Future: Parse actual queue content from Liquidsoap
+            # For now, show that tracks are queued
+            next_tracks = [{
+                "track": {
+                    "id": 0,
+                    "title": f"{queue_length} tracks queued",
+                    "artist": "Liquidsoap Queue",
+                    "album": "Coming Up Next",
+                    "year": None,
+                    "genre": None,
+                    "duration_sec": None,
+                    "artwork_url": None,
+                    "tags": []
+                },
+                "estimated_start_time": None,
+                "commentary_before": False
+            }]
+        
         return NextUpResponse(
-            next_tracks=[],
-            commentary_scheduled=False,
+            next_tracks=next_tracks,
+            commentary_scheduled=len(next_tracks) > 0,
             estimated_start_time=None
         )
+        
     except Exception as e:
         logger.error("Failed to get next up", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve next up information")

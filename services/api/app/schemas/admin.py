@@ -6,8 +6,8 @@ class AdminSettingsResponse(BaseModel):
     dj_commentary_interval: int = 1
     dj_max_seconds: int = 30
     dj_tone: str = "energetic"
-    dj_provider: str = "openai"  # openai, ollama, disabled
-    dj_voice_provider: str = "openai_tts"
+    dj_provider: str = "ollama"  # openai, ollama, disabled
+    dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
     dj_profanity_filter: bool = True
     station_name: str = "Raido Pirate Radio"
     stream_bitrate: int = 128
