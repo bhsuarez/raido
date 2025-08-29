@@ -23,7 +23,6 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'History', href: '/history', icon: ClockIcon },
     { name: 'TTS Monitor', href: '/tts', icon: MicIcon },
-    { name: 'Admin', href: '/admin', icon: SettingsIcon },
   ]
 
   return (
