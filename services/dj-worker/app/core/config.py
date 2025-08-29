@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     XTTS_VOICE: str = "pirate_dj"
     
     # Kokoro TTS
-    KOKORO_BASE_URL: str = "http://localhost:8090"
+    KOKORO_BASE_URL: str = "http://kokoro-tts:8090"
     KOKORO_VOICE: str = "af_bella"
     KOKORO_SPEED: float = 1.0
     

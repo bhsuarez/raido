@@ -64,6 +64,15 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
 
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu
+    restart: unless-stopped
+    ports:
+      - "8090:8880"
+    environment:
+      - USE_GPU=false
+      - DOWNLOAD_MODEL=true
+
   dj-worker:
     build: ./services/dj-worker
     restart: unless-stopped
@@ -97,4 +106,4 @@ services:
     environment: { VITE_API_URL: "https://{{your-domain}}" }
     depends_on: [api]
 
-volumes: { db: {}, caddy: {}, shared: {}, ollama: {} }
+volumes: { db: {}, caddy: {}, shared: {}, ollama: {}, kokoro_models: {} }

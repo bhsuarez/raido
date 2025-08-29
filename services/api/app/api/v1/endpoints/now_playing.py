@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from typing import Optional
+from sqlalchemy import select, desc, update
+from typing import Optional, Dict, Any
 import structlog
+from pathlib import Path
 
 from app.core.database import get_db
 from app.models import Track, Play, Commentary
@@ -248,6 +249,46 @@ async def get_next_up(limit: int = 1, db: AsyncSession = Depends(get_db)):
                         track = result.scalar_one_or_none()
 
                 if track:
+                    # Proactive artwork fetching for next track
+                    if not track.artwork_url:
+                        try:
+                            # First try ID3 extraction (fast, local)
+                            from app.api.v1.endpoints.artwork import _extract_artwork_from_file
+                            artwork_data, mime_type = await _extract_artwork_from_file(track.file_path)
+                            if artwork_data:
+                                from pathlib import Path
+                                artwork_dir = Path("/shared/artwork")
+                                artwork_dir.mkdir(exist_ok=True)
+                                file_extension = "jpg" if mime_type == "image/jpeg" else "png"
+                                artwork_filename = f"track_{track.id}.{file_extension}"
+                                artwork_path = artwork_dir / artwork_filename
+                                
+                                with open(artwork_path, "wb") as f:
+                                    f.write(artwork_data)
+                                
+                                artwork_url = f"/static/artwork/{artwork_filename}"
+                                # Update DB immediately
+                                from sqlalchemy import update
+                                await db.execute(
+                                    update(Track).where(Track.id == track.id).values(artwork_url=artwork_url)
+                                )
+                                await db.commit()
+                                track.artwork_url = artwork_url
+                                logger.info("Extracted artwork from ID3 for next track", track_id=track.id, title=track.title)
+                            else:
+                                # Fallback to online lookup
+                                from app.api.v1.endpoints.liquidsoap import _lookup_artwork
+                                artwork_url = await _lookup_artwork(track.artist, track.title, track.album)
+                                if artwork_url:
+                                    await db.execute(
+                                        update(Track).where(Track.id == track.id).values(artwork_url=artwork_url)
+                                    )
+                                    await db.commit()
+                                    track.artwork_url = artwork_url
+                                    logger.info("Found artwork via online lookup for next track", track_id=track.id, title=track.title)
+                        except Exception as e:
+                            logger.warning("Failed to fetch artwork for next track", track_id=track.id, title=track.title, error=str(e))
+                    
                     payload = {
                         "id": track.id,
                         "title": track.title,

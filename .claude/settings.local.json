@@ -57,7 +57,8 @@
       "Bash(ip route:*)",
       "Bash(ip addr:*)",
       "Bash(tailscale:*)",
-      "Read(/mnt/music/**)"
+      "Read(/mnt/music/**)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": [],

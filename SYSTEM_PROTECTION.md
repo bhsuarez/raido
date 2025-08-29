@@ -63,7 +63,7 @@ DJ_PROVIDER=disabled              # Set to "disabled" to prevent TTS issues
 DJ_VOICE_PROVIDER=templates       # Fallback when kokoro fails
 
 # System Protection Thresholds
-KOKORO_BASE_URL=http://192.168.1.41:8090
+KOKORO_BASE_URL=http://kokoro-tts:8090
 KOKORO_VOICE=af_bella
 KOKORO_SPEED=1.0
 
@@ -76,7 +76,7 @@ WORKER_POLL_INTERVAL=5            # Seconds between worker checks
 
 1. **Verify Kokoro Service is Running**:
    ```bash
-   curl http://192.168.1.41:8090/health
+   curl http://localhost:8090/health
    ```
 
 2. **Enable with Protection**:
@@ -147,7 +147,8 @@ docker logs raido_dj-worker_1 | grep -i "protection\|circuit\|health"
 ### Advanced Test (Only if needed):
 ```bash
 # 1. Temporarily block kokoro service
-iptables -A OUTPUT -d 192.168.1.41 -p tcp --dport 8090 -j DROP
+# Block Docker service (not recommended - use DJ_PROVIDER=disabled instead)
+docker-compose stop kokoro-tts
 
 # 2. Enable TTS and watch circuit breaker activate
 DJ_PROVIDER=kokoro
@@ -156,7 +157,7 @@ DJ_PROVIDER=kokoro
 docker logs -f raido_dj-worker_1
 
 # 4. Restore access
-iptables -D OUTPUT -d 192.168.1.41 -p tcp --dport 8090 -j DROP
+docker-compose start kokoro-tts
 ```
 
 ## Key Files Modified

@@ -43,7 +43,8 @@ async def track_change_notification(
             result = await db.execute(
                 select(Track).where(Track.file_path.endswith(request.filename))
             )
-            track = result.scalar_one_or_none()
+            tracks = result.scalars().all()
+            track = tracks[0] if tracks else None
         
         if not track and (request.title and request.artist):
             # Try to find by title/artist
@@ -53,7 +54,8 @@ async def track_change_notification(
                     Track.artist == request.artist
                 )
             )
-            track = result.scalar_one_or_none()
+            tracks = result.scalars().all()
+            track = tracks[0] if tracks else None
         
         # Create track if not found
         if not track:
