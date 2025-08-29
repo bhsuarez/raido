@@ -58,7 +58,7 @@ export const apiHelpers = {
   // Stream-related endpoints
   getNowPlaying: () => api.get('/now'),
   getHistory: (limit = 20, offset = 0) => api.get(`/now/history?limit=${limit}&offset=${offset}`),
-  getNextUp: () => api.get('/now/next'),
+  getNextUp: (limit = 1) => api.get(`/now/next?limit=${limit}`),
   
   // Admin endpoints
   getSettings: () => api.get('/admin/settings'),
@@ -70,6 +70,9 @@ export const apiHelpers = {
   createUser: (userData: any) => api.post('/admin/users', userData),
   updateUser: (userId: number, userData: any) => api.put(`/admin/users/${userId}`, userData),
   deleteUser: (userId: number) => api.delete(`/admin/users/${userId}`),
+  
+  // Stream controls
+  skipTrack: () => api.post('/liquidsoap/skip'),
 }
 
 export default api

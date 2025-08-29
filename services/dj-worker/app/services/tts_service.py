@@ -6,7 +6,7 @@ import structlog
 from datetime import datetime
 
 from app.core.config import settings
-from app.services.openai_client import OpenAIClient
+from app.services.kokoro_client import KokoroClient
 
 logger = structlog.get_logger()
 
@@ -14,7 +14,7 @@ class TTSService:
     """Text-to-Speech service with multiple provider support"""
     
     def __init__(self):
-        self.openai_client = OpenAIClient() if settings.OPENAI_API_KEY else None
+        self.kokoro_client = KokoroClient()
         
         # Try to ensure TTS cache directory exists
         try:
@@ -29,8 +29,8 @@ class TTSService:
         try:
             provider = settings.DJ_VOICE_PROVIDER
             
-            if provider == "openai_tts" and self.openai_client:
-                return await self._generate_with_openai(text, job_id)
+            if provider == "kokoro":
+                return await self._generate_with_kokoro(text, job_id)
             elif provider == "liquidsoap":
                 return await self._generate_with_liquidsoap(text, job_id)
             elif provider == "xtts":
@@ -43,28 +43,25 @@ class TTSService:
             logger.error("TTS generation failed", error=str(e), provider=provider)
             return None
     
-    async def _generate_with_openai(self, text: str, job_id: str) -> Optional[str]:
-        """Generate audio using OpenAI TTS"""
+    
+    async def _generate_with_kokoro(self, text: str, job_id: str) -> Optional[str]:
+        """Generate audio using Kokoro TTS"""
         try:
-            # Generate audio data
-            audio_data = await self.openai_client.generate_tts(text)
+            # Clean text for speech synthesis
+            clean_text = text.replace('<speak>', '').replace('</speak>', '')
+            clean_text = clean_text.replace('<break time="400ms"/>', ' ')
             
-            if not audio_data:
+            filename = await self.kokoro_client.generate_audio(clean_text, job_id)
+            
+            if filename:
+                logger.info("Kokoro TTS audio generated", filename=filename)
+                return filename
+            else:
+                logger.error("Kokoro TTS failed to generate audio")
                 return None
-            
-            # Save to file
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"commentary_{job_id}_{timestamp}.mp3"
-            filepath = os.path.join(settings.TTS_CACHE_DIR, filename)
-            
-            async with aiofiles.open(filepath, 'wb') as f:
-                await f.write(audio_data)
-            
-            logger.info("OpenAI TTS audio generated", filepath=filepath, size=len(audio_data))
-            return filename
-        
+                
         except Exception as e:
-            logger.error("OpenAI TTS generation failed", error=str(e))
+            logger.error("Kokoro TTS generation failed", error=str(e))
             return None
     
     async def _generate_with_liquidsoap(self, text: str, job_id: str) -> Optional[str]:

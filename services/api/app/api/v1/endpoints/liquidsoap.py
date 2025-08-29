@@ -23,6 +23,8 @@ class TrackChangeRequest(BaseModel):
     album: Optional[str] = None
     filename: Optional[str] = None
     duration: Optional[float] = None
+    year: Optional[str] = None
+    genre: Optional[str] = None
     metadata: Dict[str, Any] = {}
 
 @router.post("/track_change")
@@ -41,7 +43,8 @@ async def track_change_notification(
             result = await db.execute(
                 select(Track).where(Track.file_path.endswith(request.filename))
             )
-            track = result.scalar_one_or_none()
+            tracks = result.scalars().all()
+            track = tracks[0] if tracks else None
         
         if not track and (request.title and request.artist):
             # Try to find by title/artist
@@ -51,7 +54,8 @@ async def track_change_notification(
                     Track.artist == request.artist
                 )
             )
-            track = result.scalar_one_or_none()
+            tracks = result.scalars().all()
+            track = tracks[0] if tracks else None
         
         # Create track if not found
         if not track:
@@ -66,10 +70,17 @@ async def track_change_notification(
             # Try to get artwork URL
             artwork_url = await _lookup_artwork(request.artist, request.title, request.album)
             
+            # Parse year as integer if provided
+            year_int = None
+            if request.year and request.year.strip() and request.year.strip().isdigit():
+                year_int = int(request.year.strip())
+            
             track = Track(
                 title=request.title or "Unknown Title",
                 artist=request.artist or "Unknown Artist",
                 album=request.album,
+                year=year_int,
+                genre=request.genre,
                 file_path=file_path,
                 duration_sec=request.duration,
                 artwork_url=artwork_url,
@@ -77,6 +88,26 @@ async def track_change_notification(
             )
             db.add(track)
             await db.flush()  # Get the ID
+        else:
+            # Update existing track with any new metadata we received
+            updated = False
+            if request.duration and not track.duration_sec:
+                track.duration_sec = request.duration
+                updated = True
+            if request.year and not track.year:
+                year_int = None
+                if request.year.strip() and request.year.strip().isdigit():
+                    year_int = int(request.year.strip())
+                    track.year = year_int
+                    updated = True
+            if request.genre and not track.genre:
+                track.genre = request.genre
+                updated = True
+            if not track.artwork_url:
+                artwork_url = await _lookup_artwork(request.artist, request.title, request.album)
+                if artwork_url:
+                    track.artwork_url = artwork_url
+                    updated = True
         
         # End any current playing track
         current_play_result = await db.execute(
@@ -121,8 +152,8 @@ async def track_change_notification(
                 }
             })
         
-        # TODO: Trigger commentary generation if needed
-        # This would be handled by the DJ worker service
+        # Commentary generation is handled by the DJ worker service
+        # which monitors track changes and generates commentary based on settings
         
         return {"status": "success", "track_id": track.id, "play_id": new_play.id}
         
@@ -135,18 +166,65 @@ async def track_change_notification(
 async def liquidsoap_status():
     """Get Liquidsoap status via telnet interface"""
     try:
-        # This would connect to Liquidsoap telnet interface
-        # For now, return mock data
+        from app.services.liquidsoap_client import LiquidsoapClient
+        
+        client = LiquidsoapClient()
+        status = client.get_all_status()
+        
         return {
             "status": "running",
-            "uptime": 3600,
-            "current_song": "Unknown",
-            "queue_length": 0,
-            "listeners": 0
+            "liquidsoap_metadata": status.get('metadata', {}),
+            "queue_info": status.get('queue', {}),
+            "uptime_seconds": status.get('uptime'),
+            "available_commands": status.get('available_commands', []),
+            "raw_status": status
         }
+        
     except Exception as e:
         logger.error("Failed to get Liquidsoap status", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to get stream status")
+
+@router.post("/skip")
+async def skip_current_track(db: AsyncSession = Depends(get_db)):
+    """Skip the currently playing track"""
+    try:
+        logger.info("Track skip requested")
+        
+        # Mark current play as skipped in database
+        current_play_result = await db.execute(
+            select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
+        )
+        current_play = current_play_result.scalar_one_or_none()
+        
+        if current_play:
+            current_play.was_skipped = True
+            await db.commit()
+        
+        # Connect to Liquidsoap telnet and skip track
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5.0)
+        
+        try:
+            # Connect to Liquidsoap telnet interface
+            sock.connect(("liquidsoap", 1234))
+            
+            # Send skip command; matches LiquidsoapClient implementation
+            command = "music.skip\n"
+            sock.send(command.encode())
+            
+            # Read response
+            response = sock.recv(1024).decode().strip()
+            logger.info("Liquidsoap skip response", command=command.strip(), response=response)
+            
+            return {"status": "success", "message": "Track skipped", "liquidsoap_response": response}
+            
+        finally:
+            sock.close()
+        
+    except Exception as e:
+        logger.error("Failed to skip track", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to skip track: {str(e)}")
 
 @router.post("/inject_commentary")
 async def inject_commentary_file(
@@ -184,7 +262,12 @@ async def inject_commentary_file(
         raise HTTPException(status_code=500, detail=f"Failed to inject commentary: {str(e)}")
 
 async def _lookup_artwork(artist: Optional[str], title: Optional[str], album: Optional[str] = None) -> Optional[str]:
-    """Simple iTunes API lookup for album artwork"""
+    """Lookup album artwork.
+
+    Order:
+    1) iTunes Search API (album preferred, then song)
+    2) MusicBrainz + Cover Art Archive fallback
+    """
     if not artist or not title:
         return None
         
@@ -223,7 +306,50 @@ async def _lookup_artwork(artist: Optional[str], title: Optional[str], album: Op
                         return artwork_url
             
             return None
-            
+
     except Exception as e:
-        logger.debug("Artwork lookup failed", error=str(e))
-        return None
+        logger.debug("Artwork lookup via iTunes failed", error=str(e))
+
+    # Fallback to MusicBrainz + Cover Art Archive
+    try:
+        import musicbrainzngs
+        musicbrainzngs.set_useragent("Raido", "1.0", "https://raido.local")
+
+        # Prefer album-based search first if available
+        if album:
+            res = musicbrainzngs.search_releases(artist=artist, release=album, limit=3)
+            for rel in res.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if not mbid:
+                    continue
+                url = f"https://coverartarchive.org/release/{mbid}/front-500"
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(url)
+                        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                            logger.debug("Found artwork via CAA (album)", url=url)
+                            return url
+                except Exception:
+                    pass
+
+        # Recording-based fallback
+        res = musicbrainzngs.search_recordings(artist=artist, recording=title, limit=3)
+        for rec in res.get("recording-list", []) or []:
+            for rel in rec.get("release-list", []) or []:
+                mbid = rel.get("id")
+                if not mbid:
+                    continue
+                url = f"https://coverartarchive.org/release/{mbid}/front-500"
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(url)
+                        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                            logger.debug("Found artwork via CAA (recording)", url=url)
+                            return url
+                except Exception:
+                    pass
+
+    except Exception as e:
+        logger.debug("MusicBrainz lookup failed", error=str(e))
+
+    return None

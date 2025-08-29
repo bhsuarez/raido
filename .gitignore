@@ -1,1 +1,5 @@
 .env
+web/node_modules/
+
+# Logs
+logs/

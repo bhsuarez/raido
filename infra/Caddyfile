@@ -5,7 +5,81 @@
 	auto_https off
 }
 
-# Main site
+# Domain configuration
+raido.zorro.network {
+	# Serve React frontend
+	handle /* {
+		reverse_proxy web:80
+	}
+
+	# API endpoints
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Static files (TTS audio)
+	handle /static/* {
+		reverse_proxy api:8000
+	}
+
+	# WebSocket endpoint
+	handle /ws {
+		reverse_proxy api:8000 {
+			header_up Upgrade {http.request.header.Upgrade}
+			header_up Connection {http.request.header.Connection}
+		}
+	}
+
+	# Icecast stream
+	handle_path /stream/* {
+		reverse_proxy icecast:8000
+	}
+
+	# Liquidsoap metadata
+	handle /liquidsoap/* {
+		reverse_proxy liquidsoap:8080
+	}
+
+	# Health check
+	handle /health {
+		respond "OK" 200
+	}
+
+	# Security headers
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Enable CORS for development
+	header /api/* {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type, Authorization"
+	}
+	
+	# CORS for static files
+	header /static/* {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type"
+	}
+
+	# Handle preflight requests
+	@cors_preflight method OPTIONS path /api/*
+	respond @cors_preflight 204
+
+	# Logging
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+}
+
+# Main site (localhost/IP)
 :80 {
 	# Serve React frontend
 	handle /* {
@@ -31,7 +105,7 @@
 	}
 
 	# Icecast stream
-	handle /stream/* {
+	handle_path /stream/* {
 		reverse_proxy icecast:8000
 	}
 

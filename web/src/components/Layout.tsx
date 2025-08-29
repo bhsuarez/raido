@@ -6,9 +6,11 @@ import {
   SettingsIcon, 
   Radio,
   WifiIcon,
-  WifiOffIcon
+  WifiOffIcon,
+  MicIcon
 } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -17,11 +19,13 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { isConnected, toggleDarkMode, isDarkMode } = useRadioStore()
+  // Establish WebSocket connection for live updates
+  useWebSocket()
 
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'History', href: '/history', icon: ClockIcon },
-    { name: 'Admin', href: '/admin', icon: SettingsIcon },
+    { name: 'TTS Monitor', href: '/tts', icon: MicIcon },
   ]
 
   return (

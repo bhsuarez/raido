@@ -61,13 +61,10 @@ Generate **production-grade code** and configs with:
 3. **History**: songs and DJ commentary log.  
 4. **DJ Commentary**: generated every _N_ songs (default = 1).  
 5. **Frontend**:
-   - Rich album art (ID3 → MusicBrainz fallback).  
+   - Rich album art (extracted from ID3 tags + cached as static files).  
    - Commentary transcript + playback.  
-   - Admin center:
-     - User + role management  
-     - Configure TTS + AI prompts  
-     - N-songs interval toggle  
-     - Dark mode toggle  
+   - TTS Monitoring dashboard with real-time statistics.  
+   - Dark mode toggle and responsive design.  
 6. **Logging**: All tracks + commentary to Postgres.  
 7. **Security**: HTTPS, RBAC, rate limiting, audit logging.  
 
@@ -82,6 +79,31 @@ Generate **production-grade code** and configs with:
 - **users**: id, email, role, created_at  
 
 Indexes on `plays.started_at` and `commentary.created_at`.  
+
+---
+
+## CURRENT IMPLEMENTATION STATUS
+
+**Core Services Implemented:**
+- **API Service**: FastAPI backend with WebSocket live updates
+- **DJ Worker**: Automated commentary generation and TTS processing
+- **Frontend**: React SPA with real-time updates, dark mode
+- **Database**: PostgreSQL with tracks, plays, commentary, settings tables
+
+**Key Features Complete:**
+- Real-time now playing with WebSocket updates
+- Album artwork extraction from ID3 tags (services/api/app/api/v1/endpoints/artwork.py)
+- Liquidsoap telnet client for stream metadata (services/api/app/services/liquidsoap_client.py)
+- TTS monitoring dashboard with statistics and activity logs
+- Responsive frontend with dark mode toggle
+- Commentary generation with multiple TTS backends (XTTS, OpenAI TTS)
+
+**Recent Enhancements (codex-update branch):**
+- Enhanced artwork endpoint with batch extraction capabilities
+- Improved liquidsoap client with caching and rate limiting
+- Better metadata parsing and progress tracking
+- TTS monitoring with real-time statistics
+- Removed legacy AdminPanel, streamlined navigation
 
 ---
 

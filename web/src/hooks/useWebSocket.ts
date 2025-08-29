@@ -37,6 +37,8 @@ export function useWebSocket() {
             case 'track_change':
               updateNowPlaying(message.data)
               queryClient.invalidateQueries({ queryKey: ['nowPlaying'] })
+              queryClient.invalidateQueries({ queryKey: ['nextUp'] })
+              queryClient.invalidateQueries({ queryKey: ['history'] })
               break
               
             case 'commentary':
