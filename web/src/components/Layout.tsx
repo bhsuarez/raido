@@ -25,6 +25,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'DJ Admin', href: '/tts', icon: MicIcon },
+    { name: 'DJ Settings', href: '/settings/dj', icon: SettingsIcon },
   ]
 
   return (

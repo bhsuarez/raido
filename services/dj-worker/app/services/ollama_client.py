@@ -28,7 +28,9 @@ class OllamaClient:
     ) -> Optional[str]:
         """Generate DJ commentary text using Ollama"""
         try:
+            # Use provided model or fall back to default
             use_model = model or self.model
+            
             logger.debug("Generating commentary with Ollama", 
                         model=use_model,
                         max_tokens=max_tokens)

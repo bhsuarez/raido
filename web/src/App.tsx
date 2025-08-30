@@ -8,6 +8,7 @@ import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
+import DJSettings from './components/DJSettings'
 
 function App() {
 
@@ -39,6 +40,10 @@ function App() {
           <Route 
             path="/tts" 
             element={<TTSMonitor />} 
+          />
+          <Route 
+            path="/settings/dj" 
+            element={<DJSettings />} 
           />
           <Route 
             path="*" 
