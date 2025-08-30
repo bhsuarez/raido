@@ -256,6 +256,11 @@ class DJWorker:
                 try:
                     if dj_settings and dj_settings.get('dj_kokoro_voice'):
                         self.tts_service.kokoro_client.voice = dj_settings.get('dj_kokoro_voice')
+                    if dj_settings and dj_settings.get('dj_tts_volume'):
+                        vol = float(dj_settings.get('dj_tts_volume'))
+                        # Clamp reasonable range 0.5x - 2.0x
+                        vol = max(0.5, min(2.0, vol))
+                        self.tts_service.kokoro_client.volume = vol
                 except Exception:
                     pass
                 
