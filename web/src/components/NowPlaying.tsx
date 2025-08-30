@@ -193,27 +193,7 @@ const NowPlaying: React.FC = () => {
             </button>
           </div>
 
-          {/* Stream Info */}
-          <div className="bg-pirate-800/30 rounded-xl p-6 border border-pirate-600/20">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Stream Connection</h3>
-              <div className="flex items-center gap-2 text-green-400">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium">LIVE</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="text-gray-400 min-w-0 flex-shrink-0">Stream URL:</span>
-                <code className="bg-gray-900 text-pirate-300 px-3 py-1 rounded font-mono text-sm flex-1 truncate">
-                  http://localhost:8000/stream/raido.mp3
-                </code>
-              </div>
-              <div className="text-sm text-gray-400">
-                🎧 <strong>VLC Instructions:</strong> Media → Open Network Stream → Paste URL above
-              </div>
-            </div>
-          </div>
+          {/* Stream Connection section removed as requested */}
 
           {/* AI Features */}
           <div className="flex items-center gap-3 flex-wrap">

@@ -19,6 +19,7 @@ class KokoroClient:
         self.base_url = getattr(settings, 'KOKORO_BASE_URL', 'http://localhost:8090')
         self.voice = getattr(settings, 'KOKORO_VOICE', 'af_bella')
         self.speed = getattr(settings, 'KOKORO_SPEED', 1.0)
+        self.volume = getattr(settings, 'KOKORO_VOLUME', 1.0)
         
         # Circuit breaker state
         self._failure_count = 0
@@ -112,7 +113,8 @@ class KokoroClient:
                         "voice": use_voice,
                         "model": "tts-1",
                         "response_format": "mp3",
-                        "speed": use_speed if use_speed else 1.0
+                        "speed": use_speed if use_speed else 1.0,
+                        "volume_multiplier": float(self.volume) if self.volume else 1.0
                     }
                 )
                 

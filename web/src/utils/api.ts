@@ -1,9 +1,14 @@
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
 
+// Determine API base URL
+const API_BASE = (import.meta as any)?.env?.VITE_API_URL
+  ? `${(import.meta as any).env.VITE_API_URL.replace(/\/$/, '')}/api/v1`
+  : '/api/v1'
+
 // Create axios instance with default config
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -69,6 +74,7 @@ export const apiHelpers = {
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (settings: Record<string, any>) => api.post('/admin/settings', settings),
   getStats: () => api.get('/admin/stats'),
+  getVoices: () => api.get("/admin/voices"),
   
   // User management
   getUsers: () => api.get('/admin/users'),
