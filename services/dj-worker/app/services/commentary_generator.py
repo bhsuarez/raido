@@ -17,11 +17,11 @@ class CommentaryGenerator:
         self.openai_client = OpenAIClient() if settings.OPENAI_API_KEY else None
         self.ollama_client = OllamaClient()
         
-        # Load DJ prompt template
-        self.prompt_template = self._load_prompt_template()
+        # Default prompt template (will be overridden by database settings)
+        self.prompt_template = self._load_default_prompt_template()
     
-    def _load_prompt_template(self) -> Template:
-        """Load the DJ prompt template"""
+    def _load_default_prompt_template(self) -> Template:
+        """Load the default DJ prompt template"""
         # Enhanced template with upcoming track focus and fact-based commentary
         template_text = """You're a pirate radio DJ introducing the NEXT song coming up. Create a brief 15-20 second intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}. 
 
@@ -37,8 +37,18 @@ Examples of good facts:
 Keep it conversational and exciting. No SSML tags needed.""".strip()
         
         return Template(template_text)
+
+    def _load_prompt_template_from_settings(self, dj_settings: Dict[str, Any]) -> Template:
+        """Load prompt template from settings or use default"""
+        template_text = dj_settings.get('dj_prompt_template')
+        if template_text and template_text.strip():
+            logger.info("Using custom DJ prompt template", length=len(template_text))
+            return Template(template_text)
+        else:
+            logger.info("Using default DJ prompt template")
+            return self.prompt_template
     
-    async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[str]:
+    async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate DJ commentary for a track"""
         try:
             # Use provided settings or fall back to defaults
@@ -46,6 +56,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 dj_settings = {}
             
             provider = dj_settings.get('dj_provider', settings.DJ_PROVIDER)
+            logger.info("DJ commentary provider selected", provider=provider)
             
             # Check if commentary is disabled
             if provider == "disabled" or not dj_settings.get('enable_commentary', True):
@@ -57,19 +68,76 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             
             # Generate commentary based on provider
             if provider == "openai" and self.openai_client and settings.OPENAI_API_KEY:
-                return await self._generate_with_openai(prompt_context)
+                return await self._generate_with_openai(prompt_context, dj_settings)
             elif provider == "ollama":
-                return await self._generate_with_ollama(prompt_context)
+                return await self._generate_with_ollama(prompt_context, dj_settings)
             elif provider == "templates":
                 return await self._generate_with_templates(prompt_context)
             else:
                 logger.info("DJ provider not available", provider=provider, 
                            has_openai=bool(self.openai_client and settings.OPENAI_API_KEY))
                 return None
-        
+
         except Exception as e:
             logger.error("Failed to generate commentary", error=str(e))
             return None
+
+    def _estimate_token_cap(self, dj_settings: Dict[str, Any]) -> int:
+        """Estimate a safe token cap based on desired duration.
+
+        Heuristic:
+        - Average speaking rate ~ 2.5 words/sec (150 wpm)
+        - Approx tokens per word ~ 1.3 (varies by model/language)
+        - Cap tokens = seconds * 2.5 words/sec * 1.3 tokens/word
+        """
+        try:
+            max_sec = int(dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS) or 0)
+            if max_sec <= 0:
+                return 200
+            words = max_sec * 25 // 10  # 2.5 words/sec
+            tokens = int(words * 1.3)
+            # Keep within reasonable bounds
+            return max(40, min(tokens, 300))
+        except Exception:
+            return 200
+
+    def _trim_to_duration(self, text: str, dj_settings: Dict[str, Any]) -> str:
+        """Trim commentary text to roughly fit max_seconds.
+
+        Removes SSML to count words, trims at word boundary (preferring sentence end),
+        and re-wraps with minimal SSML. This is a best-effort heuristic.
+        """
+        try:
+            max_sec = int(dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS) or 0)
+            if max_sec <= 0:
+                return text
+
+            # Allowed words at ~2.5 words/sec
+            allowed_words = int(max_sec * 2.5)
+
+            # Strip simple SSML for counting
+            plain = text.replace('<speak>', '').replace('</speak>', '')
+            plain = plain.replace('<break time=\"400ms\"/>', ' ').strip()
+
+            words = plain.split()
+            if len(words) <= allowed_words:
+                return text
+
+            # Trim to allowed words
+            trimmed_words = words[:allowed_words]
+            trimmed = ' '.join(trimmed_words)
+
+            # Prefer to end at last sentence-ending punctuation within the trimmed region
+            for punct in ['. ', '! ', '? ']:
+                idx = trimmed.rfind(punct)
+                if idx != -1 and idx > len(trimmed) * 0.6:  # avoid cutting too short
+                    trimmed = trimmed[:idx + 1]
+                    break
+
+            # Re-wrap with minimal SSML like original
+            return f"<speak><break time=\"400ms\"/>{trimmed.strip()}</speak>"
+        except Exception:
+            return text
     
     def _build_prompt_context(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """Build context for the prompt template"""
@@ -102,17 +170,27 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             'profanity_filter': dj_settings.get('dj_profanity_filter', settings.DJ_PROFANITY_FILTER)
         }
     
-    async def _generate_with_openai(self, prompt_context: Dict[str, Any]) -> Optional[str]:
+    async def _generate_with_openai(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using OpenAI"""
         try:
-            # Render the prompt
-            prompt = self.prompt_template.render(**prompt_context)
+            # Get custom template if available
+            template = self._load_prompt_template_from_settings(dj_settings or {})
             
-            # Call OpenAI with shorter token limit
+            # Render the prompt
+            prompt = template.render(**prompt_context)
+            logger.info("Rendered DJ prompt (OpenAI)", preview=prompt[:160])
+            
+            # Use settings or defaults (cap by duration estimate)
+            user_tokens = dj_settings.get('dj_max_tokens', 50) if dj_settings else 50
+            est_cap = self._estimate_token_cap(dj_settings or {})
+            max_tokens = min(int(user_tokens), est_cap)
+            temperature = dj_settings.get('dj_temperature', 0.8) if dj_settings else 0.8
+            
+            # Call OpenAI with custom parameters
             response = await self.openai_client.generate_commentary(
                 prompt=prompt,
-                max_tokens=50,
-                temperature=0.8
+                max_tokens=max_tokens,
+                temperature=temperature
             )
             
             if response:
@@ -122,9 +200,12 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                     cleaned = cleaned[7:]
                 if cleaned.endswith('</speak>'):
                     cleaned = cleaned[:-8]
-                
-                # Add basic SSML structure
-                return f'<speak><break time="400ms"/>{cleaned.strip()}</speak>'
+                full_transcript = cleaned.strip()
+
+                # Add basic SSML structure and trim for timing
+                ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
+                trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
+                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
             
             return None
         
@@ -132,23 +213,38 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             logger.error("OpenAI commentary generation failed", error=str(e))
             return None
     
-    async def _generate_with_ollama(self, prompt_context: Dict[str, Any]) -> Optional[str]:
+    async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using Ollama"""
         try:
-            # Render the prompt
-            prompt = self.prompt_template.render(**prompt_context)
+            # Get custom template if available
+            template = self._load_prompt_template_from_settings(dj_settings or {})
             
-            # Call Ollama
+            # Render the prompt
+            prompt = template.render(**prompt_context)
+            logger.info("Rendered DJ prompt (Ollama)", preview=prompt[:160])
+            
+            # Use settings or defaults (cap by duration estimate)
+            user_tokens = dj_settings.get('dj_max_tokens', 200) if dj_settings else 200
+            est_cap = self._estimate_token_cap(dj_settings or {})
+            max_tokens = min(int(user_tokens), est_cap)
+            temperature = dj_settings.get('dj_temperature', 0.8) if dj_settings else 0.8
+            model = dj_settings.get('dj_model', settings.OLLAMA_MODEL) if dj_settings else settings.OLLAMA_MODEL
+            
+            # Call Ollama with custom parameters
             response = await self.ollama_client.generate_commentary(
                 prompt=prompt,
-                max_tokens=200,
-                temperature=0.8
+                max_tokens=max_tokens,
+                temperature=temperature,
+                model=model
             )
             
             if response:
                 # Clean and format response
-                cleaned = response.strip()
-                return f'<speak><break time="400ms"/>{cleaned}</speak>'
+                full_transcript = response.strip()
+                ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
+                # Heuristic trim to fit duration
+                trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
+                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
             
             return None
         
@@ -156,7 +252,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             logger.error("Ollama commentary generation failed", error=str(e))
             return None
 
-    async def _generate_with_templates(self, prompt_context: Dict[str, Any]) -> Optional[str]:
+    async def _generate_with_templates(self, prompt_context: Dict[str, Any]) -> Optional[Dict[str, str]]:
         """Generate commentary using pre-written templates (fast fallback)"""
         try:
             import random
@@ -182,8 +278,8 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 song_title=prompt_context.get('song_title', 'Unknown Title')
             )
             
-            # Add SSML structure
-            return f'<speak><break time="400ms"/>{commentary}</speak>'
+            # Add SSML structure and also return full transcript
+            return {"ssml": f'<speak><break time=\"400ms\"/>{commentary}</speak>', "transcript_full": commentary}
             
         except Exception as e:
             logger.error("Template commentary generation failed", error=str(e))
