@@ -7,6 +7,7 @@ interface DJSettings {
   dj_provider: string
   dj_voice_provider: string
   dj_kokoro_voice?: string
+  dj_tts_volume?: number
   dj_model: string
   dj_prompt_template: string
   dj_temperature: number
@@ -24,6 +25,7 @@ export default function DJSettings() {
     dj_provider: 'ollama',
     dj_voice_provider: 'kokoro',
     dj_kokoro_voice: 'af_bella',
+    dj_tts_volume: 1.0,
     dj_model: 'llama3.2:1b',
     dj_prompt_template: '',
     dj_temperature: 0.8,
