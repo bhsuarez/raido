@@ -29,17 +29,17 @@ class OllamaClient:
         """Generate DJ commentary text using Ollama"""
         try:
             # Use provided model or fall back to default
-            used_model = model if model else self.model
+            use_model = model or self.model
             
             logger.debug("Generating commentary with Ollama", 
-                        model=used_model,
+                        model=use_model,
                         max_tokens=max_tokens)
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json={
-                        "model": used_model,
+                        "model": use_model,
                         "prompt": prompt,
                         "stream": False,
                         "options": {

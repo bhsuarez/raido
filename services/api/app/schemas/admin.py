@@ -8,8 +8,12 @@ class AdminSettingsResponse(BaseModel):
     dj_tone: str = "energetic"
     dj_provider: str = "ollama"  # openai, ollama, disabled
     dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
+    dj_voice_id: Optional[str] = None
+    kokoro_voice: Optional[str] = None
     dj_kokoro_voice: Optional[str] = None
     dj_tts_volume: float = 1.0
+    ollama_model: str = "llama3.1:8b"
+    ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True
     dj_prompt_template: str = """You're a pirate radio DJ introducing the NEXT song coming up. Create a brief 15-20 second intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}. 
 

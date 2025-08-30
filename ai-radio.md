@@ -10,7 +10,7 @@ Constraints: Privacy-first, auditable logs, minimal secrets exposure, runs in Do
 ---
 
 ### TECH STACK (locked)
-- **Containerization**: Docker + docker-compose  
+- **Containerization**: Docker + Docker Compose v2  
 - **Stream**: Icecast, Liquidsoap (from directory: {{/music}})  
 - **Backend**: RESTful API ({{Python/FastAPI}} or {{Node/NestJS}}); WebSocket for live updates  
 - **Frontend**: React + WebSocket; Responsive + Dark mode  

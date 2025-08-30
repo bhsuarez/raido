@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     XTTS_BASE_URL: Optional[str] = None
     XTTS_VOICE: str = "pirate_dj"
     
+    # Kokoro TTS (API service)
+    KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
+    
     # DJ Configuration
     DJ_PROVIDER: str = "openai"  # openai, ollama
     DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, xtts

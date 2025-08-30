@@ -45,7 +45,7 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "Bash(DJ_PROVIDER=templates docker-compose up -d dj-worker)",
+      "Bash(DJ_PROVIDER=templates docker compose up -d dj-worker)",
       "Read(/tmp/**)",
       "Bash(journalctl:*)",
       "Bash(python3:*)",

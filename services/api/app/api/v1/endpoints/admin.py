@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Dict, Any
@@ -6,6 +7,7 @@ from datetime import datetime, timezone
 import structlog
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.schemas.admin import AdminSettingsResponse, AdminStatsResponse
 from app.models import Commentary, Play, Setting
 import httpx
@@ -212,7 +214,11 @@ async def create_commentary(
         raise HTTPException(status_code=500, detail=f"Failed to create commentary: {str(e)}")
 
 @router.get("/tts-status")
-async def get_tts_status(db: AsyncSession = Depends(get_db)):
+async def get_tts_status(
+    db: AsyncSession = Depends(get_db),
+    window_hours: int = Query(1, ge=1, le=168),
+    limit: int = Query(10, ge=1, le=500)
+):
     """Get TTS generation status and statistics"""
     try:
         logger = structlog.get_logger()
@@ -223,7 +229,7 @@ async def get_tts_status(db: AsyncSession = Depends(get_db)):
         
         now = datetime.now(timezone.utc)
         last_24h = now - timedelta(hours=24)
-        last_hour = now - timedelta(hours=1)
+        window_start = now - timedelta(hours=window_hours)
         
         # Count total commentary in last 24h
         total_result = await db.execute(
@@ -251,9 +257,9 @@ async def get_tts_status(db: AsyncSession = Depends(get_db)):
         # Get recent activity (last hour)
         recent_result = await db.execute(
             select(Commentary)
-            .where(Commentary.created_at >= last_hour)
+            .where(Commentary.created_at >= window_start)
             .order_by(desc(Commentary.created_at))
-            .limit(10)
+            .limit(limit)
         )
         recent_commentary = recent_result.scalars().all()
         
@@ -310,3 +316,32 @@ async def get_tts_status(db: AsyncSession = Depends(get_db)):
         logger = structlog.get_logger()
         logger.error("Failed to get TTS status", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get TTS status: {str(e)}")
+
+@router.get("/voices")
+async def list_kokoro_voices():
+    """List available Kokoro TTS voices via kokoro-tts service."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{settings.KOKORO_BASE_URL}/v1/audio/voices")
+            if resp.status_code == 200:
+                data = resp.json()
+                voices = data.get("voices", data)
+                # Normalize if array of dicts
+                if isinstance(voices, list) and voices and isinstance(voices[0], dict):
+                    names = []
+                    for v in voices:
+                        name = v.get("id") or v.get("name")
+                        if name:
+                            names.append(name)
+                    voices = names
+                return {"voices": voices}
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.warning("Failed to list Kokoro voices", error=str(e))
+    # Fallback small set
+    fallback = [
+        'af_bella','af_aria','af_sky','af_nicole',
+        'am_onyx','am_michael','am_ryan','am_alex',
+        'bf_ava','bf_sophie','bm_george','bm_james'
+    ]
+    return {"voices": fallback}
