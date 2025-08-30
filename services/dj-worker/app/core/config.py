@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     KOKORO_BASE_URL: str = "http://kokoro-tts:8090"
     KOKORO_VOICE: str = "af_bella"
     KOKORO_SPEED: float = 1.0
+    KOKORO_VOLUME: float = 1.0
     
     # DJ Configuration
     DJ_PROVIDER: str = "templates"  # openai, ollama, templates, disabled

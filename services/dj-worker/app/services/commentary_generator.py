@@ -47,6 +47,37 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
         else:
             logger.info("Using default DJ prompt template")
             return self.prompt_template
+
+    def _sanitize_generated_text(self, text: str) -> str:
+        """Remove stage directions, SSML and parenthetical asides.
+
+        Heuristics:
+        - Strip SSML tags if any slipped in
+        - Drop anything inside () or []
+        - Remove leading/trailing quotes
+        - Collapse whitespace
+        """
+        import re
+
+        if not text:
+            return text
+
+        # Remove SSML and HTML-like tags
+        cleaned = re.sub(r"<[^>]+>", "", text)
+
+        # Remove bracketed/parenthetical content entirely
+        cleaned = re.sub(r"\([^)]*\)", "", cleaned)
+        cleaned = re.sub(r"\[[^\]]*\]", "", cleaned)
+
+        # Remove asterisks stage directions like *applause*
+        cleaned = re.sub(r"\*[^*]+\*", "", cleaned)
+
+        # Strip leading/trailing quotes
+        cleaned = cleaned.strip().strip('\"\'')
+
+        # Normalize whitespace
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
     
     async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate DJ commentary for a track"""
@@ -194,13 +225,13 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             )
             
             if response:
-                # Clean up the response (remove SSML tags for now, add them back if needed)
+                # Clean up the response and enforce no stage directions
                 cleaned = response.strip()
                 if cleaned.startswith('<speak>'):
                     cleaned = cleaned[7:]
                 if cleaned.endswith('</speak>'):
                     cleaned = cleaned[:-8]
-                full_transcript = cleaned.strip()
+                full_transcript = self._sanitize_generated_text(cleaned.strip())
 
                 # Add basic SSML structure and trim for timing
                 ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
@@ -239,8 +270,8 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             )
             
             if response:
-                # Clean and format response
-                full_transcript = response.strip()
+                # Clean and format response; enforce no stage directions
+                full_transcript = self._sanitize_generated_text(response.strip())
                 ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
                 # Heuristic trim to fit duration
                 trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})

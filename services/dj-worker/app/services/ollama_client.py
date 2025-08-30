@@ -23,19 +23,23 @@ class OllamaClient:
         self, 
         prompt: str, 
         max_tokens: int = 200,
-        temperature: float = 0.8
+        temperature: float = 0.8,
+        model: Optional[str] = None
     ) -> Optional[str]:
         """Generate DJ commentary text using Ollama"""
         try:
+            # Use provided model or fall back to default
+            used_model = model if model else self.model
+            
             logger.debug("Generating commentary with Ollama", 
-                        model=self.model,
+                        model=used_model,
                         max_tokens=max_tokens)
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json={
-                        "model": self.model,
+                        "model": used_model,
                         "prompt": prompt,
                         "stream": False,
                         "options": {
