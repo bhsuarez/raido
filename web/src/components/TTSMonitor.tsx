@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
+// import { toast } from 'react-hot-toast'
 // Removed date-fns import to avoid build issues
 
 interface TTSStatistics {
@@ -16,6 +17,7 @@ interface TTSStatistics {
 interface TTSActivity {
   id: number
   text: string
+  transcript?: string | null
   status: string
   provider: string
   voice_provider: string
@@ -40,6 +42,8 @@ interface TTSStatusResponse {
 
 const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
+
+  const stripTags = (s: string) => s.replace(/<[^>]*>/g, '')
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
     queryKey: ['ttsStatus'],
@@ -264,8 +268,8 @@ const TTSMonitor: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h4 className="font-medium text-white truncate">
-                        {item.text.replace(/<[^>]*>/g, '')} {/* Strip HTML tags */}
+                      <h4 className="font-medium text-white whitespace-pre-wrap break-words">
+                        {item.transcript ? item.transcript : stripTags(item.text)}
                       </h4>
                       <p className="text-sm text-gray-400">
                         {item.provider} • {item.voice_provider}

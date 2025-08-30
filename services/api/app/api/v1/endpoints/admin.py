@@ -8,6 +8,11 @@ import structlog
 from app.core.database import get_db
 from app.schemas.admin import AdminSettingsResponse, AdminStatsResponse
 from app.models import Commentary, Play, Setting
+try:
+    from jinja2 import Template, TemplateSyntaxError
+except Exception:
+    Template = None  # type: ignore
+    TemplateSyntaxError = Exception  # type: ignore
 
 router = APIRouter()
 
@@ -49,6 +54,21 @@ async def update_admin_settings(
     """Update admin settings"""
     try:
         logger = structlog.get_logger()
+        
+        # Pre-validate known complex settings to avoid saving invalid values
+        if 'dj_prompt_template' in settings:
+            raw_template = str(settings['dj_prompt_template'] or '')
+            # Basic length guard
+            if len(raw_template) > 5000:
+                raise HTTPException(status_code=400, detail="dj_prompt_template is too long (max 5000 chars)")
+            # Validate Jinja2 syntax if available
+            if Template is not None:
+                try:
+                    Template(raw_template)  # type: ignore
+                except TemplateSyntaxError as te:  # type: ignore
+                    raise HTTPException(status_code=400, detail=f"Invalid prompt template syntax: {te}")
+            else:
+                logger.warning("Jinja2 not available in API container; skipping template validation")
         
         for key, value in settings.items():
             # Check if setting exists
@@ -231,12 +251,13 @@ async def get_tts_status(db: AsyncSession = Depends(get_db)):
         )
         avg_tts_time = avg_tts_time_result.scalar() or 0
         
-        # Format recent activity
+        # Format recent activity (return full text; UI can decide how to render)
         recent_activity = []
         for comment in recent_commentary:
             recent_activity.append({
                 "id": comment.id,
-                "text": comment.text[:100] + "..." if len(comment.text) > 100 else comment.text,
+                "text": comment.text,  # may contain SSML
+                "transcript": comment.transcript,  # full plain-text transcript when available
                 "status": comment.status,
                 "provider": comment.provider,
                 "voice_provider": comment.voice_provider,
