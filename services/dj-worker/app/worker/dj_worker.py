@@ -30,6 +30,9 @@ class DJWorker:
         self.is_running = False
         self.current_jobs: Dict[int, CommentaryJob] = {}
         self.job_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_JOBS)
+        # Track recent intros by upcoming track id to avoid duplicates
+        # Maps track_id -> unix timestamp of when an intro was generated
+        self._recent_intros: Dict[int, float] = {}
     
     async def run(self):
         """Main worker loop with system health monitoring"""
@@ -111,10 +114,18 @@ class DJWorker:
     async def _should_generate_commentary(self) -> bool:
         """Determine if commentary should be generated for next track"""
         try:
-            # Check if DJ provider is disabled
-            if settings.DJ_PROVIDER == "disabled":
+            # Load settings first to respect admin selections over env defaults
+            settings_response = await self.api_client.get_settings()
+            if not settings_response:
                 return False
-            
+
+            provider = settings_response.get('dj_provider', settings.DJ_PROVIDER)
+            enabled = settings_response.get('enable_commentary', True)
+
+            # Respect admin-enabled flag and provider selection
+            if not enabled or provider == "disabled":
+                return False
+
             # CRITICAL: Check system health before proceeding
             if system_monitor:
                 system_health = await system_monitor.check_system_health()
@@ -125,16 +136,8 @@ class DJWorker:
                                  memory=system_health.memory_percent)
                     return False
                 
-            # Check settings for commentary
-            settings_response = await self.api_client.get_settings()
-            if not settings_response:
-                return False
-            
+            # Determine commentary interval
             interval = int(settings_response.get('dj_commentary_interval', 1))
-            enabled = settings_response.get('enable_commentary', True)
-            
-            if not enabled:
-                return False
             
             # Get current playing track info to determine timing
             now_playing = await self.api_client.get_now_playing()
@@ -188,9 +191,14 @@ class DJWorker:
     async def _has_recent_commentary(self, track_id: int) -> bool:
         """Check if a track has recent commentary (within last hour)"""
         try:
-            # This would ideally check the database for recent commentary for this track
-            # For now, we'll use a simple approach and let the API handle duplicates
-            return False
+            import time as _time
+            now = _time.time()
+            # Prune very old entries
+            cutoff = now - 3600  # 1 hour TTL
+            self._recent_intros = {tid: ts for tid, ts in self._recent_intros.items() if ts >= cutoff}
+
+            last = self._recent_intros.get(track_id)
+            return bool(last and last >= cutoff)
         except Exception as e:
             logger.error("Error checking recent commentary", error=str(e))
             return False
@@ -245,23 +253,31 @@ class DJWorker:
                 dj_settings = await self.api_client.get_settings()
                 
                 # Generate commentary text
-                commentary_text = await self.commentary_generator.generate(
+                commentary_payload = await self.commentary_generator.generate(
                     track_info=job.track_info,
                     context=job.context,
                     dj_settings=dj_settings
                 )
                 
-                if not commentary_text:
+                if not commentary_payload:
                     job.status = JobStatus.FAILED
                     job.error = "Failed to generate commentary text"
                     return
-                
-                job.commentary_text = commentary_text
+
+                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full}
+                if isinstance(commentary_payload, dict):
+                    ssml_text = commentary_payload.get('ssml') or commentary_payload.get('text')
+                    transcript_full = commentary_payload.get('transcript_full') or None
+                else:
+                    ssml_text = str(commentary_payload)
+                    transcript_full = None
+
+                job.commentary_text = ssml_text
                 job.status = JobStatus.GENERATING_AUDIO
                 
                 # Generate audio
                 audio_file = await self.tts_service.generate_audio(
-                    text=commentary_text,
+                    text=ssml_text,
                     job_id=str(job_id)
                 )
                 
@@ -275,10 +291,18 @@ class DJWorker:
                 job.completed_at = datetime.now(timezone.utc)
                 
                 # Save to database via API
-                await self._save_commentary(job)
+                await self._save_commentary(job, transcript_full=transcript_full)
                 
                 # Inject into stream
                 await self._inject_commentary(job)
+
+                # Record that we've generated an intro for this upcoming track id to avoid duplicates
+                try:
+                    track_id = job.track_info.get('id')
+                    if track_id:
+                        self._recent_intros[int(track_id)] = time.time()
+                except Exception:
+                    pass
                 
                 logger.info("Commentary job completed successfully",
                            duration_ms=(job.completed_at - job.started_at).total_seconds() * 1000)
@@ -293,11 +317,12 @@ class DJWorker:
             finally:
                 self.current_jobs.pop(job_id, None)
     
-    async def _save_commentary(self, job: CommentaryJob):
+    async def _save_commentary(self, job: CommentaryJob, transcript_full: Optional[str] = None):
         """Save commentary to database via API"""
         try:
             commentary_data = {
                 'text': job.commentary_text,
+                'transcript': transcript_full,
                 'audio_url': job.audio_file,
                 'provider': settings.DJ_PROVIDER,
                 'voice_provider': settings.DJ_VOICE_PROVIDER,

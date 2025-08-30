@@ -109,7 +109,8 @@ class KokoroClient:
                         "input": text,
                         "voice": self.voice,
                         "model": "tts-1",
-                        "response_format": "mp3"
+                        "response_format": "mp3",
+                        "speed": float(self.speed) if self.speed else 1.0
                     }
                 )
                 
