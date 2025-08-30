@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, update
 from typing import Optional, Dict, Any
 import structlog
 from pathlib import Path
 
-from app.core.database import get_db
+from app.core.database import AsyncSessionLocal, get_db
 from app.models import Track, Play, Commentary
 from app.schemas.stream import NowPlayingResponse, HistoryResponse, NextUpResponse
 from app.services.liquidsoap_client import LiquidsoapClient
@@ -14,7 +14,7 @@ router = APIRouter()
 logger = structlog.get_logger()
 
 @router.get("/", response_model=NowPlayingResponse)
-async def get_now_playing(db: AsyncSession = Depends(get_db)):
+async def get_now_playing():
     """Get currently playing track information"""
     try:
         # Try to read current directly from Liquidsoap (more accurate)
@@ -28,18 +28,27 @@ async def get_now_playing(db: AsyncSession = Depends(get_db)):
                 if (ls_meta.get('source') or '').lower() != 'tts':
                     filename = ls_meta.get("filename") or ls_meta.get("initial_uri")
                     track: Optional[Track] = None
-                    if filename:
-                        result = await db.execute(select(Track).where(Track.file_path == filename))
-                        track = result.scalar_one_or_none()
-                        if not track:
-                            result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
-                            track = result.scalar_one_or_none()
+                    # Try to enrich from DB if available
+                    try:
+                        if filename:
+                            async with AsyncSessionLocal() as db:
+                                result = await db.execute(select(Track).where(Track.file_path == filename))
+                                track = result.scalar_one_or_none()
+                                if not track:
+                                    result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
+                                    track = result.scalar_one_or_none()
+                    except Exception:
+                        track = None
                     if not track:
                         title = ls_meta.get("title")
                         artist = ls_meta.get("artist")
                         if title and artist:
-                            result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
-                            track = result.scalar_one_or_none()
+                            try:
+                                async with AsyncSessionLocal() as db:
+                                    result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
+                                    track = result.scalar_one_or_none()
+                            except Exception:
+                                track = None
 
                     if track:
                         payload = {
@@ -114,25 +123,33 @@ async def get_now_playing(db: AsyncSession = Depends(get_db)):
         except Exception:
             pass
 
-        # Get the most recent play that hasn't ended
-        result = await db.execute(
-            select(Play, Track)
-            .join(Track, Play.track_id == Track.id)
-            .where(Play.ended_at.is_(None))
-            .order_by(desc(Play.started_at))
-            .limit(1)
-        )
-        
-        row = result.first()
+        # DB-independent fallback didn't return, attempt DB fallback if available
+        row = None
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Play, Track)
+                    .join(Track, Play.track_id == Track.id)
+                    .where(Play.ended_at.is_(None))
+                    .order_by(desc(Play.started_at))
+                    .limit(1)
+                )
+                row = result.first()
+        except Exception:
+            row = None
         if not row:
             # No current track, try to get the most recent one
-            result = await db.execute(
-                select(Play, Track)
-                .join(Track, Play.track_id == Track.id)
-                .order_by(desc(Play.started_at))
-                .limit(1)
-            )
-            row = result.first()
+            try:
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(
+                        select(Play, Track)
+                        .join(Track, Play.track_id == Track.id)
+                        .order_by(desc(Play.started_at))
+                        .limit(1)
+                    )
+                    row = result.first()
+            except Exception:
+                row = None
             
             if not row:
                 return NowPlayingResponse(

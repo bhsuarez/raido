@@ -248,6 +248,7 @@ class DJWorker:
                 
                 job.status = JobStatus.GENERATING_TEXT
                 job.started_at = datetime.now(timezone.utc)
+                gen_started = datetime.now(timezone.utc)
                 
                 # Get DJ settings from API
                 dj_settings = await self.api_client.get_settings()
@@ -258,6 +259,8 @@ class DJWorker:
                     context=job.context,
                     dj_settings=dj_settings
                 )
+                gen_finished = datetime.now(timezone.utc)
+                generation_time_ms = int((gen_finished - gen_started).total_seconds() * 1000)
                 
                 if not commentary_payload:
                     job.status = JobStatus.FAILED
@@ -274,12 +277,16 @@ class DJWorker:
 
                 job.commentary_text = ssml_text
                 job.status = JobStatus.GENERATING_AUDIO
+                tts_started = datetime.now(timezone.utc)
                 
                 # Generate audio
                 audio_file = await self.tts_service.generate_audio(
                     text=ssml_text,
-                    job_id=str(job_id)
+                    job_id=str(job_id),
+                    dj_settings=dj_settings
                 )
+                tts_finished = datetime.now(timezone.utc)
+                tts_time_ms = int((tts_finished - tts_started).total_seconds() * 1000)
                 
                 if not audio_file:
                     job.status = JobStatus.FAILED
@@ -291,7 +298,13 @@ class DJWorker:
                 job.completed_at = datetime.now(timezone.utc)
                 
                 # Save to database via API
-                await self._save_commentary(job, transcript_full=transcript_full)
+                await self._save_commentary(
+                    job,
+                    transcript_full=transcript_full,
+                    generation_time_ms=generation_time_ms,
+                    tts_time_ms=tts_time_ms,
+                    dj_settings=dj_settings
+                )
                 
                 # Inject into stream
                 await self._inject_commentary(job)
@@ -317,7 +330,14 @@ class DJWorker:
             finally:
                 self.current_jobs.pop(job_id, None)
     
-    async def _save_commentary(self, job: CommentaryJob, transcript_full: Optional[str] = None):
+    async def _save_commentary(
+        self,
+        job: CommentaryJob,
+        transcript_full: Optional[str] = None,
+        generation_time_ms: Optional[int] = None,
+        tts_time_ms: Optional[int] = None,
+        dj_settings: Optional[Dict[str, Any]] = None,
+    ):
         """Save commentary to database via API"""
         try:
             commentary_data = {
@@ -326,9 +346,12 @@ class DJWorker:
                 'audio_url': job.audio_file,
                 'provider': settings.DJ_PROVIDER,
                 'voice_provider': settings.DJ_VOICE_PROVIDER,
+                'voice_id': (dj_settings or {}).get('kokoro_voice') or (dj_settings or {}).get('dj_voice_id'),
                 'status': 'ready',
                 'context_data': job.context,
                 'duration_ms': job.audio_duration_ms,
+                'generation_time_ms': generation_time_ms,
+                'tts_time_ms': tts_time_ms,
                 'is_intro': True,  # Mark this as an intro for the upcoming track
                 'target_track_id': job.track_info.get('id')  # Track this commentary is about
             }

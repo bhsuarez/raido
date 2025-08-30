@@ -82,7 +82,7 @@ class KokoroClient:
         wait=wait_exponential(multiplier=2, min=4, max=16),  # Longer waits
         retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException))
     )
-    async def generate_audio(self, text: str, job_id: str) -> Optional[str]:
+    async def generate_audio(self, text: str, job_id: str, *, voice: Optional[str] = None, speed: Optional[float] = None) -> Optional[str]:
         """Generate audio using Kokoro TTS with circuit breaker protection"""
         try:
             # Check circuit breaker
@@ -96,7 +96,9 @@ class KokoroClient:
                 logger.warning("Rate limit exceeded - skipping TTS request")
                 return None
             
-            logger.info("Generating TTS with Kokoro", voice=self.voice, text_length=len(text))
+            use_voice = voice or self.voice
+            use_speed = float(speed) if speed is not None else float(self.speed)
+            logger.info("Generating TTS with Kokoro", voice=use_voice, text_length=len(text))
             
             # Create output filename
             filename = f"commentary_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
@@ -107,10 +109,10 @@ class KokoroClient:
                     f"{self.base_url}/v1/audio/speech",
                     json={
                         "input": text,
-                        "voice": self.voice,
+                        "voice": use_voice,
                         "model": "tts-1",
                         "response_format": "mp3",
-                        "speed": float(self.speed) if self.speed else 1.0
+                        "speed": use_speed if use_speed else 1.0
                     }
                 )
                 

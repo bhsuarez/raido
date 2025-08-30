@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:18 as build
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ RUN npm ci
 COPY . .
 
 # Build the app
-RUN npx vite build --mode production
+RUN npm run build
 
 # Production stage
 FROM nginx:alpine
