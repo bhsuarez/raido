@@ -10,7 +10,26 @@ const NowPlaying: React.FC = () => {
 
   const track = nowPlaying?.track
   const progress = nowPlaying?.progress
+  const total = track?.duration_sec ?? progress?.total_seconds ?? 0
+  const [elapsed, setElapsed] = React.useState(progress?.elapsed_seconds ?? 0)
   const [isSkipping, setIsSkipping] = React.useState(false)
+
+  React.useEffect(() => {
+    setElapsed(progress?.elapsed_seconds ?? 0)
+  }, [progress?.elapsed_seconds, track?.id])
+
+  React.useEffect(() => {
+    if (!track || !total) return
+    const interval = setInterval(() => {
+      setElapsed(prev => {
+        const next = prev + 1
+        return next > total ? total : next
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [track?.id, total])
+
+  const remaining = total ? Math.max(0, total - elapsed) : 0
 
   const handleSkipTrack = async () => {
     if (isSkipping) return
@@ -134,13 +153,13 @@ const NowPlaying: React.FC = () => {
           {/* Progress Bar */}
           <div className="space-y-3">
             <div className="flex justify-between text-sm text-gray-400">
-              <span>{formatTime(progress?.elapsed_seconds || 0)}</span>
-              <span>{formatTime(track.duration_sec || 0)}</span>
+              <span>{formatTime(elapsed)}</span>
+              <span>-{formatTime(remaining)}</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
               <div
                   className="bg-gradient-to-r from-pirate-500 via-pirate-400 to-pirate-300 h-3 rounded-full shadow-lg relative overflow-hidden"
-                  style={{ width: `${track.duration_sec && progress ? Math.min(100, (progress.elapsed_seconds / track.duration_sec) * 100) : 0}%` }}
+                  style={{ width: `${total ? Math.min(100, (elapsed / total) * 100) : 0}%` }}
               >
                 {/* Animated shimmer effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 animate-pulse"></div>
