@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 
 // Components
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
@@ -13,14 +14,21 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">
       <Layout>
+        <ErrorBoundary>
         <Routes>
           <Route 
             path="/" 
             element={
               <div className="space-y-6">
-                <NowPlaying />
-                <ComingUp />
-                <PlayHistory />
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
+                  <NowPlaying />
+                </ErrorBoundary>
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
+                  <ComingUp />
+                </ErrorBoundary>
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Play History.</div>}>
+                  <PlayHistory />
+                </ErrorBoundary>
               </div>
             } 
           />
@@ -48,6 +56,7 @@ function App() {
             } 
           />
         </Routes>
+        </ErrorBoundary>
       </Layout>
     </div>
   )

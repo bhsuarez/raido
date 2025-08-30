@@ -7,12 +7,7 @@
 
 # Domain configuration
 raido.zorro.network {
-	# Serve React frontend
-	handle /* {
-		reverse_proxy web:80
-	}
-
-	# API endpoints
+	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000
 	}
@@ -43,6 +38,11 @@ raido.zorro.network {
 	# Health check
 	handle /health {
 		respond "OK" 200
+	}
+
+	# Finally, serve React frontend (catch-all)
+	handle /* {
+		reverse_proxy web:80
 	}
 
 	# Security headers
@@ -81,12 +81,7 @@ raido.zorro.network {
 
 # Main site (localhost/IP)
 :80 {
-	# Serve React frontend
-	handle /* {
-		reverse_proxy web:80
-	}
-
-	# API endpoints
+	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000
 	}
@@ -117,6 +112,11 @@ raido.zorro.network {
 	# Health check
 	handle /health {
 		respond "OK" 200
+	}
+
+	# Finally, serve React frontend (catch-all)
+	handle /* {
+		reverse_proxy web:80
 	}
 
 	# Security headers

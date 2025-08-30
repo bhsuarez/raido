@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
@@ -7,24 +7,26 @@ import LoadingSpinner from './LoadingSpinner'
 
 const NowPlaying: React.FC = () => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
-  const [isSkipping, setIsSkipping] = useState(false)
-  
+
+  const track = nowPlaying?.track
+  const progress = nowPlaying?.progress
+  const [isSkipping, setIsSkipping] = React.useState(false)
+
   const handleSkipTrack = async () => {
     if (isSkipping) return
-    
     setIsSkipping(true)
     try {
       await apiHelpers.skipTrack()
       toast.success('🎵 Track skipped!')
-    } catch (error) {
-      console.error('Failed to skip track:', error)
+    } catch (err) {
+      console.error('Failed to skip track:', err)
       toast.error('Failed to skip track')
     } finally {
-      setTimeout(() => setIsSkipping(false), 2000) // Prevent rapid clicking
+      setTimeout(() => setIsSkipping(false), 2000)
     }
   }
-  
-  // Show loading state
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="bg-gradient-to-br from-pirate-900 via-pirate-800 to-gray-800 rounded-2xl p-8 shadow-2xl border border-pirate-600/30">
@@ -34,9 +36,9 @@ const NowPlaying: React.FC = () => {
       </div>
     )
   }
-  
-  // Show error or no data state
-  if (error || !nowPlaying?.track) {
+
+  // Offline or no data
+  if (error || !track) {
     return (
       <div className="bg-gradient-to-br from-pirate-900 via-pirate-800 to-gray-800 rounded-2xl p-8 shadow-2xl border border-pirate-600/30">
         <div className="flex items-center justify-center h-64">
@@ -48,41 +50,6 @@ const NowPlaying: React.FC = () => {
       </div>
     )
   }
-
-  const currentTrack = useMemo(() => ({
-    title: nowPlaying.track.title,
-    artist: nowPlaying.track.artist,
-    album: nowPlaying.track.album || 'Unknown Album',
-    year: nowPlaying.track.year,
-    duration: nowPlaying.track.duration_sec || 0,
-    position: nowPlaying.progress?.elapsed_seconds || 0,
-    artwork: nowPlaying.track.artwork_url || '',
-    genre: nowPlaying.track.genre || 'Unknown'
-  }), [nowPlaying])
-
-  const [elapsed, setElapsed] = useState<number>(currentTrack.position)
-  const prevTrackId = useRef<number | undefined>(nowPlaying.track.id)
-
-  useEffect(() => {
-    if (prevTrackId.current !== nowPlaying.track.id) {
-      prevTrackId.current = nowPlaying.track.id
-      setElapsed(nowPlaying.progress?.elapsed_seconds || 0)
-    } else {
-      setElapsed(nowPlaying.progress?.elapsed_seconds || currentTrack.position)
-    }
-    const interval = setInterval(() => {
-      setElapsed((e) => {
-        const next = e + 1
-        if (currentTrack.duration > 0 && next > currentTrack.duration) return currentTrack.duration
-        return next
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [nowPlaying.track.id, nowPlaying.progress?.elapsed_seconds, currentTrack.duration, currentTrack.position])
-
-  const progress = useMemo(() => ({
-    percentage: currentTrack.duration > 0 ? (elapsed / currentTrack.duration) * 100 : 0
-  }), [elapsed, currentTrack.duration])
 
   const formatTime = (seconds: number | null | undefined) => {
     if (!seconds || isNaN(seconds)) return '0:00'
@@ -114,10 +81,10 @@ const NowPlaying: React.FC = () => {
         <div className="lg:col-span-1">
           <div className="relative group">
             <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-pirate-600/30">
-              {currentTrack.artwork ? (
+              {track.artwork_url ? (
                 <img
-                  src={currentTrack.artwork}
-                  alt={`${currentTrack.album} by ${currentTrack.artist}`}
+                  src={track.artwork_url}
+                  alt={`${track.album} by ${track.artist}`}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
@@ -134,10 +101,10 @@ const NowPlaying: React.FC = () => {
             {/* Album info overlay */}
             <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg p-3">
               <div className="text-white text-sm font-medium truncate">
-                {currentTrack.album}
+                {track.album}
               </div>
               <div className="text-gray-300 text-xs">
-                {currentTrack.year}
+                {track.year}
               </div>
             </div>
           </div>
@@ -149,17 +116,17 @@ const NowPlaying: React.FC = () => {
           {/* Track Title & Artist */}
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-white leading-tight">
-              {currentTrack.title}
+              {track.title}
             </h1>
             <h2 className="text-2xl text-pirate-300 font-semibold">
-              by {currentTrack.artist}
+              by {track.artist}
             </h2>
             <div className="flex items-center gap-4 text-gray-400">
               <span className="bg-gray-700 px-3 py-1 rounded-full text-sm">
-                🎸 {currentTrack.genre}
+                🎸 {track.genre}
               </span>
               <span className="text-sm">
-                {currentTrack.album} • {currentTrack.year}
+                {track.album} • {track.year}
               </span>
             </div>
           </div>
@@ -167,13 +134,13 @@ const NowPlaying: React.FC = () => {
           {/* Progress Bar */}
           <div className="space-y-3">
             <div className="flex justify-between text-sm text-gray-400">
-              <span>{formatTime(elapsed)}</span>
-              <span>{formatTime(currentTrack.duration)}</span>
+              <span>{formatTime(progress?.elapsed_seconds || 0)}</span>
+              <span>{formatTime(track.duration_sec || 0)}</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
               <div
-                className="bg-gradient-to-r from-pirate-500 via-pirate-400 to-pirate-300 h-3 rounded-full shadow-lg transition-all duration-1000 relative overflow-hidden"
-                style={{ width: `${progress.percentage}%` }}
+                  className="bg-gradient-to-r from-pirate-500 via-pirate-400 to-pirate-300 h-3 rounded-full shadow-lg relative overflow-hidden"
+                  style={{ width: `${track.duration_sec && progress ? Math.min(100, (progress.elapsed_seconds / track.duration_sec) * 100) : 0}%` }}
               >
                 {/* Animated shimmer effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 animate-pulse"></div>
