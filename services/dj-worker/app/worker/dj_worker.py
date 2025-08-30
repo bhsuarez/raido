@@ -138,11 +138,8 @@ class DJWorker:
             
             # Get current playing track info to determine timing
             now_playing = await self.api_client.get_now_playing()
-            if not now_playing or 'current' not in now_playing:
-                return False
-            
-            current_play = now_playing['current']
-            if not current_play:
+            # Backend returns: { is_playing: bool, track: {}, play: {}, progress: {} }
+            if not now_playing or not now_playing.get('track'):
                 return False
             
             # Check if we should generate commentary based on interval

@@ -67,8 +67,9 @@ services:
   kokoro-tts:
     image: ghcr.io/remsky/kokoro-fastapi-cpu
     restart: unless-stopped
+    # Remap host port to avoid conflicts; service remains on 8880 internally
     ports:
-      - "8090:8880"
+      - "8091:8880"
     environment:
       - USE_GPU=false
       - DOWNLOAD_MODEL=true
