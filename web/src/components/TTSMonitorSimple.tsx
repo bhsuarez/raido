@@ -1,6 +1,7 @@
 import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../utils/api'
+// import { toast } from 'react-hot-toast'
 
 const TTSMonitorSimple: React.FC = () => {
   const { data: ttsStatus, isLoading, error } = useQuery({
@@ -8,6 +9,8 @@ const TTSMonitorSimple: React.FC = () => {
     queryFn: () => api.get('/admin/tts-status').then(res => res.data),
     refetchInterval: 30000,
   })
+
+  const stripTags = (s: string) => s.replace(/<[^>]*>/g, '')
 
   return (
     <div className="space-y-6">
@@ -67,9 +70,11 @@ const TTSMonitorSimple: React.FC = () => {
           <div className="space-y-3">
             {ttsStatus.recent_activity.slice(0, 3).map((item: any) => (
               <div key={item.id} className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/20">
-                <p className="text-white font-medium mb-2">
-                  {item.text.replace(/<[^>]*>/g, '').substring(0, 100)}...
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-white font-medium mb-2 whitespace-pre-wrap break-words flex-1">
+                    {(item as any).transcript ? (item as any).transcript : stripTags(item.text)}
+                  </p>
+                </div>
                 <div className="flex items-center justify-between text-sm text-gray-400">
                   <span>{item.provider} • {item.voice_provider}</span>
                   <span>{new Date(item.created_at).toLocaleTimeString()}</span>
