@@ -36,9 +36,14 @@ api.interceptors.response.use(
     
     // Don't show error toasts for expected errors
     if (error.response?.status === 401) {
-      // Unauthorized - redirect to login or clear token
-      localStorage.removeItem('raido-token')
-      window.location.reload()
+      // Avoid reload loops if no token is set
+      const hadToken = Boolean(localStorage.getItem('raido-token'))
+      if (hadToken) {
+        localStorage.removeItem('raido-token')
+        window.location.reload()
+      }
+      // If no token, surface the error without reloading the page
+      return Promise.reject(error)
     } else if (error.response?.status >= 500) {
       // Server errors
       toast.error(`Server error: ${message}`)
