@@ -8,6 +8,7 @@ import structlog
 from app.core.database import get_db
 from app.schemas.admin import AdminSettingsResponse, AdminStatsResponse
 from app.models import Commentary, Play, Setting
+import httpx
 try:
     from jinja2 import Template, TemplateSyntaxError
 except Exception:
@@ -45,6 +46,26 @@ async def get_admin_settings(db: AsyncSession = Depends(get_db)):
         logger.error("Failed to get settings", error=str(e))
         # Return defaults on error
         return AdminSettingsResponse()
+
+@router.get("/voices")
+async def get_voices():
+    """List available voices for the configured TTS providers.
+
+    Currently implements Kokoro voices via kokoro-tts service.
+    """
+    try:
+        # Query kokoro-tts inside the docker network (service port 8880)
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get("http://kokoro-tts:8880/v1/audio/voices")
+            if resp.status_code == 200:
+                data = resp.json()
+                voices = data.get("voices", [])
+                return {"voices": voices}
+            return {"voices": []}
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.error("Failed to fetch voices from kokoro-tts", error=str(e))
+        return {"voices": []}
 
 @router.post("/settings")
 async def update_admin_settings(
