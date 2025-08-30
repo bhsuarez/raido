@@ -99,7 +99,7 @@ WORKER_POLL_INTERVAL=5            # Seconds between worker checks
    ```bash
    # Quickly disable if issues occur
    echo "DJ_PROVIDER=disabled" >> .env
-   docker-compose restart dj-worker
+   docker compose restart dj-worker
    ```
 
 ## System Health Monitoring Commands
@@ -148,7 +148,7 @@ docker logs raido_dj-worker_1 | grep -i "protection\|circuit\|health"
 ```bash
 # 1. Temporarily block kokoro service
 # Block Docker service (not recommended - use DJ_PROVIDER=disabled instead)
-docker-compose stop kokoro-tts
+docker compose stop kokoro-tts
 
 # 2. Enable TTS and watch circuit breaker activate
 DJ_PROVIDER=kokoro
@@ -157,7 +157,7 @@ DJ_PROVIDER=kokoro
 docker logs -f raido_dj-worker_1
 
 # 4. Restore access
-docker-compose start kokoro-tts
+docker compose start kokoro-tts
 ```
 
 ## Key Files Modified
@@ -173,7 +173,7 @@ If system issues occur again:
 
 - [ ] Check load average: `uptime`
 - [ ] Disable TTS: `DJ_PROVIDER=disabled`
-- [ ] Restart services: `docker-compose restart`
+- [ ] Restart services: `docker compose restart`
 - [ ] Monitor logs: `docker logs raido_dj-worker_1`
 - [ ] Verify circuit breaker logs
 - [ ] Check system resources stabilize

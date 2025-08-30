@@ -7,7 +7,7 @@ set -eu
 
 API_URL="http://api:8000/health"
 WEB_URL="http://web:3000/health"
-STREAM_URL="http://icecast:8000/stream/raido.mp3"
+STREAM_URL="http://icecast:8000/raido.mp3"
 INTERVAL_SECONDS="60"
 
 log() { echo "[monitor] $(date -Iseconds) $*"; }
@@ -63,4 +63,3 @@ while true; do
   fi
   sleep "$INTERVAL_SECONDS"
 done
-
