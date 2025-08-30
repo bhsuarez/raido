@@ -130,6 +130,12 @@ make health           # Check service health
 make backup-db        # Backup database
 ```
 
+### Monitoring & Alerts
+
+- A lightweight `monitor` service runs in the stack and periodically checks API, Web, and Stream availability.
+- To enable Slack alerts on failures, set `ALERT_SLACK_WEBHOOK` in your `.env` file.
+- You can also run `make health` locally; it checks host ports (API on `8001`, Web on `3000`, Stream on `8000`).
+
 ## Configuration
 
 ### DJ Settings
