@@ -55,6 +55,11 @@ cd web && npm run lint   # Lint TypeScript/React code
 
 Raido is a containerized AI-powered radio station with the following core services:
 
+**Constraints:**  
+- Runs in Docker + Docker Compose v2.  
+- Privacy-first (minimal exposure of secrets).  
+- HTTPS enforced end-to-end.
+
 ### Core Services
 - **API (`services/api/`)** - FastAPI backend handling REST APIs, WebSocket connections, and database operations
 - **DJ Worker (`services/dj-worker/`)** - Background service for AI commentary generation and TTS processing

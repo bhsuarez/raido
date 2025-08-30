@@ -49,7 +49,7 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 ### Prerequisites
 
-- Docker and Docker Compose
+- Docker with Docker Compose v2
 - At least 2GB RAM
 - Music files (MP3, FLAC, OGG, WAV)
 
@@ -84,9 +84,11 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
    # Copy your music files to ./music directory
    ```
 
-5. **Start Raido**:
+5. **Start Raido (production)**:
    ```bash
-   make up
+   # Build optimized web and start the core stack
+   docker compose build web
+   docker compose up -d proxy api web icecast liquidsoap dj-worker
    ```
 
 6. **Run database migrations**:
@@ -94,41 +96,40 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
    make migrate
    ```
 
-### Access Points
+### Access Points (production)
 
-- **Web Interface**: http://localhost:3000
-- **Radio Stream**: http://localhost:8000/stream/raido.mp3
-- **API Documentation**: http://localhost:8000/docs
-- **Database Admin**: http://localhost:8080
+- **Web UI**: http://localhost
+- **DJ Admin**: http://localhost/tts
+- **API (via proxy)**: http://localhost/api/v1
+- **Stream**: http://localhost:8000/raido.mp3
+- **pgAdmin**: http://localhost:5050
 
 ## Development
 
-### Development Setup
+### Dev Run (Vite + hot reload)
 
 ```bash
-make dev-setup
+# Start dev stack (Caddy→Vite @ :3000, API @ :8001)
+make up-dev
+
+# Useful
+make restart-dev     # restart api, web-dev, proxy
+make restart-web     # restart web-dev only
+make restart-api     # restart api only
+make logs-web        # tail web-dev logs (Vite)
+make logs-api        # tail api logs
+make logs-proxy      # tail proxy logs
 ```
 
-This will:
-- Set up the environment
-- Build all containers
-- Start services in development mode
-- Run database migrations
-- Enable live reload for code changes
+Dev URLs:
+- Web UI: http://localhost:3000 (Caddy → Vite)
+- API: http://localhost:8001 (health at /health)
+- Stream: http://localhost:8000/raido.mp3
 
-### Available Commands
-
-```bash
-make help              # Show all available commands
-make up               # Start all services
-make down             # Stop all services
-make logs             # Show all logs
-make logs-api         # Show API logs
-make logs-dj          # Show DJ worker logs
-make shell-api        # Open shell in API container
-make health           # Check service health
-make backup-db        # Backup database
-```
+Notes:
+- The dev web service (`web-dev`) runs Node + Vite with your code mounted and auto‑reloads on save.
+- The API runs Uvicorn with `--reload` and picks up Python changes.
+- For production web rebuilds, run `docker compose build web && docker compose up -d web`.
 
 ### Monitoring & Alerts
 
@@ -170,7 +171,7 @@ For high-quality neural TTS using Kokoro:
 DJ_VOICE_PROVIDER=kokoro
 
 # Kokoro TTS Configuration
-KOKORO_BASE_URL=http://localhost:8090
+KOKORO_BASE_URL=http://kokoro-tts:8880
 KOKORO_VOICE=am_onyx  # Available voices: am_onyx, af_bella, etc.
 KOKORO_SPEED=1.0
 ```
@@ -181,6 +182,11 @@ cd kokoro-tts
 ./start-cpu.sh  # For CPU inference
 # or
 ./start-gpu.sh  # For GPU inference (requires NVIDIA GPU)
+```
+
+List all voices through the API:
+```bash
+curl http://localhost/api/v1/admin/voices | jq .voices
 ```
 
 ### Stream Settings
@@ -252,6 +258,8 @@ Raido reads ID3 tags for:
 - `GET /api/v1/admin/settings` - Get settings
 - `POST /api/v1/admin/settings` - Update settings
 - `GET /api/v1/admin/stats` - System statistics
+- `GET /api/v1/admin/voices` - List Kokoro voices (proxy)
+- `GET /api/v1/admin/tts-status?window_hours=24&limit=100` - TTS activity window + pagination
 
 See `/docs` endpoint for full API documentation.
 
@@ -269,8 +277,10 @@ make logs-liquidsoap
 **DJ commentary not working:**
 ```bash
 make logs-dj
-# Check OPENAI_API_KEY in .env
-# Verify AI provider settings
+# Verify Provider/Voice Provider in DJ Admin (/tts)
+# Ensure Kokoro is running (http://localhost:8091/health)
+# Check Ollama model exists and base URL is correct
+# Press Skip to force an intro
 ```
 
 **Database connection issues:**
@@ -282,10 +292,26 @@ make logs-api
 
 **Web interface not loading:**
 ```bash
-make logs-web
-# Check if port 3000 is available
-# Verify proxy configuration
+make logs-proxy
+# Dev: ensure web-dev is up (make logs-web) and proxy uses Caddyfile.dev
+# Prod: rebuild web (docker compose build web) and restart
 ```
+
+If PostgreSQL shows a manifest/`ContainerConfig` error:
+```bash
+docker compose down -v
+docker image rm postgres:16 || true
+docker system prune -af
+docker compose pull db
+docker compose up -d db
+```
+
+See also: `instructions.md` for a step-by-step runbook.
+
+## Screenshots
+
+- Home: `docs/screenshots/home.png`
+- DJ Admin: `docs/screenshots/dj-admin.png`
 
 ### Debugging
 

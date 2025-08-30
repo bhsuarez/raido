@@ -24,15 +24,17 @@ websocket_manager = WebSocketManager()
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     logger.info("🏴‍☠️ Raido API starting up...")
-    
-    # Create database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    logger.info("Database tables created/verified")
-    
+
+    # Try to create database tables but don't crash if DB is unavailable in dev
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.warning("Database not available on startup; continuing", error=str(e))
+
     yield
-    
+
     logger.info("🏴‍☠️ Raido API shutting down...")
 
 # Create FastAPI app

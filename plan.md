@@ -1,7 +1,7 @@
 Build Plan (Phased)
 
 Phase 0 – Bootstrap
-	•	Private repo, .env.example, docker-compose skeleton
+	•	Private repo, .env.example, docker compose skeleton
 	•	Postgres migrations ready
 
 Phase 1 – Core Stream

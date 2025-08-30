@@ -27,7 +27,7 @@
 ## Testing Guidelines
 - API/DJ: Place Pytest tests under `services/<service>/tests/`.
 - Web: Put Jest/Vitest tests under `web/src/__tests__/`.
-- Until `make test` is wired, run directly, e.g.: `docker-compose exec api pytest -q` and `cd web && npm test`.
+- Until `make test` is wired, run directly, e.g.: `docker compose exec api pytest -q` and `cd web && npm test`.
 
 ## Commit & Pull Request Guidelines
 - Commits: Imperative, scoped prefix (e.g., `api: add now-playing endpoint`).

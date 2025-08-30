@@ -7,7 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
-import TTSMonitorSimple from './components/TTSMonitorSimple'
+import TTSMonitor from './components/TTSMonitor'
 import DJSettings from './components/DJSettings'
 
 function App() {
@@ -39,7 +39,7 @@ function App() {
           />
           <Route 
             path="/tts" 
-            element={<TTSMonitorSimple />} 
+            element={<TTSMonitor />} 
           />
           <Route 
             path="/settings/dj" 
