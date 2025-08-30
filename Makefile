@@ -2,6 +2,9 @@
 
 .PHONY: help setup up down build clean logs shell test lint format
 
+# Prefer Docker Compose v2 plugin; override with `make COMPOSE=docker-compose ...` if needed
+COMPOSE ?= docker compose
+
 # Colors for output
 BLUE := \033[34m
 GREEN := \033[32m
@@ -29,68 +32,97 @@ setup: ## Initial setup - copy env file and create directories
 
 build: ## Build all services
 	@echo "$(BLUE)Building all services...$(RESET)"
-	docker-compose build
+	$(COMPOSE) build
 
 up: ## Start all services
 	@echo "$(BLUE)🏴‍☠️ Starting Raido Pirate Radio...$(RESET)"
-	docker-compose up -d
+	$(COMPOSE) up -d
 	@echo "$(GREEN)Raido is sailing! 🚢$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Services:$(RESET)"
 	@echo "  • Web UI: http://localhost:3000"
 	@echo "  • API: http://localhost:8000"
-	@echo "  • Stream: http://localhost:8000/stream/raido.mp3"
+	@echo "  • Stream: http://localhost:8000/raido.mp3"
 	@echo "  • Icecast Admin: http://localhost:8000/admin/"
 	@echo "  • Database Admin: http://localhost:8080"
 
 up-dev: ## Start services in development mode with live reload
 	@echo "$(BLUE)🏴‍☠️ Starting Raido in development mode...$(RESET)"
-	docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml up -d api web-dev proxy icecast liquidsoap
 	@echo "$(GREEN)Development environment ready!$(RESET)"
+
+down-dev: ## Stop dev stack and remove orphans
+	@echo "$(BLUE)Stopping Raido dev stack...$(RESET)"
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml down --remove-orphans
+	@echo "$(GREEN)Dev stack stopped$(RESET)"
+
+restart-web: ## Restart frontend dev server (web-dev)
+	@echo "$(BLUE)Restarting web-dev...$(RESET)"
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml restart web-dev
+	@echo "$(GREEN)web-dev restarted$(RESET)"
+
+restart-api: ## Restart API dev server
+	@echo "$(BLUE)Restarting api...$(RESET)"
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml restart api
+	@echo "$(GREEN)api restarted$(RESET)"
+
+restart-dev: ## Restart API, web-dev, and proxy
+	@echo "$(BLUE)Restarting dev services (api, web-dev, proxy)...$(RESET)"
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml restart api web-dev proxy
+	@echo "$(GREEN)Dev services restarted$(RESET)"
+
+logs-web: ## Tail web-dev logs
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml logs -f web-dev
+
+logs-proxy: ## Tail proxy logs
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml logs -f proxy
+
+logs-api: ## Tail api logs
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.override.yml logs -f api
 
 down: ## Stop all services
 	@echo "$(BLUE)Stopping Raido...$(RESET)"
-	docker-compose down
+	$(COMPOSE) down
 	@echo "$(GREEN)All services stopped$(RESET)"
 
 stop: ## Stop services but keep containers
 	@echo "$(BLUE)Pausing Raido...$(RESET)"
-	docker-compose stop
+	$(COMPOSE) stop
 	@echo "$(GREEN)Services paused$(RESET)"
 
 restart: ## Restart all services
 	@echo "$(BLUE)Restarting Raido...$(RESET)"
-	docker-compose restart
+	$(COMPOSE) restart
 	@echo "$(GREEN)Services restarted$(RESET)"
 
 logs: ## Show logs from all services
-	docker-compose logs -f
+	 $(COMPOSE) logs -f
 
 logs-api: ## Show API service logs
-	docker-compose logs -f api
+	$(COMPOSE) logs -f api
 
 logs-dj: ## Show DJ worker logs
-	docker-compose logs -f dj-worker
+	$(COMPOSE) logs -f dj-worker
 
 logs-liquidsoap: ## Show Liquidsoap logs
-	docker-compose logs -f liquidsoap
+	$(COMPOSE) logs -f liquidsoap
 
 logs-web: ## Show web frontend logs
-	docker-compose logs -f web
+	$(COMPOSE) logs -f web
 
 shell-api: ## Open shell in API container
-	docker-compose exec api bash
+	$(COMPOSE) exec api bash
 
 shell-dj: ## Open shell in DJ worker container
-	docker-compose exec dj-worker bash
+	$(COMPOSE) exec dj-worker bash
 
 shell-db: ## Open PostgreSQL shell
-	docker-compose exec db psql -U raido -d raido
+	$(COMPOSE) exec db psql -U raido -d raido
 
 clean: ## Clean up containers, volumes, and images
 	@echo "$(YELLOW)Cleaning up Docker resources...$(RESET)"
-	docker-compose down -v --remove-orphans
-	docker-compose rm -f
+	$(COMPOSE) down -v --remove-orphans
+	$(COMPOSE) rm -f
 	docker volume prune -f
 	docker image prune -f
 	@echo "$(GREEN)Cleanup complete$(RESET)"
@@ -100,7 +132,7 @@ clean-all: ## Nuclear cleanup - remove everything including images
 	@read -p "Are you sure? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		docker-compose down -v --remove-orphans --rmi all; \
+		$(COMPOSE) down -v --remove-orphans --rmi all; \
 		docker volume rm $$(docker volume ls -q | grep raido) 2>/dev/null || true; \
 		rm -rf music/* shared/* || true; \
 		echo "$(GREEN)Nuclear cleanup complete$(RESET)"; \
@@ -110,7 +142,7 @@ clean-all: ## Nuclear cleanup - remove everything including images
 
 status: ## Show status of all services
 	@echo "$(BLUE)Raido Service Status:$(RESET)"
-	@docker-compose ps
+	@$(COMPOSE) ps
 
 health: ## Check health of all services
 	@echo "$(BLUE)Health Check:$(RESET)"
@@ -119,11 +151,11 @@ health: ## Check health of all services
 	@echo -n "Web: "
 	@curl -s http://localhost:3000/health >/dev/null && echo "$(GREEN)✅ Up$(RESET)" || echo "$(RED)❌ Down$(RESET)"
 	@echo -n "Stream: "
-	@curl -s --fail -r 0-0 http://localhost:8000/stream/raido.mp3 -o /dev/null && echo "$(GREEN)✅ Live$(RESET)" || echo "$(RED)❌ Offline$(RESET)"
+		@curl -s --fail -r 0-0 http://localhost:8000/raido.mp3 -o /dev/null && echo "$(GREEN)✅ Live$(RESET)" || echo "$(RED)❌ Offline$(RESET)"
 
 migrate: ## Run database migrations
 	@echo "$(BLUE)Running database migrations...$(RESET)"
-	docker-compose exec api alembic upgrade head
+	$(COMPOSE) exec api alembic upgrade head
 	@echo "$(GREEN)Migrations complete$(RESET)"
 
 migrate-create: ## Create a new migration (usage: make migrate-create name=migration_name)
@@ -132,7 +164,7 @@ migrate-create: ## Create a new migration (usage: make migrate-create name=migra
 		echo "Usage: make migrate-create name=migration_name"; \
 		exit 1; \
 	fi
-	docker-compose exec api alembic revision --autogenerate -m "$(name)"
+	$(COMPOSE) exec api alembic revision --autogenerate -m "$(name)"
 
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(RESET)"
@@ -168,7 +200,7 @@ format: ## Format code
 backup-db: ## Backup database
 	@echo "$(BLUE)Creating database backup...$(RESET)"
 	@mkdir -p backups
-	@docker-compose exec -T db pg_dump -U raido raido | gzip > backups/raido_backup_$$(date +%Y%m%d_%H%M%S).sql.gz
+	@$(COMPOSE) exec -T db pg_dump -U raido raido | gzip > backups/raido_backup_$$(date +%Y%m%d_%H%M%S).sql.gz
 	@echo "$(GREEN)Database backup created in backups/ directory$(RESET)"
 
 restore-db: ## Restore database from backup (usage: make restore-db file=backup_file.sql.gz)
@@ -178,7 +210,7 @@ restore-db: ## Restore database from backup (usage: make restore-db file=backup_
 		exit 1; \
 	fi
 	@echo "$(BLUE)Restoring database from $(file)...$(RESET)"
-	@gunzip -c $(file) | docker-compose exec -T db psql -U raido -d raido
+	@gunzip -c $(file) | $(COMPOSE) exec -T db psql -U raido -d raido
 	@echo "$(GREEN)Database restored$(RESET)"
 
 install-music: ## Add sample music files (for development)
@@ -194,8 +226,8 @@ monitoring: ## Show resource usage
 update: ## Update all services
 	@echo "$(BLUE)Updating Raido...$(RESET)"
 	git pull
-	docker-compose pull
-	docker-compose build --pull
+	$(COMPOSE) pull
+	$(COMPOSE) build --pull
 	$(MAKE) migrate
 	@echo "$(GREEN)Update complete!$(RESET)"
 

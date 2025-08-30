@@ -30,7 +30,7 @@ Generate **production-grade code** and configs with:
 - Admins for configuration and ops.  
 
 **Constraints:**  
-- Runs in Docker + docker-compose.  
+- Runs in Docker + Docker Compose v2.  
 - Privacy-first (minimal exposure of secrets).  
 - HTTPS enforced end-to-end.  
 
