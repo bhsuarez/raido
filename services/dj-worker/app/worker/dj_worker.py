@@ -251,6 +251,18 @@ class DJWorker:
                 
                 # Get DJ settings from API
                 dj_settings = await self.api_client.get_settings()
+
+                # If a kokoro voice is configured in admin settings, apply it
+                try:
+                    if dj_settings and dj_settings.get('dj_kokoro_voice'):
+                        self.tts_service.kokoro_client.voice = dj_settings.get('dj_kokoro_voice')
+                    if dj_settings and dj_settings.get('dj_tts_volume'):
+                        vol = float(dj_settings.get('dj_tts_volume'))
+                        # Clamp reasonable range 0.5x - 2.0x
+                        vol = max(0.5, min(2.0, vol))
+                        self.tts_service.kokoro_client.volume = vol
+                except Exception:
+                    pass
                 
                 # Generate commentary text
                 commentary_payload = await self.commentary_generator.generate(
