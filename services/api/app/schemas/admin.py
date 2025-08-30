@@ -8,6 +8,11 @@ class AdminSettingsResponse(BaseModel):
     dj_tone: str = "energetic"
     dj_provider: str = "ollama"  # openai, ollama, disabled
     dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
+    dj_prompt_template: str = ""
+    dj_voice_id: Optional[str] = None
+    kokoro_voice: Optional[str] = None
+    ollama_model: str = "llama3.1:8b"
+    ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True
     station_name: str = "Raido Pirate Radio"
     stream_bitrate: int = 128

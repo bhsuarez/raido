@@ -24,13 +24,24 @@ class TTSService:
             logger.error("Cannot create TTS cache directory", dir=settings.TTS_CACHE_DIR, error=str(e))
             raise
     
-    async def generate_audio(self, text: str, job_id: str) -> Optional[str]:
+    async def generate_audio(self, text: str, job_id: str, dj_settings: Optional[dict] = None) -> Optional[str]:
         """Generate audio from text using the configured TTS provider"""
         try:
             provider = settings.DJ_VOICE_PROVIDER
+            voice_override = None
+            speed_override = None
+            if dj_settings:
+                voice_override = dj_settings.get('kokoro_voice') or dj_settings.get('dj_voice_id')
+                # Optional speed field if present in settings
+                speed_val = dj_settings.get('kokoro_speed') if isinstance(dj_settings, dict) else None
+                try:
+                    if speed_val is not None:
+                        speed_override = float(speed_val)
+                except Exception:
+                    speed_override = None
             
             if provider == "kokoro":
-                return await self._generate_with_kokoro(text, job_id)
+                return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
             elif provider == "liquidsoap":
                 return await self._generate_with_liquidsoap(text, job_id)
             elif provider == "xtts":
@@ -44,14 +55,14 @@ class TTSService:
             return None
     
     
-    async def _generate_with_kokoro(self, text: str, job_id: str) -> Optional[str]:
+    async def _generate_with_kokoro(self, text: str, job_id: str, *, voice_override: Optional[str] = None, speed_override: Optional[float] = None) -> Optional[str]:
         """Generate audio using Kokoro TTS"""
         try:
             # Clean text for speech synthesis
             clean_text = text.replace('<speak>', '').replace('</speak>', '')
             clean_text = clean_text.replace('<break time="400ms"/>', ' ')
             
-            filename = await self.kokoro_client.generate_audio(clean_text, job_id)
+            filename = await self.kokoro_client.generate_audio(clean_text, job_id, voice=voice_override, speed=speed_override)
             
             if filename:
                 logger.info("Kokoro TTS audio generated", filename=filename)

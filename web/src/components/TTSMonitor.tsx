@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../utils/api'
+import api, { apiHelpers } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
 // import { toast } from 'react-hot-toast'
 // Removed date-fns import to avoid build issues
@@ -42,13 +42,45 @@ interface TTSStatusResponse {
 
 const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [voices, setVoices] = useState<string[]>([])
+
+  // Admin settings state
+  const [settings, setSettings] = useState<any | null>(null)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    apiHelpers.getSettings()
+      .then(res => setSettings(res.data))
+      .catch(() => setSettingsError('Failed to load settings'))
+    // Fetch Kokoro voices list
+    api.get('/admin/voices')
+      .then(res => {
+        const vs = res.data?.voices
+        if (Array.isArray(vs) && vs.length) setVoices(vs)
+      })
+      .catch(() => {})
+  }, [])
+
+  const saveSettings = async () => {
+    if (!settings) return
+    setSaving(true)
+    setSettingsError(null)
+    try {
+      await apiHelpers.updateSettings(settings)
+    } catch (e:any) {
+      setSettingsError(e?.response?.data?.detail || 'Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const stripTags = (s: string) => s.replace(/<[^>]*>/g, '')
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus'],
-    queryFn: () => api.get('/admin/tts-status').then(res => res.data),
-    refetchInterval: autoRefresh ? 30000 : false, // Refresh every 30 seconds if auto-refresh is on
+    queryKey: ['ttsStatus', autoRefresh],
+    queryFn: () => api.get('/admin/tts-status?window_hours=24&limit=100').then(res => res.data),
+    refetchInterval: autoRefresh ? 30000 : false,
     staleTime: 10000,
   })
 
@@ -112,6 +144,107 @@ const TTSMonitor: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Settings Panel */}
+      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">⚙️ DJ Settings</h2>
+          <button
+            onClick={saveSettings}
+            disabled={!settings || saving}
+            className={`px-3 py-2 rounded-lg text-white text-sm ${saving ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
+          >{saving ? 'Saving…' : 'Save Settings'}</button>
+        </div>
+        {settingsError && (
+          <div className="text-red-400 text-sm mb-3">{settingsError}</div>
+        )}
+        {settings ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Commentary Provider</label>
+              <select
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={settings.dj_provider || 'ollama'}
+                onChange={(e)=>setSettings({...settings, dj_provider: e.target.value})}
+              >
+                <option value="ollama">Ollama</option>
+                <option value="openai">OpenAI</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Voice Provider</label>
+              <select
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={settings.dj_voice_provider || 'kokoro'}
+                onChange={(e)=>setSettings({...settings, dj_voice_provider: e.target.value})}
+              >
+                <option value="kokoro">Kokoro</option>
+                <option value="openai_tts">OpenAI TTS</option>
+                <option value="liquidsoap">Liquidsoap</option>
+                <option value="xtts">XTTS</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Kokoro Voice</label>
+              {(() => {
+                const list = voices.length ? voices : [
+                  'af_bella','af_aria','af_sky','af_nicole',
+                  'am_onyx','am_michael','am_ryan','am_alex',
+                  'bf_ava','bf_sophie','bm_george','bm_james'
+                ]
+                const current = settings.kokoro_voice || ''
+                const isCustom = current && !list.includes(current)
+                const value = isCustom ? 'custom' : (current || list[0])
+                return (
+                  <div className="space-y-2">
+                    <select
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={value}
+                      onChange={(e)=>{
+                        const v = e.target.value
+                        if (v === 'custom') return
+                        setSettings({...settings, kokoro_voice: v})
+                      }}
+                    >
+                      {list.map(v => <option key={v} value={v}>{v}</option>)}
+                      <option value="custom">Custom…</option>
+                    </select>
+                    {(isCustom || (current==='')) && (
+                      <input
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                        value={current}
+                        onChange={(e)=>setSettings({...settings, kokoro_voice: e.target.value})}
+                        placeholder="Enter custom voice id"
+                      />
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
+              <input
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={settings.ollama_model || ''}
+                onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
+                placeholder="e.g. llama3.1:8b"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-gray-300 mb-1">Default DJ Prompt</label>
+              <textarea
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white h-28"
+                value={settings.dj_prompt_template || ''}
+                onChange={(e)=>setSettings({...settings, dj_prompt_template: e.target.value})}
+                placeholder="Write the prompt template used to generate commentary…"
+              />
+              <p className="text-xs text-gray-400 mt-1">Supports Jinja templating; validated server-side.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-gray-400 text-sm">Loading settings…</div>
+        )}
+      </div>
       {/* Header */}
       <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
         <div className="flex items-center justify-between mb-4">

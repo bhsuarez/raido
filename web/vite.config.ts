@@ -21,16 +21,17 @@ export default defineConfig({
       '.ts.net', // Allow Tailscale Magic DNS
     ],
     proxy: {
+      // Route API calls to the api service on the Docker network
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://api:8000',
         changeOrigin: true,
       },
       '/static': {
-        target: 'http://localhost:8001',
+        target: 'http://api:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8001',
+        target: 'ws://api:8000',
         ws: true,
         changeOrigin: true,
       },
