@@ -115,11 +115,11 @@ status: ## Show status of all services
 health: ## Check health of all services
 	@echo "$(BLUE)Health Check:$(RESET)"
 	@echo -n "API: "
-	@curl -s http://localhost:8000/health | grep -o '"status":"[^"]*"' || echo "$(RED)❌ Down$(RESET)"
+	@curl -s http://localhost:8001/health | grep -o '"status":"[^"]*"' || echo "$(RED)❌ Down$(RESET)"
 	@echo -n "Web: "
 	@curl -s http://localhost:3000/health >/dev/null && echo "$(GREEN)✅ Up$(RESET)" || echo "$(RED)❌ Down$(RESET)"
 	@echo -n "Stream: "
-	@curl -s -I http://localhost:8000/stream/raido.mp3 | head -1 | grep -q "200" && echo "$(GREEN)✅ Live$(RESET)" || echo "$(RED)❌ Offline$(RESET)"
+	@curl -s --fail -r 0-0 http://localhost:8000/stream/raido.mp3 -o /dev/null && echo "$(GREEN)✅ Live$(RESET)" || echo "$(RED)❌ Offline$(RESET)"
 
 migrate: ## Run database migrations
 	@echo "$(BLUE)Running database migrations...$(RESET)"
