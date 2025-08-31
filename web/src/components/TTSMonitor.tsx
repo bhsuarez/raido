@@ -44,6 +44,8 @@ const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
+  const [testUrl, setTestUrl] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
 
   // Admin settings state
   const [settings, setSettings] = useState<any | null>(null)
@@ -159,6 +161,31 @@ const TTSMonitor: React.FC = () => {
         )}
         {settings ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Max Intro Duration */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Max Intro Duration (seconds)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={Number(settings.dj_max_seconds ?? 30)}
+                  onChange={(e)=>setSettings({...settings, dj_max_seconds: parseInt(e.target.value || '0', 10)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={Number(settings.dj_max_seconds ?? 30)}
+                  onChange={(e)=>setSettings({...settings, dj_max_seconds: parseInt(e.target.value || '0', 10)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Target length used to trim commentary naturally.</p>
+            </div>
             <div>
               <label className="block text-sm text-gray-300 mb-1">Commentary Provider</label>
               <select
@@ -220,6 +247,37 @@ const TTSMonitor: React.FC = () => {
                   </div>
                 )
               })()}
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  onClick={async ()=>{
+                    if (!settings) return
+                    setTesting(true)
+                    setTestUrl(null)
+                    try {
+                      const sample = `Welcome to Raido. Testing voice ${settings.kokoro_voice || 'af_bella'} at speed ${settings.kokoro_speed ?? 1.0}.` 
+                      const res = await api.post('/admin/tts-test', {
+                        text: sample,
+                        voice: settings.kokoro_voice,
+                        speed: settings.kokoro_speed,
+                        volume: settings.dj_tts_volume,
+                      })
+                      const url = res.data?.audio_url
+                      if (url) setTestUrl(url)
+                    } catch (e) {
+                      setSettingsError('TTS test failed')
+                    } finally {
+                      setTesting(false)
+                    }
+                  }}
+                  disabled={testing}
+                  className={`px-3 py-2 rounded-lg text-white text-sm ${testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
+                >{testing ? 'Testing…' : 'Test Kokoro Voice'}</button>
+                {testUrl && (
+                  <audio controls className="h-8">
+                    <source src={testUrl} type="audio/mpeg" />
+                  </audio>
+                )}
+              </div>
             </div>
             {/* TTS Gain / Volume */}
             <div>

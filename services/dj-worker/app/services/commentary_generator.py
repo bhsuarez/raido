@@ -133,20 +133,24 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             return 200
 
     def _trim_to_duration(self, text: str, dj_settings: Dict[str, Any]) -> str:
-        """Trim commentary text to roughly fit max_seconds.
+        """Trim commentary text to roughly fit max_seconds with natural sentence endings.
 
-        Removes SSML to count words, trims at word boundary (preferring sentence end),
-        and re-wraps with minimal SSML. This is a best-effort heuristic.
+        Heuristics:
+        - Estimate allowed words by max_seconds (~2.5 wps baseline).
+        - Prefer cutting at a sentence boundary near the target window.
+        - If no boundary behind target, look slightly ahead (up to +20% words).
+        - As a last resort, append a period to avoid abrupt cutoff.
         """
         try:
             max_sec = int(dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS) or 0)
             if max_sec <= 0:
                 return text
 
-            # Allowed words at ~2.5 words/sec
-            allowed_words = int(max_sec * 2.5)
+            # Allowed words at ~2.5 words/sec (conservative)
+            words_per_sec = 2.5
+            allowed_words = max(1, int(max_sec * words_per_sec))
 
-            # Strip simple SSML for counting
+            # Strip simple SSML for counting/segmenting
             plain = text.replace('<speak>', '').replace('</speak>', '')
             plain = plain.replace('<break time=\"400ms\"/>', ' ').strip()
 
@@ -154,19 +158,37 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             if len(words) <= allowed_words:
                 return text
 
-            # Trim to allowed words
-            trimmed_words = words[:allowed_words]
-            trimmed = ' '.join(trimmed_words)
+            # Hard stop limit: allow up to +20% when scanning forward for punctuation
+            forward_limit = int(allowed_words * 1.2)
+            forward_limit = min(forward_limit, len(words))
 
-            # Prefer to end at last sentence-ending punctuation within the trimmed region
-            for punct in ['. ', '! ', '? ']:
-                idx = trimmed.rfind(punct)
-                if idx != -1 and idx > len(trimmed) * 0.6:  # avoid cutting too short
-                    trimmed = trimmed[:idx + 1]
-                    break
+            # Compose candidate segments
+            target_segment = ' '.join(words[:allowed_words])
+            forward_segment = ' '.join(words[:forward_limit])
+
+            def cut_on_punct(s: str) -> str:
+                for punct in ['. ', '! ', '? ']:
+                    idx = s.rfind(punct)
+                    if idx != -1 and idx > len(s) * 0.5:  # avoid cutting too short
+                        return s[:idx + 1]
+                return s
+
+            # Prefer to end within the target window
+            trimmed = cut_on_punct(target_segment)
+
+            # If no good boundary found inside target, scan slightly ahead for a boundary
+            if trimmed == target_segment or not trimmed.endswith(('.', '!', '?')):
+                ahead = cut_on_punct(forward_segment)
+                if ahead.endswith(('.', '!', '?')):
+                    trimmed = ahead
+
+            trimmed = trimmed.strip()
+            if not trimmed.endswith(('.', '!', '?')):
+                # Ensure a graceful stop
+                trimmed = trimmed.rstrip(',;:') + '.'
 
             # Re-wrap with minimal SSML like original
-            return f"<speak><break time=\"400ms\"/>{trimmed.strip()}</speak>"
+            return f"<speak><break time=\"400ms\"/>{trimmed}</speak>"
         except Exception:
             return text
     
