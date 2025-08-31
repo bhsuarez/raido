@@ -354,7 +354,8 @@ class DJWorker:
         try:
             # Determine voice_id based on provider selection
             try:
-                vp = settings.DJ_VOICE_PROVIDER
+                # Prefer dynamic admin setting when available
+                vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER
             except Exception:
                 vp = 'kokoro'
             if dj_settings and isinstance(dj_settings, dict):
@@ -370,7 +371,7 @@ class DJWorker:
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
                 'provider': settings.DJ_PROVIDER,
-                'voice_provider': settings.DJ_VOICE_PROVIDER,
+                'voice_provider': vp,
                 'voice_id': voice_id,
                 'status': 'ready',
                 'context_data': job.context,

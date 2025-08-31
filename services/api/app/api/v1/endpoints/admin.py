@@ -270,6 +270,7 @@ async def get_tts_status(
                 "status": comment.status,
                 "provider": comment.provider,
                 "voice_provider": comment.voice_provider,
+                "voice_id": comment.voice_id,
                 "generation_time_ms": comment.generation_time_ms,
                 "tts_time_ms": comment.tts_time_ms,
                 "created_at": comment.created_at,
@@ -347,18 +348,17 @@ async def list_xtts_voices():
                 # OpenTTS returns a dict of voices with details; collect keys/ids/names
                 if isinstance(data, dict):
                     for k, v in data.items():
-                        if isinstance(v, dict):
-                            name = v.get('id') or v.get('name') or k
-                            if name:
-                                voices.append(name)
-                        else:
-                            voices.append(str(k))
+                        # Prefer the fully-qualified key (engine:id) so requests work reliably
+                        key_name = str(k)
+                        if key_name:
+                            voices.append(key_name)
                 elif isinstance(data, list):
                     for v in data:
                         if isinstance(v, dict):
+                            # Fall back to id/name if only a list is provided
                             name = v.get('id') or v.get('name')
                             if name:
-                                voices.append(name)
+                                voices.append(str(name))
                         else:
                             voices.append(str(v))
                 # De-duplicate while preserving order
@@ -368,11 +368,12 @@ async def list_xtts_voices():
                     if v not in seen:
                         seen.add(v)
                         ordered.append(v)
-                return {"voices": ordered}
+                # Also return the raw map so clients can discover speakers, etc.
+                return {"voices": ordered, "voices_map": data}
     except Exception as e:
         logger = structlog.get_logger()
         logger.warning("Failed to list XTTS voices", error=str(e))
-    return {"voices": []}
+    return {"voices": [], "voices_map": {}}
 
 @router.post("/tts-test")
 async def tts_test(payload: Dict[str, Any]):

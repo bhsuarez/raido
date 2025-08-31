@@ -25,9 +25,17 @@ class TTSService:
             raise
     
     async def generate_audio(self, text: str, job_id: str, dj_settings: Optional[dict] = None) -> Optional[str]:
-        """Generate audio from text using the configured TTS provider"""
+        """Generate audio from text using the configured TTS provider.
+
+        Prefers per-job admin setting (dj_voice_provider) when provided,
+        falling back to the environment default.
+        """
         try:
-            provider = settings.DJ_VOICE_PROVIDER
+            # Prefer dynamic admin setting if present, otherwise fallback to env default
+            provider = (
+                (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None)
+                or settings.DJ_VOICE_PROVIDER
+            )
             voice_override = None
             speed_override = None
             if dj_settings:
@@ -47,9 +55,11 @@ class TTSService:
             elif provider == "xtts":
                 # Allow admin override for XTTS voice via 'xtts_voice' or generic 'dj_voice_id'
                 xtts_voice = None
+                xtts_speaker = None
                 if dj_settings and isinstance(dj_settings, dict):
                     xtts_voice = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
-                return await self._generate_with_xtts(text, job_id, voice_override=xtts_voice)
+                    xtts_speaker = dj_settings.get('xtts_speaker') or dj_settings.get('dj_voice_speaker')
+                return await self._generate_with_xtts(text, job_id, voice_override=xtts_voice, speaker_override=xtts_speaker)
             else:
                 logger.error("No valid TTS provider configured", provider=provider)
                 return None
@@ -121,7 +131,7 @@ class TTSService:
             logger.error("Liquidsoap TTS generation failed", error=str(e))
             return None
     
-    async def _generate_with_xtts(self, text: str, job_id: str, voice_override: Optional[str] = None) -> Optional[str]:
+    async def _generate_with_xtts(self, text: str, job_id: str, voice_override: Optional[str] = None, speaker_override: Optional[str] = None) -> Optional[str]:
         """Generate audio using an XTTS-compatible server.
 
         Supports two API styles:
@@ -150,6 +160,13 @@ class TTSService:
                 response = None
                 post_error = None
                 try:
+                    # Optional speaker parameter for multi-speaker voices
+                    speaker = speaker_override
+                    if not speaker:
+                        try:
+                            speaker = getattr(settings, 'XTTS_SPEAKER', None)
+                        except Exception:
+                            speaker = None
                     response = await client.post(
                         f"{base}/tts",
                         json={
@@ -157,6 +174,7 @@ class TTSService:
                             "voice": use_voice,
                             "language": "en",
                             "output_format": preferred_ext,
+                            **({"speaker": speaker} if speaker else {}),
                         },
                     )
                 except Exception as e_post:
@@ -168,13 +186,24 @@ class TTSService:
                 else:
                     # Fallback to OpenTTS style GET /api/tts
                     try:
+                        # Try GET with optional speaker param (OpenTTS style)
+                        params = {
+                            "voice": use_voice,
+                            "text": clean_text,
+                        }
+                        # Add speaker if provided
+                        if speaker_override:
+                            params["speaker"] = speaker_override
+                        else:
+                            try:
+                                sp = getattr(settings, 'XTTS_SPEAKER', None)
+                                if sp:
+                                    params["speaker"] = sp
+                            except Exception:
+                                pass
                         alt = await client.get(
                             f"{base}/api/tts",
-                            params={
-                                "voice": use_voice,
-                                "text": clean_text,
-                                # format, denoiserStrength, lengthScale optional
-                            },
+                            params=params,
                         )
                         if alt.status_code == 200:
                             content = alt.content
