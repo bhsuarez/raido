@@ -352,13 +352,26 @@ class DJWorker:
     ):
         """Save commentary to database via API"""
         try:
+            # Determine voice_id based on provider selection
+            try:
+                vp = settings.DJ_VOICE_PROVIDER
+            except Exception:
+                vp = 'kokoro'
+            if dj_settings and isinstance(dj_settings, dict):
+                if vp == 'xtts':
+                    voice_id = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
+                else:
+                    voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_voice_id')
+            else:
+                voice_id = None
+
             commentary_data = {
                 'text': job.commentary_text,
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
                 'provider': settings.DJ_PROVIDER,
                 'voice_provider': settings.DJ_VOICE_PROVIDER,
-                'voice_id': (dj_settings or {}).get('kokoro_voice') or (dj_settings or {}).get('dj_voice_id'),
+                'voice_id': voice_id,
                 'status': 'ready',
                 'context_data': job.context,
                 'duration_ms': job.audio_duration_ms,

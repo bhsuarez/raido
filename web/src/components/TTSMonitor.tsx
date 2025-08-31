@@ -55,14 +55,30 @@ const TTSMonitor: React.FC = () => {
     apiHelpers.getSettings()
       .then(res => setSettings(res.data))
       .catch(() => setSettingsError('Failed to load settings'))
-    // Fetch Kokoro voices list
-    api.get('/admin/voices')
-      .then(res => {
-        const vs = res.data?.voices
-        if (Array.isArray(vs) && vs.length) setVoices(vs)
-      })
-      .catch(() => {})
   }, [])
+
+  // Fetch voices based on selected provider
+  useEffect(() => {
+    const provider = settings?.dj_voice_provider || 'kokoro'
+    const load = async () => {
+      try {
+        if (provider === 'xtts') {
+          const res = await api.get('/admin/voices-xtts')
+          const vs = res.data?.voices
+          if (Array.isArray(vs)) setVoices(vs)
+          else setVoices([])
+        } else {
+          const res = await api.get('/admin/voices')
+          const vs = res.data?.voices
+          if (Array.isArray(vs)) setVoices(vs)
+          else setVoices([])
+        }
+      } catch {
+        setVoices([])
+      }
+    }
+    load()
+  }, [settings?.dj_voice_provider])
 
   const saveSettings = async () => {
     if (!settings) return
@@ -211,17 +227,25 @@ const TTSMonitor: React.FC = () => {
                 <option value="xtts">XTTS</option>
               </select>
             </div>
+            {/* Voice selection (switches between Kokoro and XTTS) */}
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Kokoro Voice</label>
+              <label className="block text-sm text-gray-300 mb-1">
+                {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
+              </label>
               {(() => {
-                const list = voices.length ? voices : [
-                  'af_bella','af_aria','af_sky','af_nicole',
-                  'am_onyx','am_michael','am_ryan','am_alex',
-                  'bf_ava','bf_sophie','bm_george','bm_james'
-                ]
-                const current = settings.kokoro_voice || ''
+                const list = voices.length ? voices : (
+                  settings.dj_voice_provider === 'xtts'
+                    ? []
+                    : [
+                        'af_bella','af_aria','af_sky','af_nicole',
+                        'am_onyx','am_michael','am_ryan','am_alex',
+                        'bf_ava','bf_sophie','bm_george','bm_james'
+                      ]
+                )
+                const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 'kokoro_voice'
+                const current = settings[field] || ''
                 const isCustom = current && !list.includes(current)
-                const value = isCustom ? 'custom' : (current || list[0])
+                const value = isCustom ? 'custom' : (current || (list[0] || ''))
                 return (
                   <div className="space-y-2">
                     <select
@@ -230,7 +254,7 @@ const TTSMonitor: React.FC = () => {
                       onChange={(e)=>{
                         const v = e.target.value
                         if (v === 'custom') return
-                        setSettings({...settings, kokoro_voice: v})
+                        setSettings({...settings, [field]: v})
                       }}
                     >
                       {list.map(v => <option key={v} value={v}>{v}</option>)}
@@ -240,44 +264,46 @@ const TTSMonitor: React.FC = () => {
                       <input
                         className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
                         value={current}
-                        onChange={(e)=>setSettings({...settings, kokoro_voice: e.target.value})}
-                        placeholder="Enter custom voice id"
+                        onChange={(e)=>setSettings({...settings, [field]: e.target.value})}
+                        placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 'Enter Kokoro voice id'}
                       />
                     )}
                   </div>
                 )
               })()}
-              <div className="mt-3 flex items-center gap-3">
-                <button
-                  onClick={async ()=>{
-                    if (!settings) return
-                    setTesting(true)
-                    setTestUrl(null)
-                    try {
-                      const sample = `Welcome to Raido. Testing voice ${settings.kokoro_voice || 'af_bella'} at speed ${settings.kokoro_speed ?? 1.0}.` 
-                      const res = await api.post('/admin/tts-test', {
-                        text: sample,
-                        voice: settings.kokoro_voice,
-                        speed: settings.kokoro_speed,
-                        volume: settings.dj_tts_volume,
-                      })
-                      const url = res.data?.audio_url
-                      if (url) setTestUrl(url)
-                    } catch (e) {
-                      setSettingsError('TTS test failed')
-                    } finally {
-                      setTesting(false)
-                    }
-                  }}
-                  disabled={testing}
-                  className={`px-3 py-2 rounded-lg text-white text-sm ${testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
-                >{testing ? 'Testing…' : 'Test Kokoro Voice'}</button>
-                {testUrl && (
-                  <audio controls className="h-8">
-                    <source src={testUrl} type="audio/mpeg" />
-                  </audio>
-                )}
-              </div>
+              {settings.dj_voice_provider !== 'xtts' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    onClick={async ()=>{
+                      if (!settings) return
+                      setTesting(true)
+                      setTestUrl(null)
+                      try {
+                        const sample = `Welcome to Raido. Testing voice ${settings.kokoro_voice || 'af_bella'} at speed ${settings.kokoro_speed ?? 1.0}.`
+                        const res = await api.post('/admin/tts-test', {
+                          text: sample,
+                          voice: settings.kokoro_voice,
+                          speed: settings.kokoro_speed,
+                          volume: settings.dj_tts_volume,
+                        })
+                        const url = res.data?.audio_url
+                        if (url) setTestUrl(url)
+                      } catch (e) {
+                        setSettingsError('TTS test failed')
+                      } finally {
+                        setTesting(false)
+                      }
+                    }}
+                    disabled={testing}
+                    className={`px-3 py-2 rounded-lg text-white text-sm ${testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
+                  >{testing ? 'Testing…' : 'Test Kokoro Voice'}</button>
+                  {testUrl && (
+                    <audio controls className="h-8">
+                      <source src={testUrl} type="audio/mpeg" />
+                    </audio>
+                  )}
+                </div>
+              )}
             </div>
             {/* TTS Gain / Volume */}
             <div>

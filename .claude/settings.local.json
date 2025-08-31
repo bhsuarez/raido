@@ -58,7 +58,10 @@
       "Bash(ip addr:*)",
       "Bash(tailscale:*)",
       "Read(/mnt/music/**)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": [],

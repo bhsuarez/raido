@@ -73,6 +73,13 @@ services:
       - USE_GPU=false
       - DOWNLOAD_MODEL=true
 
+  xtts-server:
+    image: synesthesiam/opentts:en
+    restart: unless-stopped
+    # OpenTTS listens on 5500 internally. We don't need to expose to host; other
+    # services access it via Docker network at http://xtts-server:5500
+    # To use: set `XTTS_BASE_URL=http://xtts-server:5500` in your environment.
+
   dj-worker:
     build: ./services/dj-worker
     restart: unless-stopped
@@ -113,5 +120,13 @@ services:
     volumes:
       - ./infra/monitor/healthcheck.sh:/healthcheck.sh:ro
     command: ["sh","/healthcheck.sh"]
+
+  tts-cleanup:
+    image: alpine:3.18
+    restart: unless-stopped
+    volumes:
+      - shared:/shared
+      - ./scripts/cleanup-tts.sh:/cleanup-tts.sh:ro
+    command: ["sh", "-c", "while true; do sleep 86400; /cleanup-tts.sh; done"]
 
 volumes: { db: {}, caddy: {}, shared: {}, ollama: {}, kokoro_models: {} }
