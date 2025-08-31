@@ -328,6 +328,52 @@ async def list_kokoro_voices():
     ]
     return {"voices": fallback}
 
+@router.get("/voices-xtts")
+async def list_xtts_voices():
+    """List available XTTS voices via OpenTTS-compatible server.
+
+    Tries `${XTTS_BASE_URL}/api/voices` and normalizes to a simple string list.
+    """
+    try:
+        base = (settings.XTTS_BASE_URL or '').rstrip('/')
+        if not base:
+            # No XTTS configured; return empty list
+            return {"voices": []}
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{base}/api/voices")
+            if resp.status_code == 200:
+                data = resp.json()
+                voices = []
+                # OpenTTS returns a dict of voices with details; collect keys/ids/names
+                if isinstance(data, dict):
+                    for k, v in data.items():
+                        if isinstance(v, dict):
+                            name = v.get('id') or v.get('name') or k
+                            if name:
+                                voices.append(name)
+                        else:
+                            voices.append(str(k))
+                elif isinstance(data, list):
+                    for v in data:
+                        if isinstance(v, dict):
+                            name = v.get('id') or v.get('name')
+                            if name:
+                                voices.append(name)
+                        else:
+                            voices.append(str(v))
+                # De-duplicate while preserving order
+                seen = set()
+                ordered = []
+                for v in voices:
+                    if v not in seen:
+                        seen.add(v)
+                        ordered.append(v)
+                return {"voices": ordered}
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.warning("Failed to list XTTS voices", error=str(e))
+    return {"voices": []}
+
 @router.post("/tts-test")
 async def tts_test(payload: Dict[str, Any]):
     """Synthesize a short sample with Kokoro TTS and return an audio URL.
