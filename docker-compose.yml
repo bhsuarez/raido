@@ -74,11 +74,22 @@ services:
       - DOWNLOAD_MODEL=true
 
   xtts-server:
-    image: synesthesiam/opentts:en
+    image: synesthesiam/opentts:all
     restart: unless-stopped
     # OpenTTS listens on 5500 internally. We don't need to expose to host; other
     # services access it via Docker network at http://xtts-server:5500
     # To use: set `XTTS_BASE_URL=http://xtts-server:5500` in your environment.
+    environment:
+      # Limit to specific TTS engines to prevent multiple model loading
+      - TTS_ENGINES=coqui-tts:en_vctk,coqui-tts:en_ljspeech
+      # Prevent concurrent model loading
+      - MAX_CONCURRENT_REQUESTS=1
+    deploy:
+      resources:
+        limits:
+          memory: 3G  # Limit container to 3GB RAM
+        reservations:
+          memory: 1G  # Reserve at least 1GB RAM
 
   dj-worker:
     build: ./services/dj-worker

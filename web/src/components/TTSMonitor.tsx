@@ -21,6 +21,7 @@ interface TTSActivity {
   status: string
   provider: string
   voice_provider: string
+  voice_id?: string | null
   generation_time_ms: number | null
   tts_time_ms: number | null
   created_at: string
@@ -44,6 +45,8 @@ const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
+  const [xttsVoicesMap, setXttsVoicesMap] = useState<Record<string, any>>({})
+  const [showAllXttsVoices, setShowAllXttsVoices] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
 
@@ -67,14 +70,17 @@ const TTSMonitor: React.FC = () => {
           const vs = res.data?.voices
           if (Array.isArray(vs)) setVoices(vs)
           else setVoices([])
+          setXttsVoicesMap((res.data?.voices_map && typeof res.data.voices_map === 'object') ? res.data.voices_map : {})
         } else {
           const res = await api.get('/admin/voices')
           const vs = res.data?.voices
           if (Array.isArray(vs)) setVoices(vs)
           else setVoices([])
+          setXttsVoicesMap({})
         }
       } catch {
         setVoices([])
+        setXttsVoicesMap({})
       }
     }
     load()
@@ -233,21 +239,30 @@ const TTSMonitor: React.FC = () => {
                 {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
               </label>
               {(() => {
-                const list = voices.length ? voices : (
-                  settings.dj_voice_provider === 'xtts'
-                    ? []
-                    : [
-                        'af_bella','af_aria','af_sky','af_nicole',
-                        'am_onyx','am_michael','am_ryan','am_alex',
-                        'bf_ava','bf_sophie','bm_george','bm_james'
-                      ]
+                let list = voices.length ? voices : (
+                  settings.dj_voice_provider === 'xtts' ? [] : [
+                    'af_bella','af_aria','af_sky','af_nicole',
+                    'am_onyx','am_michael','am_ryan','am_alex',
+                    'bf_ava','bf_sophie','bm_george','bm_james'
+                  ]
                 )
+                // For XTTS: filter to only show available downloaded models unless user opts to show all
+                if (settings.dj_voice_provider === 'xtts' && !showAllXttsVoices) {
+                  const availableModels = ['coqui-tts:en_ljspeech', 'coqui-tts:en_vctk']
+                  list = list.filter(v => availableModels.includes(v))
+                }
                 const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 'kokoro_voice'
                 const current = settings[field] || ''
                 const isCustom = current && !list.includes(current)
                 const value = isCustom ? 'custom' : (current || (list[0] || ''))
                 return (
                   <div className="space-y-2">
+                    {settings.dj_voice_provider === 'xtts' && (
+                      <label className="flex items-center gap-2 text-xs text-gray-400">
+                        <input type="checkbox" className="rounded border-gray-600" checked={showAllXttsVoices} onChange={(e)=>setShowAllXttsVoices(e.target.checked)} />
+                        Show all XTTS voices (includes espeak/festival/larynx/etc.)
+                      </label>
+                    )}
                     <select
                       className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
                       value={value}
@@ -268,6 +283,26 @@ const TTSMonitor: React.FC = () => {
                         placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 'Enter Kokoro voice id'}
                       />
                     )}
+                    {settings.dj_voice_provider === 'xtts' && (() => {
+                      const meta = xttsVoicesMap[current]
+                      const speakers = meta && typeof meta === 'object' ? meta.speakers : null
+                      const speakerNames = speakers && typeof speakers === 'object' ? Object.keys(speakers) : []
+                      if (!speakerNames.length) return null
+                      const currentSpeaker = settings.xtts_speaker || ''
+                      const speakerValue = currentSpeaker && speakerNames.includes(currentSpeaker) ? currentSpeaker : speakerNames[0]
+                      return (
+                        <div className="space-y-1">
+                          <label className="block text-xs text-gray-400">XTTS Speaker</label>
+                          <select
+                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                            value={speakerValue}
+                            onChange={(e)=>setSettings({...settings, xtts_speaker: e.target.value})}
+                          >
+                            {speakerNames.map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })()}
@@ -580,6 +615,7 @@ const TTSMonitor: React.FC = () => {
                       </h4>
                       <p className="text-sm text-gray-400">
                         {item.provider} • {item.voice_provider}
+                        {item.voice_id ? ` • voice: ${item.voice_id}` : ''}
                       </p>
                     </div>
                     <div className="text-right text-sm text-gray-400 flex-shrink-0 ml-4">

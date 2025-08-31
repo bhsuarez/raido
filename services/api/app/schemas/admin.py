@@ -10,6 +10,7 @@ class AdminSettingsResponse(BaseModel):
     dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
     dj_voice_id: Optional[str] = None
     xtts_voice: Optional[str] = None
+    xtts_speaker: Optional[str] = None
     kokoro_voice: Optional[str] = None
     dj_kokoro_voice: Optional[str] = None
     dj_tts_volume: float = 1.0
