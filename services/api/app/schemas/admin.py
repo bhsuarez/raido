@@ -9,9 +9,12 @@ class AdminSettingsResponse(BaseModel):
     dj_provider: str = "ollama"  # openai, ollama, disabled
     dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
     dj_voice_id: Optional[str] = None
+    xtts_voice: Optional[str] = None
+    xtts_speaker: Optional[str] = None
     kokoro_voice: Optional[str] = None
     dj_kokoro_voice: Optional[str] = None
     dj_tts_volume: float = 1.0
+    kokoro_speed: float = 1.0
     ollama_model: str = "llama3.1:8b"
     ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True

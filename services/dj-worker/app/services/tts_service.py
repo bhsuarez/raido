@@ -25,9 +25,17 @@ class TTSService:
             raise
     
     async def generate_audio(self, text: str, job_id: str, dj_settings: Optional[dict] = None) -> Optional[str]:
-        """Generate audio from text using the configured TTS provider"""
+        """Generate audio from text using the configured TTS provider.
+
+        Prefers per-job admin setting (dj_voice_provider) when provided,
+        falling back to the environment default.
+        """
         try:
-            provider = settings.DJ_VOICE_PROVIDER
+            # Prefer dynamic admin setting if present, otherwise fallback to env default
+            provider = (
+                (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None)
+                or settings.DJ_VOICE_PROVIDER
+            )
             voice_override = None
             speed_override = None
             if dj_settings:
@@ -45,7 +53,13 @@ class TTSService:
             elif provider == "liquidsoap":
                 return await self._generate_with_liquidsoap(text, job_id)
             elif provider == "xtts":
-                return await self._generate_with_xtts(text, job_id)
+                # Allow admin override for XTTS voice via 'xtts_voice' or generic 'dj_voice_id'
+                xtts_voice = None
+                xtts_speaker = None
+                if dj_settings and isinstance(dj_settings, dict):
+                    xtts_voice = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
+                    xtts_speaker = dj_settings.get('xtts_speaker') or dj_settings.get('dj_voice_speaker')
+                return await self._generate_with_xtts(text, job_id, voice_override=xtts_voice, speaker_override=xtts_speaker)
             else:
                 logger.error("No valid TTS provider configured", provider=provider)
                 return None
@@ -117,44 +131,106 @@ class TTSService:
             logger.error("Liquidsoap TTS generation failed", error=str(e))
             return None
     
-    async def _generate_with_xtts(self, text: str, job_id: str) -> Optional[str]:
-        """Generate audio using XTTS server"""
+    async def _generate_with_xtts(self, text: str, job_id: str, voice_override: Optional[str] = None, speaker_override: Optional[str] = None) -> Optional[str]:
+        """Generate audio using an XTTS-compatible server.
+
+        Supports two API styles:
+        1) JSON POST to `${XTTS_BASE_URL}/tts` with {text, voice, language, output_format}
+        2) Query GET to `${XTTS_BASE_URL}/api/tts?text=...&voice=...` (OpenTTS)
+        """
         try:
             import httpx
-            
-            if not settings.XTTS_BASE_URL:
+
+            base = (settings.XTTS_BASE_URL or '').rstrip('/')
+            if not base:
                 logger.error("XTTS base URL not configured")
                 return None
-            
+
             # Clean text
             clean_text = text.replace('<speak>', '').replace('</speak>', '')
             clean_text = clean_text.replace('<break time="400ms"/>', ' ')
-            
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"commentary_{job_id}_{timestamp}.wav"
-            
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{settings.XTTS_BASE_URL}/tts",
-                    json={
-                        "text": clean_text,
-                        "voice": settings.XTTS_VOICE,
-                        "language": "en",
-                        "output_format": "wav"
-                    }
-                )
-                
-                if response.status_code == 200:
-                    filepath = os.path.join(settings.TTS_CACHE_DIR, filename)
-                    async with aiofiles.open(filepath, 'wb') as f:
-                        await f.write(response.content)
-                    
-                    logger.info("XTTS audio generated", filepath=filepath)
-                    return filename
+            preferred_ext = 'mp3'
+            filename = f"commentary_{job_id}_{timestamp}.{preferred_ext}"
+            use_voice = voice_override or settings.XTTS_VOICE
+
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                # Try JSON POST-style first
+                response = None
+                post_error = None
+                try:
+                    # Optional speaker parameter for multi-speaker voices
+                    speaker = speaker_override
+                    if not speaker:
+                        try:
+                            speaker = getattr(settings, 'XTTS_SPEAKER', None)
+                        except Exception:
+                            speaker = None
+                    response = await client.post(
+                        f"{base}/tts",
+                        json={
+                            "text": clean_text,
+                            "voice": use_voice,
+                            "language": "en",
+                            "output_format": preferred_ext,
+                            **({"speaker": speaker} if speaker else {}),
+                        },
+                    )
+                except Exception as e_post:
+                    post_error = e_post
+
+                content: bytes = b""
+                if response is not None and response.status_code == 200:
+                    content = response.content
                 else:
-                    logger.error("XTTS request failed", status=response.status_code)
-                    return None
-        
+                    # Fallback to OpenTTS style GET /api/tts
+                    try:
+                        # Try GET with optional speaker param (OpenTTS style)
+                        params = {
+                            "voice": use_voice,
+                            "text": clean_text,
+                        }
+                        # Add speaker if provided
+                        if speaker_override:
+                            params["speaker"] = speaker_override
+                        else:
+                            try:
+                                sp = getattr(settings, 'XTTS_SPEAKER', None)
+                                if sp:
+                                    params["speaker"] = sp
+                            except Exception:
+                                pass
+                        alt = await client.get(
+                            f"{base}/api/tts",
+                            params=params,
+                        )
+                        if alt.status_code == 200:
+                            content = alt.content
+                        else:
+                            logger.error(
+                                "XTTS request failed",
+                                status=(response.status_code if response else None),
+                                alt_status=alt.status_code,
+                                post_error=(str(post_error) if post_error else None),
+                            )
+                            return None
+                    except Exception as alt_err:
+                        logger.error(
+                            "XTTS requests failed",
+                            post_error=(str(post_error) if post_error else None),
+                            alt_error=str(alt_err),
+                        )
+                        return None
+
+                # Save audio file
+                filepath = os.path.join(settings.TTS_CACHE_DIR, filename)
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(content)
+
+                logger.info("XTTS audio generated", filepath=filepath)
+                return filename
+
         except Exception as e:
             logger.error("XTTS generation failed", error=str(e))
             return None

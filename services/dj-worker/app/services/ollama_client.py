@@ -35,7 +35,8 @@ class OllamaClient:
                         model=use_model,
                         max_tokens=max_tokens)
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            # Increase timeout to handle model load/startup on constrained hosts
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json={

@@ -1,6 +1,6 @@
 # Raido - AI Pirate Radio Makefile
 
-.PHONY: help setup up down build clean logs shell test lint format
+.PHONY: help setup up down build clean logs shell test lint format disk-usage clean-caches clean-dev
 
 # Prefer Docker Compose v2 plugin; override with `make COMPOSE=docker-compose ...` if needed
 COMPOSE ?= docker compose
@@ -110,6 +110,9 @@ logs-liquidsoap: ## Show Liquidsoap logs
 logs-web: ## Show web frontend logs
 	$(COMPOSE) logs -f web
 
+logs-xtts: ## Show XTTS server logs
+	$(COMPOSE) logs -f xtts-server
+
 shell-api: ## Open shell in API container
 	$(COMPOSE) exec api bash
 
@@ -138,6 +141,25 @@ clean-all: ## Nuclear cleanup - remove everything including images
 		echo "$(GREEN)Nuclear cleanup complete$(RESET)"; \
 	else \
 		echo "$(YELLOW)Cleanup cancelled$(RESET)"; \
+	fi
+
+disk-usage: ## Show largest items in repo
+	@echo "$(BLUE)Top-level disk usage:$(RESET)"
+	@du -sh . .git 2>/dev/null || true
+	@du -sh * .[^.]* 2>/dev/null | sort -hr | head -n 20 || true
+
+clean-caches: ## Remove caches, build artifacts, logs (safe)
+	@echo "$(BLUE)Cleaning caches, build artifacts, and logs...$(RESET)"
+	@bash scripts/cleanup.sh --caches --logs --report --yes
+
+clean-dev: ## Remove caches, logs, TTS, node_modules, and .venv (destructive)
+	@echo "$(RED)⚠️  This will remove node_modules and .venv.$(RESET)"
+	@read -p "Proceed with developer cleanup? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		FORCE=1 bash scripts/cleanup.sh --caches --logs --tts --node --venv --report; \
+	else \
+		echo "$(YELLOW)Developer cleanup cancelled$(RESET)"; \
 	fi
 
 status: ## Show status of all services
