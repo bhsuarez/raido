@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { 
   HomeIcon, 
   ClockIcon, 
-  SettingsIcon, 
   Radio,
   WifiIcon,
   WifiOffIcon,
@@ -25,7 +24,6 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'DJ Admin', href: '/tts', icon: MicIcon },
-    { name: 'DJ Settings', href: '/settings/dj', icon: SettingsIcon },
   ]
 
   return (
