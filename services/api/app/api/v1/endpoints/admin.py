@@ -49,25 +49,7 @@ async def get_admin_settings(db: AsyncSession = Depends(get_db)):
         # Return defaults on error
         return AdminSettingsResponse()
 
-@router.get("/voices")
-async def get_voices():
-    """List available voices for the configured TTS providers.
-
-    Currently implements Kokoro voices via kokoro-tts service.
-    """
-    try:
-        # Query kokoro-tts inside the docker network (service port 8880)
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get("http://kokoro-tts:8880/v1/audio/voices")
-            if resp.status_code == 200:
-                data = resp.json()
-                voices = data.get("voices", [])
-                return {"voices": voices}
-            return {"voices": []}
-    except Exception as e:
-        logger = structlog.get_logger()
-        logger.error("Failed to fetch voices from kokoro-tts", error=str(e))
-        return {"voices": []}
+## Deprecated older voices endpoint removed in favor of settings-aware implementation below
 
 @router.post("/settings")
 async def update_admin_settings(
@@ -345,3 +327,56 @@ async def list_kokoro_voices():
         'bf_ava','bf_sophie','bm_george','bm_james'
     ]
     return {"voices": fallback}
+
+@router.post("/tts-test")
+async def tts_test(payload: Dict[str, Any]):
+    """Synthesize a short sample with Kokoro TTS and return an audio URL.
+
+    Body fields:
+    - text: sample text (optional; default provided)
+    - voice: Kokoro voice id (fallback to defaults)
+    - speed: float speed multiplier
+    - volume: float volume multiplier
+    """
+    logger = structlog.get_logger()
+    try:
+        text = str(payload.get("text") or "This is a Raido DJ voice test.")
+        voice = payload.get("voice") or payload.get("kokoro_voice") or "af_bella"
+        try:
+            speed = float(payload.get("speed") or payload.get("kokoro_speed") or 1.0)
+        except Exception:
+            speed = 1.0
+        try:
+            volume = float(payload.get("volume") or payload.get("dj_tts_volume") or 1.0)
+        except Exception:
+            volume = 1.0
+
+        filename = f"tts_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.mp3"
+        out_path = f"/shared/tts/{filename}"
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{settings.KOKORO_BASE_URL}/v1/audio/speech",
+                json={
+                    "input": text,
+                    "voice": voice,
+                    "model": "tts-1",
+                    "response_format": "mp3",
+                    "speed": speed,
+                    "volume_multiplier": volume,
+                },
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail=f"Kokoro TTS error: {resp.text[:200]}")
+
+        with open(out_path, "wb") as f:
+            f.write(resp.content)
+
+        url = f"/static/tts/{filename}"
+        logger.info("TTS test synthesized", voice=voice, speed=speed, volume=volume, url=url)
+        return {"status": "success", "audio_url": url, "voice": voice, "speed": speed, "volume": volume}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to synthesize TTS test", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to synthesize TTS test: {str(e)}")

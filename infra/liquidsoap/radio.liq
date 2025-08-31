@@ -17,7 +17,7 @@ settings.server.telnet.port := 1234
 # ---------- Sources ----------
 # Queue for DJ/TTS lines - this will play intros with timeout
 # Use a more aggressive timeout and make it interactive
-tts_q = request.queue(id="tts", timeout=10.0, interactive=true)
+tts_q = request.queue(id="tts", timeout=30.0, interactive=true)
 
 # Fallback playlist for when no music available
 backup_music = playlist(
