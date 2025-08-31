@@ -189,6 +189,28 @@ List all voices through the API:
 curl http://localhost/api/v1/admin/voices | jq .voices
 ```
 
+### XTTS (Experimental)
+
+You can try XTTS via an OpenTTS container to compare synthesis speed/quality.
+
+1) Docker Compose already defines an `xtts-server` service using `synesthesiam/opentts:en`.
+   - It listens on `5500` inside the Docker network.
+   - Set `XTTS_BASE_URL=http://xtts-server:5500` in your environment (see `.env.example`).
+   - Choose a voice that OpenTTS provides for XTTS (e.g., `coqui-xtts-high`).
+
+2) Switch the voice provider in the DJ Admin UI:
+   - Navigate to `/tts` in the Web UI.
+   - Set “Voice Provider” to `XTTS`.
+   - Optionally adjust voice name under settings if needed.
+
+3) Observe generation time in the TTS dashboard:
+   - Recent activity lists per-item `TTS` timing.
+   - The “Avg TTS Time” card shows average over the window.
+
+Notes:
+- The worker attempts two API styles: POST `${XTTS_BASE_URL}/tts` and GET `${XTTS_BASE_URL}/api/tts` (OpenTTS).
+- You can tail logs with `make logs-xtts`.
+
 ### Stream Settings
 
 ```bash

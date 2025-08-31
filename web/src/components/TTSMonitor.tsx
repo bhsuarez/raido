@@ -21,6 +21,7 @@ interface TTSActivity {
   status: string
   provider: string
   voice_provider: string
+  voice_id?: string | null
   generation_time_ms: number | null
   tts_time_ms: number | null
   created_at: string
@@ -44,6 +45,10 @@ const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
+  const [xttsVoicesMap, setXttsVoicesMap] = useState<Record<string, any>>({})
+  const [showAllXttsVoices, setShowAllXttsVoices] = useState(false)
+  const [testUrl, setTestUrl] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
 
   // Admin settings state
   const [settings, setSettings] = useState<any | null>(null)
@@ -53,14 +58,33 @@ const TTSMonitor: React.FC = () => {
     apiHelpers.getSettings()
       .then(res => setSettings(res.data))
       .catch(() => setSettingsError('Failed to load settings'))
-    // Fetch Kokoro voices list
-    api.get('/admin/voices')
-      .then(res => {
-        const vs = res.data?.voices
-        if (Array.isArray(vs) && vs.length) setVoices(vs)
-      })
-      .catch(() => {})
   }, [])
+
+  // Fetch voices based on selected provider
+  useEffect(() => {
+    const provider = settings?.dj_voice_provider || 'kokoro'
+    const load = async () => {
+      try {
+        if (provider === 'xtts') {
+          const res = await api.get('/admin/voices-xtts')
+          const vs = res.data?.voices
+          if (Array.isArray(vs)) setVoices(vs)
+          else setVoices([])
+          setXttsVoicesMap((res.data?.voices_map && typeof res.data.voices_map === 'object') ? res.data.voices_map : {})
+        } else {
+          const res = await api.get('/admin/voices')
+          const vs = res.data?.voices
+          if (Array.isArray(vs)) setVoices(vs)
+          else setVoices([])
+          setXttsVoicesMap({})
+        }
+      } catch {
+        setVoices([])
+        setXttsVoicesMap({})
+      }
+    }
+    load()
+  }, [settings?.dj_voice_provider])
 
   const saveSettings = async () => {
     if (!settings) return
@@ -159,6 +183,31 @@ const TTSMonitor: React.FC = () => {
         )}
         {settings ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Max Intro Duration */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Max Intro Duration (seconds)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={Number(settings.dj_max_seconds ?? 30)}
+                  onChange={(e)=>setSettings({...settings, dj_max_seconds: parseInt(e.target.value || '0', 10)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  step={1}
+                  value={Number(settings.dj_max_seconds ?? 30)}
+                  onChange={(e)=>setSettings({...settings, dj_max_seconds: parseInt(e.target.value || '0', 10)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Target length used to trim commentary naturally.</p>
+            </div>
             <div>
               <label className="block text-sm text-gray-300 mb-1">Commentary Provider</label>
               <select
@@ -184,26 +233,43 @@ const TTSMonitor: React.FC = () => {
                 <option value="xtts">XTTS</option>
               </select>
             </div>
+            {/* Voice selection (switches between Kokoro and XTTS) */}
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Kokoro Voice</label>
+              <label className="block text-sm text-gray-300 mb-1">
+                {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
+              </label>
               {(() => {
-                const list = voices.length ? voices : [
-                  'af_bella','af_aria','af_sky','af_nicole',
-                  'am_onyx','am_michael','am_ryan','am_alex',
-                  'bf_ava','bf_sophie','bm_george','bm_james'
-                ]
-                const current = settings.kokoro_voice || ''
+                let list = voices.length ? voices : (
+                  settings.dj_voice_provider === 'xtts' ? [] : [
+                    'af_bella','af_aria','af_sky','af_nicole',
+                    'am_onyx','am_michael','am_ryan','am_alex',
+                    'bf_ava','bf_sophie','bm_george','bm_james'
+                  ]
+                )
+                // For XTTS: filter to only show available downloaded models unless user opts to show all
+                if (settings.dj_voice_provider === 'xtts' && !showAllXttsVoices) {
+                  const availableModels = ['coqui-tts:en_ljspeech', 'coqui-tts:en_vctk']
+                  list = list.filter(v => availableModels.includes(v))
+                }
+                const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 'kokoro_voice'
+                const current = settings[field] || ''
                 const isCustom = current && !list.includes(current)
-                const value = isCustom ? 'custom' : (current || list[0])
+                const value = isCustom ? 'custom' : (current || (list[0] || ''))
                 return (
                   <div className="space-y-2">
+                    {settings.dj_voice_provider === 'xtts' && (
+                      <label className="flex items-center gap-2 text-xs text-gray-400">
+                        <input type="checkbox" className="rounded border-gray-600" checked={showAllXttsVoices} onChange={(e)=>setShowAllXttsVoices(e.target.checked)} />
+                        Show all XTTS voices (includes espeak/festival/larynx/etc.)
+                      </label>
+                    )}
                     <select
                       className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
                       value={value}
                       onChange={(e)=>{
                         const v = e.target.value
                         if (v === 'custom') return
-                        setSettings({...settings, kokoro_voice: v})
+                        setSettings({...settings, [field]: v})
                       }}
                     >
                       {list.map(v => <option key={v} value={v}>{v}</option>)}
@@ -213,13 +279,116 @@ const TTSMonitor: React.FC = () => {
                       <input
                         className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
                         value={current}
-                        onChange={(e)=>setSettings({...settings, kokoro_voice: e.target.value})}
-                        placeholder="Enter custom voice id"
+                        onChange={(e)=>setSettings({...settings, [field]: e.target.value})}
+                        placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 'Enter Kokoro voice id'}
                       />
                     )}
+                    {settings.dj_voice_provider === 'xtts' && (() => {
+                      const meta = xttsVoicesMap[current]
+                      const speakers = meta && typeof meta === 'object' ? meta.speakers : null
+                      const speakerNames = speakers && typeof speakers === 'object' ? Object.keys(speakers) : []
+                      if (!speakerNames.length) return null
+                      const currentSpeaker = settings.xtts_speaker || ''
+                      const speakerValue = currentSpeaker && speakerNames.includes(currentSpeaker) ? currentSpeaker : speakerNames[0]
+                      return (
+                        <div className="space-y-1">
+                          <label className="block text-xs text-gray-400">XTTS Speaker</label>
+                          <select
+                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                            value={speakerValue}
+                            onChange={(e)=>setSettings({...settings, xtts_speaker: e.target.value})}
+                          >
+                            {speakerNames.map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })()}
+              {settings.dj_voice_provider !== 'xtts' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    onClick={async ()=>{
+                      if (!settings) return
+                      setTesting(true)
+                      setTestUrl(null)
+                      try {
+                        const sample = `Welcome to Raido. Testing voice ${settings.kokoro_voice || 'af_bella'} at speed ${settings.kokoro_speed ?? 1.0}.`
+                        const res = await api.post('/admin/tts-test', {
+                          text: sample,
+                          voice: settings.kokoro_voice,
+                          speed: settings.kokoro_speed,
+                          volume: settings.dj_tts_volume,
+                        })
+                        const url = res.data?.audio_url
+                        if (url) setTestUrl(url)
+                      } catch (e) {
+                        setSettingsError('TTS test failed')
+                      } finally {
+                        setTesting(false)
+                      }
+                    }}
+                    disabled={testing}
+                    className={`px-3 py-2 rounded-lg text-white text-sm ${testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
+                  >{testing ? 'Testing…' : 'Test Kokoro Voice'}</button>
+                  {testUrl && (
+                    <audio controls className="h-8">
+                      <source src={testUrl} type="audio/mpeg" />
+                    </audio>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* TTS Gain / Volume */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">TTS Gain (Volume Multiplier)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Boost quiet clips (0.5×–2.0×). Applied to Kokoro.</p>
+            </div>
+            {/* Kokoro Speed */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Kokoro Speed</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.5}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.kokoro_speed ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, kokoro_speed: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.5}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.kokoro_speed ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, kokoro_speed: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Playback speed multiplier (0.5×–1.5×). Kokoro only.</p>
             </div>
             <div>
               <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
@@ -229,6 +398,46 @@ const TTSMonitor: React.FC = () => {
                 onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
                 placeholder="e.g. llama3.1:8b"
               />
+            </div>
+            {/* Ollama Temperature */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Temperature</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={Number(settings.dj_temperature ?? 0.8)}
+                  onChange={(e)=>setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={Number(settings.dj_temperature ?? 0.8)}
+                  onChange={(e)=>setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Higher = more creative, lower = more consistent.</p>
+            </div>
+            {/* Ollama Max Tokens */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Max Tokens</label>
+              <input
+                type="number"
+                min={50}
+                max={1000}
+                step={10}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={Number(settings.dj_max_tokens ?? 200)}
+                onChange={(e)=>setSettings({...settings, dj_max_tokens: parseInt(e.target.value || '0', 10)})}
+                placeholder="e.g. 200"
+              />
+              <p className="text-xs text-gray-400 mt-1">Caps commentary length; real cap also based on time.</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-gray-300 mb-1">Default DJ Prompt</label>
@@ -406,6 +615,7 @@ const TTSMonitor: React.FC = () => {
                       </h4>
                       <p className="text-sm text-gray-400">
                         {item.provider} • {item.voice_provider}
+                        {item.voice_id ? ` • voice: ${item.voice_id}` : ''}
                       </p>
                     </div>
                     <div className="text-right text-sm text-gray-400 flex-shrink-0 ml-4">

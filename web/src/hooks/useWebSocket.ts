@@ -21,11 +21,11 @@ export function useWebSocket() {
       wsRef.current.onopen = () => {
         console.log('🏴‍☠️ WebSocket connected')
         setIsConnected(true)
-        reconnectAttempts.current = 0
-        
+        // If we had previous failed attempts, celebrate the reconnect before resetting
         if (reconnectAttempts.current > 0) {
           toast.success('🏴‍☠️ Reconnected to the radio!')
         }
+        reconnectAttempts.current = 0
       }
 
       wsRef.current.onmessage = (event) => {
@@ -77,8 +77,8 @@ export function useWebSocket() {
       }
 
       wsRef.current.onerror = (error) => {
+        // Errors can fire during normal reloads or transient reconnects; log only.
         console.error('WebSocket error:', error)
-        toast.error('Connection error occurred')
       }
 
     } catch (error) {
