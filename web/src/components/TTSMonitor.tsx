@@ -221,6 +221,56 @@ const TTSMonitor: React.FC = () => {
                 )
               })()}
             </div>
+            {/* TTS Gain / Volume */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">TTS Gain (Volume Multiplier)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Boost quiet clips (0.5×–2.0×). Applied to Kokoro.</p>
+            </div>
+            {/* Kokoro Speed */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Kokoro Speed</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.5}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.kokoro_speed ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, kokoro_speed: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.5}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.kokoro_speed ?? 1.0)}
+                  onChange={(e)=>setSettings({...settings, kokoro_speed: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Playback speed multiplier (0.5×–1.5×). Kokoro only.</p>
+            </div>
             <div>
               <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
               <input
@@ -229,6 +279,46 @@ const TTSMonitor: React.FC = () => {
                 onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
                 placeholder="e.g. llama3.1:8b"
               />
+            </div>
+            {/* Ollama Temperature */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Temperature</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={Number(settings.dj_temperature ?? 0.8)}
+                  onChange={(e)=>setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={Number(settings.dj_temperature ?? 0.8)}
+                  onChange={(e)=>setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Higher = more creative, lower = more consistent.</p>
+            </div>
+            {/* Ollama Max Tokens */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Max Tokens</label>
+              <input
+                type="number"
+                min={50}
+                max={1000}
+                step={10}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={Number(settings.dj_max_tokens ?? 200)}
+                onChange={(e)=>setSettings({...settings, dj_max_tokens: parseInt(e.target.value || '0', 10)})}
+                placeholder="e.g. 200"
+              />
+              <p className="text-xs text-gray-400 mt-1">Caps commentary length; real cap also based on time.</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-gray-300 mb-1">Default DJ Prompt</label>

@@ -12,6 +12,7 @@ class AdminSettingsResponse(BaseModel):
     kokoro_voice: Optional[str] = None
     dj_kokoro_voice: Optional[str] = None
     dj_tts_volume: float = 1.0
+    kokoro_speed: float = 1.0
     ollama_model: str = "llama3.1:8b"
     ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True
