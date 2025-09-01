@@ -195,6 +195,49 @@ async def create_commentary(
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create commentary: {str(e)}")
 
+@router.delete("/commentary/{commentary_id}")
+async def delete_commentary(
+    commentary_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a commentary record and its local audio file if present."""
+    logger = structlog.get_logger()
+    try:
+        # Fetch the commentary
+        result = await db.execute(select(Commentary).where(Commentary.id == commentary_id))
+        commentary = result.scalar_one_or_none()
+        if not commentary:
+            raise HTTPException(status_code=404, detail="Commentary not found")
+
+        # Attempt to remove local audio file if it's a local path
+        audio_url = commentary.audio_url or ""
+        file_deleted = False
+        try:
+            import os
+            file_path = None
+            if audio_url.startswith("/static/tts/"):
+                filename = audio_url.split("/")[-1]
+                file_path = f"/shared/tts/{filename}"
+            elif audio_url and not audio_url.startswith("http") and not audio_url.startswith("/"):
+                # Audio stored as plain filename
+                file_path = f"/shared/tts/{audio_url}"
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+                file_deleted = True
+        except Exception as fe:
+            logger.warning("Failed to delete commentary audio file", error=str(fe), audio_url=audio_url)
+
+        # Delete DB record
+        await db.delete(commentary)
+        await db.commit()
+
+        return {"status": "success", "deleted_id": commentary_id, "file_deleted": file_deleted}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete commentary", error=str(e), commentary_id=commentary_id)
+        raise HTTPException(status_code=500, detail=f"Failed to delete commentary: {str(e)}")
+
 @router.get("/tts-status")
 async def get_tts_status(
     db: AsyncSession = Depends(get_db),
@@ -427,3 +470,180 @@ async def tts_test(payload: Dict[str, Any]):
     except Exception as e:
         logger.error("Failed to synthesize TTS test", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to synthesize TTS test: {str(e)}")
+
+@router.post("/tts-test-xtts")
+async def tts_test_xtts(payload: Dict[str, Any]):
+    """Synthesize a short sample with XTTS and return an audio URL.
+
+    Body fields:
+    - text: sample text (optional; default provided)
+    - voice: XTTS voice id (e.g., 'coqui-tts:en_ljspeech')
+    - speaker: speaker id for multi-speaker voices (optional)
+    """
+    logger = structlog.get_logger()
+    try:
+        text = str(payload.get("text") or "This is a Raido XTTS voice test.")
+        voice = payload.get("voice") or "coqui-tts:en_ljspeech"
+        speaker = payload.get("speaker") or None
+        
+        # Validate XTTS is configured
+        xtts_base = getattr(settings, 'XTTS_BASE_URL', None)
+        if not xtts_base:
+            raise HTTPException(status_code=503, detail="XTTS server not configured")
+        
+        filename = f"xtts_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.wav"
+        out_path = f"/shared/tts/{filename}"
+        
+        # Prepare XTTS request - use OpenTTS API format
+        params = {
+            'text': text,
+            'voice': voice
+        }
+        if speaker:
+            params['speaker'] = speaker
+            
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Try OpenTTS format first: GET /api/tts with query params
+            resp = await client.get(
+                f"{xtts_base.rstrip('/')}/api/tts",
+                params=params
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(
+                    status_code=resp.status_code, 
+                    detail=f"XTTS error: {resp.text[:200]}"
+                )
+            
+            # Write audio content to file
+            with open(out_path, "wb") as f:
+                f.write(resp.content)
+        
+        url = f"/static/tts/{filename}"
+        logger.info("XTTS test synthesized", voice=voice, speaker=speaker, url=url)
+        return {
+            "status": "success", 
+            "audio_url": url, 
+            "voice": voice, 
+            "speaker": speaker,
+            "provider": "xtts"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to synthesize XTTS test", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to synthesize XTTS test: {str(e)}")
+
+@router.get("/voices-chatterbox")
+async def list_chatterbox_voices():
+    """List available Chatterbox TTS voices."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Try to get voices from Chatterbox API
+            chatterbox_base = getattr(settings, 'CHATTERBOX_BASE_URL', None)
+            if not chatterbox_base:
+                return {"voices": []}
+            
+            resp = await client.get(f"{chatterbox_base.rstrip('/')}/v1/voices")
+            if resp.status_code == 200:
+                data = resp.json()
+                voices = data.get("data", [])
+                # Extract voice names/IDs
+                voice_list = []
+                for voice in voices:
+                    if isinstance(voice, dict):
+                        voice_id = voice.get("id") or voice.get("name")
+                        if voice_id:
+                            voice_list.append(voice_id)
+                    else:
+                        voice_list.append(str(voice))
+                return {"voices": voice_list}
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.warning("Failed to list Chatterbox voices", error=str(e))
+    
+    # Fallback to common Chatterbox voices
+    fallback = [
+        "default", "alloy", "echo", "fable", "onyx", "nova", "shimmer"
+    ]
+    return {"voices": fallback}
+
+@router.post("/tts-test-chatterbox")
+async def tts_test_chatterbox(payload: Dict[str, Any]):
+    """Synthesize a short sample with Chatterbox TTS and return an audio URL.
+
+    Body fields:
+    - text: sample text (optional; default provided)
+    - voice: Chatterbox voice id (e.g., 'alloy', 'nova', 'onyx')
+    - exaggeration: emotion intensity (0.25-2.0, default 1.0)
+    - cfg_weight: pace control (0.0-1.0, default 0.5)
+    """
+    logger = structlog.get_logger()
+    try:
+        text = str(payload.get("text") or "This is a Raido Chatterbox TTS voice test.")
+        voice = payload.get("voice") or "default"
+        
+        # Parse Chatterbox-specific parameters
+        try:
+            exaggeration = float(payload.get("exaggeration") or 1.0)
+        except Exception:
+            exaggeration = 1.0
+        
+        try:
+            cfg_weight = float(payload.get("cfg_weight") or 0.5)
+        except Exception:
+            cfg_weight = 0.5
+        
+        # Validate Chatterbox is configured
+        chatterbox_base = getattr(settings, 'CHATTERBOX_BASE_URL', None)
+        if not chatterbox_base:
+            raise HTTPException(status_code=503, detail="Chatterbox TTS server not configured")
+        
+        filename = f"chatterbox_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.mp3"
+        out_path = f"/shared/tts/{filename}"
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Use OpenAI-compatible endpoint
+            resp = await client.post(
+                f"{chatterbox_base.rstrip('/')}/v1/audio/speech",
+                json={
+                    "model": "tts-1",
+                    "input": text,
+                    "voice": voice,
+                    "response_format": "mp3",
+                    "exaggeration": exaggeration,
+                    "cfg_weight": cfg_weight,
+                },
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(
+                    status_code=resp.status_code, 
+                    detail=f"Chatterbox TTS error: {resp.text[:200]}"
+                )
+            
+            # Write audio content to file
+            with open(out_path, "wb") as f:
+                f.write(resp.content)
+        
+        url = f"/static/tts/{filename}"
+        logger.info("Chatterbox TTS test synthesized", 
+                   voice=voice, 
+                   exaggeration=exaggeration, 
+                   cfg_weight=cfg_weight, 
+                   url=url)
+        return {
+            "status": "success", 
+            "audio_url": url, 
+            "voice": voice,
+            "exaggeration": exaggeration,
+            "cfg_weight": cfg_weight,
+            "provider": "chatterbox"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to synthesize Chatterbox TTS test", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to synthesize Chatterbox TTS test: {str(e)}")

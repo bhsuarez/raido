@@ -8,6 +8,7 @@ import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
+import VoiceTester from './components/VoiceTester'
 // import DJSettings from './components/DJSettings'
 
 function App() {
@@ -40,6 +41,10 @@ function App() {
           <Route 
             path="/tts" 
             element={<TTSMonitor />} 
+          />
+          <Route 
+            path="/voices" 
+            element={<VoiceTester />} 
           />
           { /* DJ Settings route intentionally removed in favor of DJ Admin */ }
           <Route 

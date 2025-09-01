@@ -61,7 +61,11 @@
       "Bash(lsof:*)",
       "Bash(gh pr view:*)",
       "Bash(git fetch:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(time docker exec:*)",
+      "Bash(time curl:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": [],

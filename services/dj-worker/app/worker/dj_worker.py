@@ -8,9 +8,7 @@ from app.core.config import settings
 from app.services.commentary_generator import CommentaryGenerator
 from app.services.tts_service import TTSService
 from app.services.api_client import APIClient
-# Temporarily disabled due to psutil import issues
-# from app.services.system_monitor import system_monitor
-system_monitor = None
+from app.services.system_monitor import system_monitor
 from app.models.commentary_job import CommentaryJob, JobStatus
 
 logger = structlog.get_logger()
@@ -38,6 +36,12 @@ class DJWorker:
         """Main worker loop with system health monitoring"""
         self.is_running = True
         logger.info("🎙️ DJ Worker started")
+        # Best-effort warmup of Ollama to reduce first-request latency
+        try:
+            if hasattr(self.commentary_generator, 'ollama_client'):
+                await self.commentary_generator.ollama_client.warmup()
+        except Exception:
+            pass
         
         # Schedule periodic system health monitoring
         health_monitor_task = asyncio.create_task(self._periodic_health_monitoring())

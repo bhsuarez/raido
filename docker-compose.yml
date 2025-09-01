@@ -62,6 +62,12 @@ services:
       - ollama:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=f16
+    mem_limit: "4g"
+    cpus: "2.0"
 
   kokoro-tts:
     image: ghcr.io/remsky/kokoro-fastapi-cpu
@@ -73,23 +79,49 @@ services:
       - USE_GPU=false
       - DOWNLOAD_MODEL=true
 
-  xtts-server:
-    image: synesthesiam/opentts:all
+  # xtts-server:  # Temporarily disabled to reduce system load during Chatterbox testing
+  #   image: synesthesiam/opentts:all
+  #   restart: unless-stopped
+  #   # OpenTTS listens on 5500 internally. We don't need to expose to host; other
+  #   # services access it via Docker network at http://xtts-server:5500
+  #   # To use: set `XTTS_BASE_URL=http://xtts-server:5500` in your environment.
+  #   environment:
+  #     # Limit to specific TTS engines to prevent multiple model loading
+  #     - TTS_ENGINES=coqui-tts:en_vctk,coqui-tts:en_ljspeech
+  #     # Prevent concurrent model loading
+  #     - MAX_CONCURRENT_REQUESTS=1
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 3G  # Limit container to 3GB RAM
+  #       reservations:
+  #         memory: 1G  # Reserve at least 1GB RAM
+
+  chatterbox-tts:
+    image: travisvn/chatterbox-tts-api:latest
     restart: unless-stopped
-    # OpenTTS listens on 5500 internally. We don't need to expose to host; other
-    # services access it via Docker network at http://xtts-server:5500
-    # To use: set `XTTS_BASE_URL=http://xtts-server:5500` in your environment.
+    # Chatterbox TTS listens on 4123 internally. Accessed via Docker network at http://chatterbox-tts:4123
+    # To use: set `CHATTERBOX_BASE_URL=http://chatterbox-tts:4123` in your environment.
     environment:
-      # Limit to specific TTS engines to prevent multiple model loading
-      - TTS_ENGINES=coqui-tts:en_vctk,coqui-tts:en_ljspeech
-      # Prevent concurrent model loading
-      - MAX_CONCURRENT_REQUESTS=1
+      - PORT=4123
+      - EXAGGERATION=1.0
+      - CFG_WEIGHT=0.5
+      - DEVICE=auto  # auto/cuda/mps/cpu - will auto-detect best available
+    volumes:
+      - chatterbox_models:/app/models
+      - chatterbox_voices:/app/voices
     deploy:
       resources:
         limits:
-          memory: 3G  # Limit container to 3GB RAM
+          memory: 6G  # Increased for model loading on CPU
         reservations:
-          memory: 1G  # Reserve at least 1GB RAM
+          memory: 2G  # Reserve at least 2GB RAM
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4123/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s  # Much longer startup time for CPU model loading
 
   dj-worker:
     build: ./services/dj-worker
@@ -107,6 +139,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    mem_limit: "1g"
+    cpus: "0.50"
 
   proxy:
     image: caddy:2
@@ -140,4 +174,4 @@ services:
       - ./scripts/cleanup-tts.sh:/cleanup-tts.sh:ro
     command: ["sh", "-c", "while true; do sleep 86400; /cleanup-tts.sh; done"]
 
-volumes: { db: {}, caddy: {}, shared: {}, ollama: {}, kokoro_models: {} }
+volumes: { db: {}, caddy: {}, shared: {}, ollama: {}, kokoro_models: {}, chatterbox_models: {}, chatterbox_voices: {} }

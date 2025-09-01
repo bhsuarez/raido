@@ -33,9 +33,15 @@ class Settings(BaseSettings):
     # Kokoro TTS (API service)
     KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
     
+    # Chatterbox TTS
+    CHATTERBOX_BASE_URL: str = "http://chatterbox-tts:4123"
+    CHATTERBOX_VOICE: str = "default"
+    CHATTERBOX_EXAGGERATION: float = 1.0
+    CHATTERBOX_CFG_WEIGHT: float = 0.5
+    
     # DJ Configuration
     DJ_PROVIDER: str = "openai"  # openai, ollama
-    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, xtts
+    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, xtts, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"

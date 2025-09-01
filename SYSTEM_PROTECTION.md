@@ -59,8 +59,8 @@ _max_requests_per_minute = 10  # Rate limiting
 
 ```bash
 # CRITICAL: Prevents infinite loops
-DJ_PROVIDER=disabled              # Set to "disabled" to prevent TTS issues
-DJ_VOICE_PROVIDER=templates       # Fallback when kokoro fails
+DJ_PROVIDER=disabled              # Disable commentary generation entirely
+DJ_VOICE_PROVIDER=kokoro          # Example voice provider (options: kokoro, xtts, liquidsoap, openai_tts)
 
 # System Protection Thresholds
 KOKORO_BASE_URL=http://kokoro-tts:8090
