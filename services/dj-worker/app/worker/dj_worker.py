@@ -48,7 +48,9 @@ class DJWorker:
         
         try:
             while self.is_running:
+                logger.info("🔄 DJ Worker polling for jobs...")
                 await self._process_pending_jobs()
+                logger.info(f"💤 Sleeping for {settings.WORKER_POLL_INTERVAL} seconds")
                 await asyncio.sleep(settings.WORKER_POLL_INTERVAL)
         
         except asyncio.CancelledError:
@@ -95,14 +97,19 @@ class DJWorker:
     async def _process_pending_jobs(self):
         """Check for and process pending commentary jobs"""
         try:
+            logger.info("📊 Checking if commentary should be generated...")
             # Check if we need to generate commentary based on current track timing
             should_generate = await self._should_generate_commentary()
+            logger.info(f"🎯 Should generate commentary: {should_generate}")
             
             if should_generate:
+                logger.info("🎵 Getting next track for commentary...")
                 # Get the next upcoming track to generate commentary for
                 next_track = await self._get_next_track_for_commentary()
+                logger.info(f"📀 Next track found: {next_track is not None}")
                 
                 if next_track and next_track.get('track'):
+                    logger.info(f"🎤 Processing track: {next_track['track'].get('title')} by {next_track['track'].get('artist')}")
                     job = CommentaryJob(
                         track_info=next_track['track'],
                         play_info=None,  # No play record yet for upcoming track
@@ -111,6 +118,8 @@ class DJWorker:
                     
                     # Process the job
                     await self._process_job(job)
+                else:
+                    logger.info("❌ No valid track found for commentary")
         
         except Exception as e:
             logger.error("Error processing pending jobs", error=str(e))
@@ -171,20 +180,32 @@ class DJWorker:
     async def _get_next_track_for_commentary(self) -> Optional[Dict[str, Any]]:
         """Get the next upcoming track that needs commentary"""
         try:
+            logger.info("🔍 Fetching next up tracks from API...")
             # Get upcoming tracks
             next_up = await self.api_client.get_next_up()
+            logger.info(f"📡 API response received: {next_up is not None}")
             if not next_up or 'next_tracks' not in next_up:
+                logger.info("❌ No next_tracks found in API response")
                 return None
             
+            logger.info(f"🎵 Found {len(next_up['next_tracks'])} upcoming tracks")
             # Get the first upcoming track that doesn't have commentary prepared
             for next_track in next_up['next_tracks'][:1]:  # Just check the very next track
                 track = next_track.get('track')
+                logger.info(f"🎶 Track found: {track is not None}")
                 if track:
+                    logger.info(f"🏷️ Track details: ID={track.get('id')}, Title='{track.get('title')}', Artist='{track.get('artist')}'")
                     # Check if this track already has recent commentary prepared
                     # (to avoid generating multiple commentaries for the same track)
                     track_id = track.get('id')
-                    if track_id and not await self._has_recent_commentary(track_id):
+                    logger.info(f"🆔 Track ID: {track_id}")
+                    has_recent = await self._has_recent_commentary(track_id) if track_id is not None else False
+                    logger.info(f"⏰ Has recent commentary: {has_recent}")
+                    if track_id is not None and not has_recent:
+                        logger.info("✅ Track selected for commentary")
                         return next_track
+                    else:
+                        logger.info("❌ Track skipped (no ID or has recent commentary)")
             
             return None
         
