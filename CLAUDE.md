@@ -59,6 +59,21 @@ make shell-dj            # Shell into DJ worker container
 make health              # Check service health status
 ```
 
+### Monitoring & Alerts
+```bash
+# Start monitoring with Signal notifications
+cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
+
+# Configure Signal notifications (first time setup)
+cp monitoring/.env.monitoring.example monitoring/.env.monitoring
+# Edit .env.monitoring with your Signal phone numbers
+
+# View monitoring logs
+docker compose -f monitoring/docker-compose.monitoring.yml logs -f raido-monitor
+```
+
+**See [monitoring/README.md](monitoring/README.md) for complete setup instructions.**
+
 ### Code Quality
 ```bash
 make lint                # Run linters (ruff for Python, eslint for TypeScript)

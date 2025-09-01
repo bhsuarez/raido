@@ -1,0 +1,48 @@
+services:
+  # Signal CLI REST API for notifications
+  signal-cli:
+    image: bbernhard/signal-cli-rest-api:latest
+    restart: unless-stopped
+    environment:
+      - MODE=json-rpc  # json-rpc or normal
+    ports:
+      - "8080:8080"
+    volumes:
+      - signal-data:/home/.local/share/signal-cli
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring script container
+  raido-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    restart: unless-stopped
+    depends_on:
+      - signal-cli
+    environment:
+      - SIGNAL_API_URL=http://signal-cli:8080
+      - PHONE_NUMBER=${SIGNAL_PHONE_NUMBER}
+      - RECIPIENT_NUMBER=${SIGNAL_RECIPIENT_NUMBER}
+      - RAIDO_API_URL=http://host.docker.internal:8001
+      - RAIDO_STREAM_URL=http://host.docker.internal:8000
+      - CHECK_INTERVAL=300  # 5 minutes
+      - GITHUB_RECOVERY_URL=https://github.com/yourusername/raido/blob/master/RECOVERY.md
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  signal-data:
