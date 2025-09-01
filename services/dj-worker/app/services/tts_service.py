@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.services.kokoro_client import KokoroClient
+from app.services.openai_client import OpenAIClient
 
 logger = structlog.get_logger()
 
@@ -15,6 +16,7 @@ class TTSService:
     
     def __init__(self):
         self.kokoro_client = KokoroClient()
+        self._openai_client = None  # Lazy initialization
         
         # Try to ensure TTS cache directory exists
         try:
@@ -23,6 +25,13 @@ class TTSService:
         except PermissionError as e:
             logger.error("Cannot create TTS cache directory", dir=settings.TTS_CACHE_DIR, error=str(e))
             raise
+    
+    @property
+    def openai_client(self):
+        """Lazy initialization of OpenAI client"""
+        if self._openai_client is None:
+            self._openai_client = OpenAIClient()
+        return self._openai_client
     
     async def generate_audio(self, text: str, job_id: str, dj_settings: Optional[dict] = None) -> Optional[str]:
         """Generate audio from text using the configured TTS provider.
@@ -81,6 +90,20 @@ class TTSService:
                 # Fallback to Kokoro if configured
                 try:
                     logger.warning("XTTS failed; falling back to Kokoro")
+                    return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
+                except Exception:
+                    return None
+            elif provider == "openai_tts":
+                # Allow admin override for OpenAI TTS voice via 'openai_tts_voice' or generic 'dj_voice_id'
+                openai_voice = None
+                if dj_settings and isinstance(dj_settings, dict):
+                    openai_voice = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
+                primary = await self._generate_with_openai_tts(text, job_id, voice_override=openai_voice)
+                if primary:
+                    return primary
+                # Fallback to Kokoro if configured
+                try:
+                    logger.warning("OpenAI TTS failed; falling back to Kokoro")
                     return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
                 except Exception:
                     return None
@@ -339,4 +362,33 @@ class TTSService:
 
         except Exception as e:
             logger.error("Chatterbox TTS generation failed", error=str(e))
+            return None
+
+    async def _generate_with_openai_tts(self, text: str, job_id: str, *, voice_override: Optional[str] = None) -> Optional[str]:
+        """Generate audio using OpenAI TTS"""
+        try:
+            # Clean text for speech synthesis
+            clean_text = text.replace('<speak>', '').replace('</speak>', '')
+            clean_text = clean_text.replace('<break time="400ms"/>', ' ')
+            
+            # Use OpenAI client to generate audio
+            audio_data = await self.openai_client.generate_tts(clean_text, job_id, voice=voice_override)
+            
+            if audio_data:
+                # Save the audio data to file
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"commentary_{job_id}_{timestamp}.mp3"
+                filepath = os.path.join(settings.TTS_CACHE_DIR, filename)
+                
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(audio_data)
+                
+                logger.info("OpenAI TTS audio generated", filename=filename, voice=voice_override)
+                return filename
+            else:
+                logger.error("OpenAI TTS failed to generate audio")
+                return None
+                
+        except Exception as e:
+            logger.error("OpenAI TTS generation failed", error=str(e))
             return None
