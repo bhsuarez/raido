@@ -84,15 +84,19 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
    # Copy your music files to ./music directory
    ```
 
-5. **Start Raido (production)**:
+5. **Build and start Raido (production)**:
    ```bash
-   # Build optimized web and start the core stack
-   docker compose build web
+   # Option 1: Full production setup (recommended)
+   make production-setup
+   
+   # Option 2: Manual production build and start
+   make build  # Build all services with production optimizations
+   make up     # Start all services in production mode
+   make migrate # Run database migrations
+   
+   # Option 3: Selective service deployment
+   docker compose build web api dj-worker  # Build core services
    docker compose up -d proxy api web icecast liquidsoap dj-worker
-   ```
-
-6. **Run database migrations**:
-   ```bash
    make migrate
    ```
 
@@ -106,36 +110,246 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 ## Development
 
-### Dev Run (Vite + hot reload)
+### Development Setup & Build Process
 
+**Quick Development Start:**
+```bash
+# Complete development environment setup
+make dev-setup
+# This runs: setup → build → up-dev → migrate
+```
+
+**Manual Development Setup:**
+```bash
+# 1. Initial setup
+make setup  # Create .env, directories
+
+# 2. Build all development containers
+make build  # Builds api, dj-worker, web services
+
+# 3. Start development stack with live reload
+make up-dev  # Uses docker-compose.override.yml
+```
+
+### Development Build Commands
+
+**Container Builds:**
+```bash
+# Build all services
+make build
+docker compose build
+
+# Build individual services
+docker compose build api        # FastAPI backend
+docker compose build dj-worker  # AI commentary worker  
+docker compose build web        # React frontend (production)
+
+# Development web service (live reload)
+# Built automatically when using make up-dev
+```
+
+**Development vs Production Builds:**
+```bash
+# Development: Live reload with source mounting
+make up-dev
+# Uses web-dev service with Vite dev server
+# Source code mounted for instant updates
+
+# Production: Optimized static build  
+make build && make up
+# Creates production React build served by nginx
+```
+
+### Development Workflow
+
+**Dev Stack Management:**
 ```bash
 # Start dev stack (Caddy→Vite @ :3000, API @ :8001)
 make up-dev
 
-# Useful
+# Service management
 make restart-dev     # restart api, web-dev, proxy
 make restart-web     # restart web-dev only
 make restart-api     # restart api only
+make down-dev        # stop dev stack
+
+# Monitoring
 make logs-web        # tail web-dev logs (Vite)
 make logs-api        # tail api logs
 make logs-proxy      # tail proxy logs
+make status          # show container status
 ```
 
-Dev URLs:
-- Web UI: http://localhost:3000 (Caddy → Vite)
-- API: http://localhost:8001 (health at /health)
-- Stream: http://localhost:8000/raido.mp3
+**Development URLs:**
+- **Web UI**: http://localhost:3000 (Caddy → Vite with HMR)  
+- **API Direct**: http://localhost:8001 (health at /health)
+- **Stream**: http://localhost:8000/raido.mp3
+- **Database Admin**: http://localhost:8081 (Adminer)
 
-Notes:
-- The dev web service (`web-dev`) runs Node + Vite with your code mounted and auto‑reloads on save.
-- The API runs Uvicorn with `--reload` and picks up Python changes.
-- For production web rebuilds, run `docker compose build web && docker compose up -d web`.
+### Build Architecture
+
+**Development Environment:**
+- **web-dev**: Node.js container running Vite dev server
+- **API**: Python FastAPI with `--reload` flag
+- **Source Mounting**: Code changes trigger automatic rebuilds
+- **Hot Module Replacement**: Instant frontend updates
+- **Override Configuration**: Uses `docker-compose.override.yml`
+
+**Production Environment:**  
+- **web**: Multi-stage build (Node.js build → nginx serve)
+- **Optimized Assets**: Minified, bundled, cached
+- **Reverse Proxy**: All traffic through Caddy
+- **SSL Termination**: HTTPS handled by proxy layer
+
+### Rebuilding After Changes
+
+**Frontend Changes:**
+```bash
+# Development (automatic)
+# Changes to web/ trigger Vite HMR automatically
+
+# Production rebuild  
+docker compose build web
+make restart  # or: docker compose up -d web
+```
+
+**Backend Changes:**
+```bash
+# Development (automatic)  
+# Python changes trigger uvicorn reload automatically
+
+# Production rebuild
+docker compose build api        # rebuild API
+docker compose build dj-worker # rebuild DJ worker
+make restart                   # restart services
+```
+
+**Environment Changes:**
+```bash
+# After .env changes
+make restart        # restart all services
+make restart-dev    # restart dev services only
+```
 
 ### Monitoring & Alerts
 
 - A lightweight `monitor` service runs in the stack and periodically checks API, Web, and Stream availability.
 - To enable Slack alerts on failures, set `ALERT_SLACK_WEBHOOK` in your `.env` file.
 - You can also run `make health` locally; it checks host ports (API on `8001`, Web on `3000`, Stream on `8000`).
+
+## Build & Container Reference
+
+### Service Build Details
+
+**API Service (`services/api/`):**
+```dockerfile
+# Built from: services/api/Dockerfile  
+# Base: python:3.11-slim
+# Features: FastAPI, Alembic, PostgreSQL drivers
+# Optimization: Multi-stage build, dependency caching
+```
+
+**DJ Worker (`services/dj-worker/`):**
+```dockerfile  
+# Built from: services/dj-worker/Dockerfile
+# Base: python:3.11-slim  
+# Features: OpenAI, Ollama clients, TTS integrations
+# Optimization: AI/ML dependencies, model caching
+```
+
+**Web Frontend (`web/`):**
+```dockerfile
+# Built from: web/Dockerfile
+# Stage 1: node:18 (build React app)
+# Stage 2: nginx:alpine (serve static files)
+# Features: Vite build, TypeScript, Tailwind CSS
+# Optimization: Multi-stage, static asset serving
+```
+
+### Build Commands Reference
+
+**Complete Build Commands:**
+```bash
+# Full stack build
+make build                          # Build all services
+docker compose build               # Alternative full build
+docker compose build --no-cache    # Clean rebuild
+
+# Production optimized builds  
+make production-setup              # Complete production setup
+docker compose build --pull       # Rebuild with latest base images
+
+# Development builds
+make dev-setup                     # Complete dev environment
+make up-dev                       # Start with development overrides
+```
+
+**Individual Service Builds:**
+```bash
+# Backend services
+docker compose build api          # FastAPI backend
+docker compose build dj-worker    # AI commentary worker
+
+# Frontend builds  
+docker compose build web          # Production React build (nginx)
+# Note: web-dev service uses mounted source, no build needed
+
+# Infrastructure
+docker compose pull kokoro-tts    # Neural TTS service
+docker compose pull ollama        # LLM service  
+```
+
+**Build Troubleshooting:**
+```bash
+# Clean rebuild after issues
+make clean                        # Remove containers and volumes
+docker system prune -af           # Remove all unused containers
+make build                        # Fresh rebuild
+
+# Check build context and caches
+docker compose build --progress=plain api  # Verbose build output
+docker builder prune                       # Clear build cache
+```
+
+### Production Deployment Guide
+
+**Full Production Setup:**
+```bash
+# 1. Initial setup and configuration
+make setup
+# Edit .env with production values (passwords, API keys, domains)
+
+# 2. Build production containers  
+make build
+
+# 3. Deploy services
+make up      # or: docker compose up -d
+
+# 4. Initialize database
+make migrate
+
+# 5. Verify deployment
+make health
+make status
+```
+
+**Production Build Optimizations:**
+- **Static Assets**: React app built and minified
+- **Multi-stage Builds**: Smaller final images  
+- **Dependency Caching**: Faster rebuilds
+- **Security**: Non-root users in containers
+- **SSL**: HTTPS termination via Caddy proxy
+- **Resource Limits**: Memory and CPU constraints
+
+**Scaling Considerations:**
+```bash
+# Resource monitoring
+make monitoring               # Container resource usage
+docker stats                 # Real-time container stats
+
+# Service scaling (if needed)  
+docker compose up -d --scale dj-worker=2  # Scale DJ workers
+```
 
 ## Configuration
 

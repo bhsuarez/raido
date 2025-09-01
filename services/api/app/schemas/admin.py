@@ -6,8 +6,8 @@ class AdminSettingsResponse(BaseModel):
     dj_commentary_interval: int = 1
     dj_max_seconds: int = 30
     dj_tone: str = "energetic"
-    dj_provider: str = "ollama"  # openai, ollama, disabled
-    dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts
+    dj_provider: str = "templates"  # openai, ollama, templates, disabled
+    dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts, chatterbox
     dj_voice_id: Optional[str] = None
     xtts_voice: Optional[str] = None
     xtts_speaker: Optional[str] = None
@@ -15,6 +15,9 @@ class AdminSettingsResponse(BaseModel):
     dj_kokoro_voice: Optional[str] = None
     dj_tts_volume: float = 1.0
     kokoro_speed: float = 1.0
+    chatterbox_voice: Optional[str] = None
+    chatterbox_exaggeration: float = 1.0
+    chatterbox_cfg_weight: float = 0.5
     ollama_model: str = "llama3.1:8b"
     ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True

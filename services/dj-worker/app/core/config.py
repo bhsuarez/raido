@@ -28,14 +28,20 @@ class Settings(BaseSettings):
     XTTS_VOICE: str = "pirate_dj"
     
     # Kokoro TTS
-    KOKORO_BASE_URL: str = "http://kokoro-tts:8090"
-    KOKORO_VOICE: str = "af_bella"
+    KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
+    KOKORO_VOICE: str = "am_onyx"
     KOKORO_SPEED: float = 1.0
     KOKORO_VOLUME: float = 1.0
     
+    # Chatterbox TTS
+    CHATTERBOX_BASE_URL: str = "http://chatterbox-tts:4123"
+    CHATTERBOX_VOICE: str = "default"
+    CHATTERBOX_EXAGGERATION: float = 1.0
+    CHATTERBOX_CFG_WEIGHT: float = 0.5
+    
     # DJ Configuration
     DJ_PROVIDER: str = "templates"  # openai, ollama, templates, disabled
-    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, xtts
+    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, xtts, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"
@@ -51,8 +57,9 @@ class Settings(BaseSettings):
     API_BASE_URL: str = "http://api:8000"
     
     # Worker settings
-    WORKER_POLL_INTERVAL: int = 5  # seconds
-    MAX_CONCURRENT_JOBS: int = 3
+    # Poll a bit less aggressively and serialize jobs by default to avoid CPU spikes
+    WORKER_POLL_INTERVAL: int = 10  # seconds
+    MAX_CONCURRENT_JOBS: int = 1
     COMMENTARY_TIMEOUT: int = 60  # seconds
     TTS_TIMEOUT: int = 30  # seconds
     

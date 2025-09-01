@@ -82,6 +82,9 @@ export const apiHelpers = {
   updateUser: (userId: number, userData: any) => api.put(`/admin/users/${userId}`, userData),
   deleteUser: (userId: number) => api.delete(`/admin/users/${userId}`),
   
+  // TTS management
+  deleteCommentary: (commentaryId: number) => api.delete(`/admin/commentary/${commentaryId}`),
+  
   // Stream controls
   skipTrack: () => api.post('/liquidsoap/skip'),
 }
