@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
     
     # Chatterbox TTS
-    CHATTERBOX_BASE_URL: str = "http://chatterbox-tts:4123"
+    CHATTERBOX_BASE_URL: Optional[str] = None
     CHATTERBOX_VOICE: str = "default"
     CHATTERBOX_EXAGGERATION: float = 1.0
     CHATTERBOX_CFG_WEIGHT: float = 0.5
