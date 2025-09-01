@@ -130,15 +130,15 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
         """Estimate a safe token cap based on desired duration.
 
         Heuristic:
-        - Average speaking rate ~ 2.5 words/sec (150 wpm)
+        - Average speaking rate ~ 3.5 words/sec (210 wpm)
         - Approx tokens per word ~ 1.3 (varies by model/language)
-        - Cap tokens = seconds * 2.5 words/sec * 1.3 tokens/word
+        - Cap tokens = seconds * 3.5 words/sec * 1.3 tokens/word
         """
         try:
             max_sec = int(dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS) or 0)
             if max_sec <= 0:
                 return 200
-            words = max_sec * 25 // 10  # 2.5 words/sec
+            words = max_sec * 35 // 10  # 3.5 words/sec
             tokens = int(words * 1.3)
             # Keep within reasonable bounds
             return max(40, min(tokens, 300))
@@ -159,8 +159,8 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             if max_sec <= 0:
                 return text
 
-            # Allowed words at ~2.5 words/sec (conservative)
-            words_per_sec = 2.5
+            # Allowed words at ~3.5 words/sec (more realistic for DJ commentary)
+            words_per_sec = 3.5
             allowed_words = max(1, int(max_sec * words_per_sec))
 
             # Strip simple SSML for counting/segmenting

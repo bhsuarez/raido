@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from app.core.database import get_db
 from app.models import Track, Play
 from app.core.websocket_manager import WebSocketManager
+from app.services.metadata_extractor import MetadataExtractor
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -67,20 +68,34 @@ async def track_change_notification(
                 safe_title = (request.title or "Unknown").replace(" ", "_").replace("/", "_")
                 file_path = f"liquidsoap://{safe_artist}-{safe_title}"
             
+            # Use filename parsing as fallback for missing metadata
+            filename_metadata = {}
+            if file_path and not file_path.startswith("liquidsoap://"):
+                # Try to extract metadata from filename/path
+                filename_metadata = MetadataExtractor._parse_filename_metadata(file_path)
+                logger.debug("Parsed filename metadata", file_path=file_path, metadata=filename_metadata)
+            
+            # Use parsed metadata as fallback
+            title = request.title or filename_metadata.get('title') or "Unknown Title"
+            artist = request.artist or filename_metadata.get('artist') or "Unknown Artist" 
+            album = request.album or filename_metadata.get('album')
+            genre = request.genre or filename_metadata.get('genre')
+            
             # Try to get artwork URL
-            artwork_url = await _lookup_artwork(request.artist, request.title, request.album)
+            artwork_url = await _lookup_artwork(artist, title, album)
             
             # Parse year as integer if provided
             year_int = None
-            if request.year and request.year.strip() and request.year.strip().isdigit():
-                year_int = int(request.year.strip())
+            year_value = request.year or filename_metadata.get('year')
+            if year_value and str(year_value).strip() and str(year_value).strip().isdigit():
+                year_int = int(str(year_value).strip())
             
             track = Track(
-                title=request.title or "Unknown Title",
-                artist=request.artist or "Unknown Artist",
-                album=request.album,
+                title=title,
+                artist=artist,
+                album=album,
                 year=year_int,
-                genre=request.genre,
+                genre=genre,
                 file_path=file_path,
                 duration_sec=request.duration,
                 artwork_url=artwork_url,
