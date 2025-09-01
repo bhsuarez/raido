@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api, { apiHelpers } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
-// import { toast } from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 // Removed date-fns import to avoid build issues
 
 interface TTSStatistics {
@@ -50,10 +50,12 @@ const TTSMonitor: React.FC = () => {
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
   const [chatterboxVoices, setChatterboxVoices] = useState<string[]>([])
+  const [testText, setTestText] = useState("Welcome to Raido FM! This voice sounds crisp and clear for our pirate radio commentary.")
 
   // Admin settings state
   const [settings, setSettings] = useState<any | null>(null)
   const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [settingsCollapsed, setSettingsCollapsed] = useState(true)
 
   useEffect(() => {
     apiHelpers.getSettings()
@@ -102,8 +104,11 @@ const TTSMonitor: React.FC = () => {
     setSettingsError(null)
     try {
       await apiHelpers.updateSettings(settings)
+      toast.success('Settings saved successfully! 🎛️')
     } catch (e:any) {
-      setSettingsError(e?.response?.data?.detail || 'Failed to save settings')
+      const errorMsg = e?.response?.data?.detail || 'Failed to save settings'
+      setSettingsError(errorMsg)
+      toast.error(`Save failed: ${errorMsg}`)
     } finally {
       setSaving(false)
     }
@@ -192,17 +197,25 @@ const TTSMonitor: React.FC = () => {
       {/* Settings Panel */}
       <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">⚙️ DJ Settings</h2>
+          <button
+            onClick={() => setSettingsCollapsed(!settingsCollapsed)}
+            className="flex items-center gap-2 text-xl font-bold text-white hover:text-pirate-400 transition-colors"
+          >
+            <span className={`transform transition-transform ${settingsCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
+            <span>⚙️ DJ Settings</span>
+            <span className="text-sm font-normal text-gray-400">({settingsCollapsed ? 'Click to expand' : 'Click to collapse'})</span>
+          </button>
           <button
             onClick={saveSettings}
             disabled={!settings || saving}
             className={`px-3 py-2 rounded-lg text-white text-sm ${saving ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
           >{saving ? 'Saving…' : 'Save Settings'}</button>
         </div>
-        {settingsError && (
+        {settingsError && !settingsCollapsed && (
           <div className="text-red-400 text-sm mb-3">{settingsError}</div>
         )}
-        {settings ? (
+        {!settingsCollapsed && (
+          settings ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Max Intro Duration */}
             <div>
@@ -276,9 +289,21 @@ const TTSMonitor: React.FC = () => {
                   }
                 } else {
                   list = voices.length ? voices : [
-                    'af_bella','af_aria','af_sky','af_nicole',
-                    'am_onyx','am_michael','am_ryan','am_alex',
-                    'bf_ava','bf_sophie','bm_george','bm_james'
+                    // American Female voices
+                    'af_bella', 'af_sarah', 'af_sky', 'af_aria', 'af_grace', 'af_nicole', 
+                    'af_jenny', 'af_emma', 'af_allison', 'af_riley', 'af_samantha',
+                    
+                    // American Male voices  
+                    'am_onyx', 'am_michael', 'am_ryan', 'am_alex', 'am_eric', 'am_adam', 
+                    'am_daniel', 'am_noah', 'am_liam', 'am_mason', 'am_jacob',
+                    
+                    // British Female voices
+                    'bf_ava', 'bf_sophie', 'bf_emma', 'bf_lily', 'bf_alice', 'bf_chloe',
+                    'bf_olivia', 'bf_amelia', 'bf_isabella', 'bf_charlotte',
+                    
+                    // British Male voices
+                    'bm_george', 'bm_james', 'bm_william', 'bm_oliver', 'bm_harry',
+                    'bm_thomas', 'bm_charlie', 'bm_jacob', 'bm_alexander', 'bm_henry'
                   ]
                 }
                 
@@ -304,7 +329,62 @@ const TTSMonitor: React.FC = () => {
                         setSettings({...settings, [field]: v})
                       }}
                     >
-                      {list.map(v => <option key={v} value={v}>{v}</option>)}
+                      {settings.dj_voice_provider === 'kokoro' && !voices.length ? (
+                        <>
+                          <optgroup label="👩🏻 American Female">
+                            <option value="af_bella">af_bella (Warm, Natural)</option>
+                            <option value="af_sarah">af_sarah (Clear, Professional)</option>
+                            <option value="af_sky">af_sky (Bright, Energetic)</option>
+                            <option value="af_aria">af_aria (Smooth, Elegant)</option>
+                            <option value="af_grace">af_grace (Gentle, Soothing)</option>
+                            <option value="af_nicole">af_nicole (Confident, Clear)</option>
+                            <option value="af_jenny">af_jenny (Friendly, Upbeat)</option>
+                            <option value="af_emma">af_emma (Youthful, Bright)</option>
+                            <option value="af_allison">af_allison (Professional)</option>
+                            <option value="af_riley">af_riley (Dynamic, Modern)</option>
+                            <option value="af_samantha">af_samantha (Versatile)</option>
+                          </optgroup>
+                          <optgroup label="👨🏻 American Male">
+                            <option value="am_onyx">am_onyx (Deep, Authoritative)</option>
+                            <option value="am_michael">am_michael (Classic, Trustworthy)</option>
+                            <option value="am_ryan">am_ryan (Casual, Friendly)</option>
+                            <option value="am_alex">am_alex (Versatile, Clear)</option>
+                            <option value="am_eric">am_eric (Mature, Professional)</option>
+                            <option value="am_adam">am_adam (Warm, Engaging)</option>
+                            <option value="am_daniel">am_daniel (Smooth, Confident)</option>
+                            <option value="am_noah">am_noah (Young, Energetic)</option>
+                            <option value="am_liam">am_liam (Modern, Dynamic)</option>
+                            <option value="am_mason">am_mason (Strong, Clear)</option>
+                            <option value="am_jacob">am_jacob (Reliable, Steady)</option>
+                          </optgroup>
+                          <optgroup label="👩🏼 British Female">
+                            <option value="bf_ava">bf_ava (Elegant, Sophisticated)</option>
+                            <option value="bf_sophie">bf_sophie (Refined, Articulate)</option>
+                            <option value="bf_emma">bf_emma (Charming, Polished)</option>
+                            <option value="bf_lily">bf_lily (Sweet, Melodic)</option>
+                            <option value="bf_alice">bf_alice (Classic, Distinguished)</option>
+                            <option value="bf_chloe">bf_chloe (Modern, Crisp)</option>
+                            <option value="bf_olivia">bf_olivia (Graceful, Clear)</option>
+                            <option value="bf_amelia">bf_amelia (Gentle, Refined)</option>
+                            <option value="bf_isabella">bf_isabella (Luxurious)</option>
+                            <option value="bf_charlotte">bf_charlotte (Sophisticated)</option>
+                          </optgroup>
+                          <optgroup label="👨🏼 British Male">
+                            <option value="bm_george">bm_george (Distinguished, Authoritative)</option>
+                            <option value="bm_james">bm_james (Classic, Professional)</option>
+                            <option value="bm_william">bm_william (Noble, Articulate)</option>
+                            <option value="bm_oliver">bm_oliver (Modern, Engaging)</option>
+                            <option value="bm_harry">bm_harry (Friendly, Approachable)</option>
+                            <option value="bm_thomas">bm_thomas (Reliable, Clear)</option>
+                            <option value="bm_charlie">bm_charlie (Upbeat, Charismatic)</option>
+                            <option value="bm_jacob">bm_jacob (Steady, Trustworthy)</option>
+                            <option value="bm_alexander">bm_alexander (Commanding)</option>
+                            <option value="bm_henry">bm_henry (Warm, Distinguished)</option>
+                          </optgroup>
+                        </>
+                      ) : (
+                        list.map(v => <option key={v} value={v}>{v}</option>)
+                      )}
                       <option value="custom">Custom…</option>
                     </select>
                     {(isCustom || (current==='')) && (
@@ -373,16 +453,26 @@ const TTSMonitor: React.FC = () => {
                 </div>
               )}
               {(settings.dj_voice_provider !== 'xtts' && settings.dj_voice_provider !== 'chatterbox') && (
-                <div className="mt-3 flex items-center gap-3">
-                  <button
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-2">Test Text</label>
+                    <input
+                      type="text"
+                      value={testText}
+                      onChange={(e) => setTestText(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                      placeholder="Enter text to test the voice..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
                     onClick={async ()=>{
                       if (!settings) return
                       setTesting(true)
                       setTestUrl(null)
                       try {
-                        const sample = `Welcome to Raido. Testing voice ${settings.kokoro_voice || 'af_bella'} at speed ${settings.kokoro_speed ?? 1.0}.`
                         const res = await api.post('/admin/tts-test', {
-                          text: sample,
+                          text: testText,
                           voice: settings.kokoro_voice,
                           speed: settings.kokoro_speed,
                           volume: settings.dj_tts_volume,
@@ -403,6 +493,7 @@ const TTSMonitor: React.FC = () => {
                       <source src={testUrl} type="audio/mpeg" />
                     </audio>
                   )}
+                  </div>
                 </div>
               )}
             </div>
@@ -456,6 +547,79 @@ const TTSMonitor: React.FC = () => {
               </div>
               <p className="text-xs text-gray-400 mt-1">Playback speed multiplier (0.5×–1.5×). Kokoro only.</p>
             </div>
+            {/* Kokoro Silence Duration */}
+            {(settings.dj_voice_provider === 'kokoro' || !settings.dj_voice_provider) && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Kokoro Silence Duration</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.0}
+                    max={2.0}
+                    step={0.1}
+                    value={Number(settings.kokoro_silence ?? 0.2)}
+                    onChange={(e)=>setSettings({...settings, kokoro_silence: parseFloat(e.target.value)})}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min={0.0}
+                    max={2.0}
+                    step={0.1}
+                    value={Number(settings.kokoro_silence ?? 0.2)}
+                    onChange={(e)=>setSettings({...settings, kokoro_silence: parseFloat(e.target.value)})}
+                    className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Pause duration between sentences (0-2s). Higher = more natural pauses.</p>
+              </div>
+            )}
+            {/* Kokoro Emotional Tone */}
+            {(settings.dj_voice_provider === 'kokoro' || !settings.dj_voice_provider) && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Kokoro Emotional Style</label>
+                <select
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  value={settings.kokoro_style || 'neutral'}
+                  onChange={(e)=>setSettings({...settings, kokoro_style: e.target.value})}
+                >
+                  <option value="neutral">Neutral (Default)</option>
+                  <option value="excited">Excited/Energetic</option>
+                  <option value="calm">Calm/Relaxed</option>
+                  <option value="warm">Warm/Friendly</option>
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual/Conversational</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Emotional tone hint for voice generation (experimental).</p>
+              </div>
+            )}
+            {/* Kokoro Pitch */}
+            {(settings.dj_voice_provider === 'kokoro' || !settings.dj_voice_provider) && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Kokoro Pitch Adjustment</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={1.2}
+                    step={0.05}
+                    value={Number(settings.kokoro_pitch ?? 1.0)}
+                    onChange={(e)=>setSettings({...settings, kokoro_pitch: parseFloat(e.target.value)})}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min={0.8}
+                    max={1.2}
+                    step={0.05}
+                    value={Number(settings.kokoro_pitch ?? 1.0)}
+                    onChange={(e)=>setSettings({...settings, kokoro_pitch: parseFloat(e.target.value)})}
+                    className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Pitch multiplier (0.8×-1.2×). 1.0 = natural, higher = higher pitch.</p>
+              </div>
+            )}
             {/* Chatterbox Exaggeration */}
             {settings.dj_voice_provider === 'chatterbox' && (
               <div>
@@ -512,12 +676,64 @@ const TTSMonitor: React.FC = () => {
             )}
             <div>
               <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
-              <input
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-                value={settings.ollama_model || ''}
-                onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
-                placeholder="e.g. llama3.1:8b"
-              />
+              <div className="space-y-2">
+                <select
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  value={settings.ollama_model || ''}
+                  onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
+                >
+                  <option value="">Select a model...</option>
+                  
+                  {/* Popular Chat Models */}
+                  <optgroup label="🗣️ Chat Models (Recommended)">
+                    <option value="llama3.2:3b">Llama 3.2 3B (Fast, Good Quality)</option>
+                    <option value="llama3.2:1b">Llama 3.2 1B (Fastest, Basic Quality)</option>
+                    <option value="llama3.1:8b">Llama 3.1 8B (Balanced)</option>
+                    <option value="llama3.1:70b">Llama 3.1 70B (Best Quality, Slow)</option>
+                    <option value="qwen2.5:3b">Qwen2.5 3B (Fast, Creative)</option>
+                    <option value="qwen2.5:7b">Qwen2.5 7B (Good Balance)</option>
+                    <option value="qwen2.5:14b">Qwen2.5 14B (High Quality)</option>
+                    <option value="gemma2:2b">Gemma2 2B (Efficient)</option>
+                    <option value="gemma2:9b">Gemma2 9B (Quality)</option>
+                    <option value="phi3:3.8b">Phi3 3.8B (Creative)</option>
+                    <option value="mistral:7b">Mistral 7B (Classic)</option>
+                    <option value="mixtral:8x7b">Mixtral 8x7B (Expert Mix)</option>
+                  </optgroup>
+                  
+                  {/* Specialized Models */}
+                  <optgroup label="🎯 Specialized Models">
+                    <option value="dolphin-mixtral:8x7b">Dolphin Mixtral (Uncensored)</option>
+                    <option value="neural-chat:7b">Neural Chat 7B (Conversational)</option>
+                    <option value="deepseek-coder:6.7b">DeepSeek Coder (Technical)</option>
+                    <option value="wizardcoder:7b">WizardCoder 7B (Programming)</option>
+                    <option value="orca-mini:3b">Orca Mini 3B (Efficient Chat)</option>
+                    <option value="vicuna:7b">Vicuna 7B (Assistant)</option>
+                    <option value="starling-lm:7b">Starling LM 7B (Helpful)</option>
+                  </optgroup>
+                  
+                  {/* Small/Fast Models */}
+                  <optgroup label="⚡ Fast Models (Good for Radio)">
+                    <option value="tinyllama:1.1b">TinyLlama 1.1B (Ultra Fast)</option>
+                    <option value="qwen2:0.5b">Qwen2 0.5B (Lightning Fast)</option>
+                    <option value="stablelm2:1.6b">StableLM2 1.6B (Stable, Fast)</option>
+                    <option value="phi3.5:3.8b">Phi3.5 3.8B (Microsoft, Creative)</option>
+                  </optgroup>
+                  
+                  <option value="custom">Custom Model...</option>
+                </select>
+                
+                {(!settings.ollama_model || settings.ollama_model === 'custom') && (
+                  <input
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                    value={settings.ollama_model === 'custom' ? '' : (settings.ollama_model || '')}
+                    onChange={(e)=>setSettings({...settings, ollama_model: e.target.value})}
+                    placeholder="Enter custom model name (e.g. llama3.1:8b-instruct-q4_0)"
+                  />
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Choose based on your hardware: 3B models for fast generation, 7B+ for better quality.
+              </p>
             </div>
             {/* Ollama Temperature */}
             <div>
@@ -559,6 +775,97 @@ const TTSMonitor: React.FC = () => {
               />
               <p className="text-xs text-gray-400 mt-1">Caps commentary length; real cap also based on time.</p>
             </div>
+            {/* Ollama Top-K */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Top-K Sampling</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={Number(settings.ollama_top_k ?? 40)}
+                  onChange={(e)=>setSettings({...settings, ollama_top_k: parseInt(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={Number(settings.ollama_top_k ?? 40)}
+                  onChange={(e)=>setSettings({...settings, ollama_top_k: parseInt(e.target.value || '40')})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Limits vocabulary to top K tokens. Lower = more focused.</p>
+            </div>
+            {/* Ollama Top-P */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Ollama Top-P (Nucleus)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.1}
+                  max={1.0}
+                  step={0.05}
+                  value={Number(settings.ollama_top_p ?? 0.9)}
+                  onChange={(e)=>setSettings({...settings, ollama_top_p: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.1}
+                  max={1.0}
+                  step={0.05}
+                  value={Number(settings.ollama_top_p ?? 0.9)}
+                  onChange={(e)=>setSettings({...settings, ollama_top_p: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Cumulative probability cutoff. 0.9 = focus on top 90% likely words.</p>
+            </div>
+            {/* Ollama Repeat Penalty */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Repeat Penalty</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.8}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.ollama_repeat_penalty ?? 1.1)}
+                  onChange={(e)=>setSettings({...settings, ollama_repeat_penalty: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.8}
+                  max={1.5}
+                  step={0.05}
+                  value={Number(settings.ollama_repeat_penalty ?? 1.1)}
+                  onChange={(e)=>setSettings({...settings, ollama_repeat_penalty: parseFloat(e.target.value)})}
+                  className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Penalizes repetition. 1.1 = slight penalty, 1.0 = no penalty.</p>
+            </div>
+            {/* Ollama Context Length */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Context Length</label>
+              <select
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={settings.ollama_context_length || '2048'}
+                onChange={(e)=>setSettings({...settings, ollama_context_length: parseInt(e.target.value)})}
+              >
+                <option value="1024">1024 (Fast, Small)</option>
+                <option value="2048">2048 (Balanced)</option>
+                <option value="4096">4096 (More Context)</option>
+                <option value="8192">8192 (Large Context)</option>
+                <option value="16384">16384 (Very Large)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Max tokens in model context. Higher = more memory usage.</p>
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-gray-300 mb-1">Default DJ Prompt</label>
               <textarea
@@ -570,8 +877,9 @@ const TTSMonitor: React.FC = () => {
               <p className="text-xs text-gray-400 mt-1">Supports Jinja templating; validated server-side.</p>
             </div>
           </div>
-        ) : (
-          <div className="text-gray-400 text-sm">Loading settings…</div>
+          ) : (
+            <div className="text-gray-400 text-sm">Loading settings…</div>
+          )
         )}
       </div>
       {/* Header */}
