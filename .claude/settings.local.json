@@ -65,7 +65,12 @@
       "Bash(time docker exec:*)",
       "Bash(time curl:*)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(iostat:*)",
+      "Bash(top:*)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],
