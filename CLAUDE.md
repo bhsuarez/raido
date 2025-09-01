@@ -2,13 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 System Crash Recovery
+
+**Quick Recovery Commands:**
+- Development: `make setup && make up-dev && make health`
+- Production: `make setup && make up && make migrate && make health`
+
+For detailed recovery procedures, troubleshooting, and emergency fixes, see **[RECOVERY.md](RECOVERY.md)**.
+
 ## Essential Commands
 
 ### Development Setup
 ```bash
 make dev-setup          # Complete development environment setup
-make setup               # Basic setup (copy .env, create directories)
+make setup               # Basic setup (copy .env, create directories) - REQUIRED BEFORE make up
 ```
+
+**IMPORTANT**: Always run `make setup` before starting services. This creates required directories in Docker volumes that the API needs to start properly.
 
 ### Service Management
 ```bash
@@ -25,6 +35,17 @@ make migrate-create name=migration_name  # Create new migration
 make shell-db            # Open PostgreSQL shell
 make backup-db           # Create database backup
 ```
+
+### Music Library Management
+```bash
+# Scan music library to populate database (run after initial setup)
+curl -X GET "http://localhost:8001/api/v1/metadata/scan_music_directory"
+
+# Extract artwork from audio files that have embedded artwork
+curl -X POST "http://localhost:8001/api/v1/artwork/batch_extract?limit=100"
+```
+
+**Note**: After initial setup, run the music scan to populate the database with track metadata. This enables proper artwork display and track information.
 
 ### Development & Debugging
 ```bash
