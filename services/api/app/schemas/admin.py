@@ -9,6 +9,7 @@ class AdminSettingsResponse(BaseModel):
     dj_provider: str = "templates"  # openai, ollama, templates, disabled
     dj_voice_provider: str = "kokoro"  # openai_tts, kokoro, liquidsoap, xtts, chatterbox
     dj_voice_id: Optional[str] = None
+    openai_tts_voice: str = "onyx"  # alloy, echo, fable, onyx, nova, shimmer
     xtts_voice: Optional[str] = None
     xtts_speaker: Optional[str] = None
     kokoro_voice: Optional[str] = None

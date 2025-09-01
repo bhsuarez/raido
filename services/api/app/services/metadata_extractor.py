@@ -4,6 +4,7 @@ Extracts full metadata from audio files including ID3 tags, duration, bitrate, e
 """
 
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import structlog
@@ -75,6 +76,13 @@ class MetadataExtractor:
             # Extract tags
             if audio_file.tags:
                 metadata.update(cls._extract_tags(audio_file.tags, path.suffix.lower()))
+            
+            # Use filename parsing as fallback for missing metadata
+            filename_metadata = cls._parse_filename_metadata(file_path)
+            for key, value in filename_metadata.items():
+                # Only use filename metadata if tag metadata is missing or empty
+                if key not in metadata or not metadata.get(key):
+                    metadata[key] = value
             
             # Clean and normalize metadata
             metadata = cls._normalize_metadata(metadata)
@@ -352,3 +360,163 @@ class MetadataExtractor:
             pass
         
         return metadata
+    
+    @classmethod
+    def _parse_filename_metadata(cls, file_path: str) -> Dict[str, Any]:
+        """
+        Extract metadata from filename and directory structure as fallback
+        
+        Common patterns:
+        - /Artist/Album/Track Number Title.ext
+        - /Artist/Album/Track Number - Title.ext  
+        - /Artist/Album/Artist - Title.ext
+        - /Genre/Artist/Album/Title.ext
+        """
+        metadata = {}
+        path = Path(file_path)
+        
+        # Get path components
+        parts = path.parts
+        filename = path.stem  # filename without extension
+        
+        try:
+            # Try to extract from directory structure
+            if len(parts) >= 3:
+                # Pattern: .../Artist/Album/filename
+                potential_artist = parts[-3]
+                potential_album = parts[-2]
+                
+                # Skip common root directories
+                if potential_artist.lower() not in ['music', 'audio', 'songs', 'tracks']:
+                    metadata['artist'] = cls._clean_path_component(potential_artist)
+                    metadata['album'] = cls._clean_path_component(potential_album)
+                    
+                    # Try to infer genre from higher-level directories
+                    if len(parts) >= 4:
+                        potential_genre = parts[-4]
+                        if cls._looks_like_genre(potential_genre):
+                            metadata['genre'] = cls._clean_path_component(potential_genre)
+            
+            # Extract title and track number from filename
+            filename_metadata = cls._parse_filename(filename)
+            metadata.update(filename_metadata)
+            
+            # If we found an artist in filename, prefer it over directory
+            if 'filename_artist' in filename_metadata:
+                metadata['artist'] = filename_metadata['filename_artist']
+                del metadata['filename_artist']
+                
+        except Exception as e:
+            logger.debug("Failed to parse filename metadata", file_path=file_path, error=str(e))
+            
+        return metadata
+    
+    @classmethod  
+    def _parse_filename(cls, filename: str) -> Dict[str, Any]:
+        """Parse track number, artist, and title from filename"""
+        metadata = {}
+        
+        # Common filename patterns
+        patterns = [
+            # "01 - Artist - Title" 
+            r'^(\d+)\s*[-–]\s*(.+?)\s*[-–]\s*(.+)$',
+            # "01 Title"
+            r'^(\d+)\s+(.+)$', 
+            # "Artist - Title"
+            r'^(.+?)\s*[-–]\s*(.+)$',
+            # "01. Title"
+            r'^(\d+)\.\s*(.+)$',
+            # Track with features: "01 Title (feat. Artist)"
+            r'^(\d+)\s+(.+?)(?:\s+\(feat\..*\)|\s+\[.*\])?$',
+        ]
+        
+        for pattern in patterns:
+            match = re.match(pattern, filename, re.IGNORECASE)
+            if match:
+                groups = match.groups()
+                
+                if len(groups) == 3:  # Track - Artist - Title
+                    if groups[0].isdigit():
+                        metadata['track_number'] = int(groups[0])
+                        metadata['filename_artist'] = cls._clean_filename_part(groups[1])
+                        metadata['title'] = cls._clean_filename_part(groups[2])
+                    else:  # Artist - Title - Something else
+                        metadata['filename_artist'] = cls._clean_filename_part(groups[0])
+                        metadata['title'] = cls._clean_filename_part(groups[1])
+                        
+                elif len(groups) == 2:
+                    if groups[0].isdigit():  # Track number + Title
+                        metadata['track_number'] = int(groups[0])
+                        metadata['title'] = cls._clean_filename_part(groups[1])
+                    else:  # Artist - Title
+                        parts = [cls._clean_filename_part(g) for g in groups]
+                        # Heuristic: shorter first part is likely artist
+                        if len(parts[0]) < len(parts[1]) * 0.7:
+                            metadata['filename_artist'] = parts[0]
+                            metadata['title'] = parts[1]
+                        else:
+                            metadata['title'] = parts[1]
+                            
+                break
+                
+        # If no pattern matched, use the whole filename as title
+        if 'title' not in metadata and filename.strip():
+            metadata['title'] = cls._clean_filename_part(filename)
+            
+        return metadata
+    
+    @classmethod
+    def _clean_path_component(cls, component: str) -> str:
+        """Clean directory/path component for use as metadata"""
+        # Remove common prefixes/suffixes
+        cleaned = component.strip()
+        
+        # Remove bracketed information like [2023] or (Remastered)
+        cleaned = re.sub(r'\[.*?\]|\(.*?\)', '', cleaned).strip()
+        
+        # Clean up underscores and multiple spaces
+        cleaned = re.sub(r'[_]+', ' ', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        return cleaned
+    
+    @classmethod  
+    def _clean_filename_part(cls, part: str) -> str:
+        """Clean filename part for use as metadata"""
+        # Remove file extensions, brackets, producer tags, etc.
+        cleaned = part.strip()
+        
+        # Remove producer/feature tags like "[Prod. By...]" 
+        cleaned = re.sub(r'\[Prod\..*?\]|\[prod\..*?\]', '', cleaned)
+        
+        # Remove common suffixes that get cut off
+        cleaned = re.sub(r'\[.*$|\(.*$', '', cleaned)
+        
+        # Clean up spaces and punctuation
+        cleaned = re.sub(r'[_]+', ' ', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        return cleaned
+    
+    @classmethod
+    def _looks_like_genre(cls, directory_name: str) -> bool:
+        """Check if directory name looks like a music genre"""
+        common_genres = {
+            'rock', 'pop', 'hip-hop', 'rap', 'jazz', 'classical', 'electronic', 
+            'dance', 'country', 'folk', 'blues', 'reggae', 'punk', 'metal',
+            'indie', 'alternative', 'rnb', 'r&b', 'soul', 'funk', 'disco',
+            'house', 'techno', 'dubstep', 'ambient', 'experimental'
+        }
+        
+        dir_lower = directory_name.lower().strip()
+        
+        # Direct match
+        if dir_lower in common_genres:
+            return True
+            
+        # Contains genre words
+        for genre in common_genres:
+            if genre in dir_lower:
+                return True
+                
+        return False

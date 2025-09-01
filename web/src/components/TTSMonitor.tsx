@@ -272,7 +272,8 @@ const TTSMonitor: React.FC = () => {
             <div>
               <label className="block text-sm text-gray-300 mb-1">
                 {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 
-                 settings.dj_voice_provider === 'chatterbox' ? 'Chatterbox Voice' : 'Kokoro Voice'}
+                 settings.dj_voice_provider === 'chatterbox' ? 'Chatterbox Voice' :
+                 settings.dj_voice_provider === 'openai_tts' ? 'OpenAI Voice' : 'Kokoro Voice'}
               </label>
               {(() => {
                 let list = []
@@ -280,6 +281,8 @@ const TTSMonitor: React.FC = () => {
                   list = chatterboxVoices.length ? chatterboxVoices : [
                     'default', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'
                   ]
+                } else if (settings.dj_voice_provider === 'openai_tts') {
+                  list = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
                 } else if (settings.dj_voice_provider === 'xtts') {
                   list = voices.length ? voices : []
                   // For XTTS: filter to only show available downloaded models unless user opts to show all
@@ -308,7 +311,8 @@ const TTSMonitor: React.FC = () => {
                 }
                 
                 const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 
-                             settings.dj_voice_provider === 'chatterbox' ? 'chatterbox_voice' : 'kokoro_voice'
+                             settings.dj_voice_provider === 'chatterbox' ? 'chatterbox_voice' :
+                             settings.dj_voice_provider === 'openai_tts' ? 'openai_tts_voice' : 'kokoro_voice'
                 const current = settings[field] || ''
                 const isCustom = current && !list.includes(current)
                 const value = isCustom ? 'custom' : (current || (list[0] || ''))
@@ -393,7 +397,8 @@ const TTSMonitor: React.FC = () => {
                         value={current}
                         onChange={(e)=>setSettings({...settings, [field]: e.target.value})}
                         placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 
-                                   settings.dj_voice_provider === 'chatterbox' ? 'Enter Chatterbox voice id' : 'Enter Kokoro voice id'}
+                                   settings.dj_voice_provider === 'chatterbox' ? 'Enter Chatterbox voice id' :
+                                   settings.dj_voice_provider === 'openai_tts' ? 'Enter OpenAI voice (alloy, echo, etc.)' : 'Enter Kokoro voice id'}
                       />
                     )}
                     {settings.dj_voice_provider === 'xtts' && (() => {
