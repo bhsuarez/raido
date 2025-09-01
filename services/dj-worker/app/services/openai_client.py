@@ -69,7 +69,8 @@ class OpenAIClient:
     )
     async def generate_tts(
         self, 
-        text: str, 
+        text: str,
+        job_id: str,
         voice: Optional[str] = None,
         model: Optional[str] = None
     ) -> Optional[bytes]:

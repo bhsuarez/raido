@@ -97,31 +97,31 @@ services:
   #       reservations:
   #         memory: 1G  # Reserve at least 1GB RAM
 
-  chatterbox-tts:
-    image: travisvn/chatterbox-tts-api:latest
-    restart: unless-stopped
-    # Chatterbox TTS listens on 4123 internally. Accessed via Docker network at http://chatterbox-tts:4123
-    # To use: set `CHATTERBOX_BASE_URL=http://chatterbox-tts:4123` in your environment.
-    environment:
-      - PORT=4123
-      - EXAGGERATION=1.0
-      - CFG_WEIGHT=0.5
-      - DEVICE=auto  # auto/cuda/mps/cpu - will auto-detect best available
-    volumes:
-      - chatterbox_models:/app/models
-      - chatterbox_voices:/app/voices
-    deploy:
-      resources:
-        limits:
-          memory: 6G  # Increased for model loading on CPU
-        reservations:
-          memory: 2G  # Reserve at least 2GB RAM
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4123/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 300s  # Much longer startup time for CPU model loading
+  # chatterbox-tts:
+  #   image: travisvn/chatterbox-tts-api:latest
+  #   restart: unless-stopped
+  #   # Chatterbox TTS listens on 4123 internally. Accessed via Docker network at http://chatterbox-tts:4123
+  #   # To use: set `CHATTERBOX_BASE_URL=http://chatterbox-tts:4123` in your environment.
+  #   environment:
+  #     - PORT=4123
+  #     - EXAGGERATION=1.0
+  #     - CFG_WEIGHT=0.5
+  #     - DEVICE=auto  # auto/cuda/mps/cpu - will auto-detect best available
+  #   volumes:
+  #     - chatterbox_models:/app/models
+  #     - chatterbox_voices:/app/voices
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 6G  # Increased for model loading on CPU
+  #       reservations:
+  #         memory: 2G  # Reserve at least 2GB RAM
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:4123/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 300s  # Much longer startup time for CPU model loading
 
   dj-worker:
     build: ./services/dj-worker
