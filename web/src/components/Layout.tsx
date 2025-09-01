@@ -7,6 +7,7 @@ import {
   WifiIcon,
   WifiOffIcon,
   MicIcon,
+  BarChart3Icon,
 } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -24,6 +25,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'DJ Admin', href: '/tts', icon: MicIcon },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3Icon },
   ]
 
   return (
