@@ -77,6 +77,14 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
 
         # Normalize whitespace
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+        # Fix common tokenization artifacts from streaming (e.g., Llama):
+        # - Space before apostrophes in contractions: We ' re -> We're
+        cleaned = re.sub(r"\b(\w+)\s+'\s+(s|re|ve|ll|d|m|t)\b", r"\1'\2", cleaned, flags=re.IGNORECASE)
+        # - Extra spaces before punctuation like , . ! ?
+        cleaned = re.sub(r"\s+([,.;:!?])", r"\1", cleaned)
+        # - Ensure space after sentence-ending punctuation if followed immediately by a letter
+        cleaned = re.sub(r"([.!?])([A-Za-z])", r"\1 \2", cleaned)
         return cleaned
     
     async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
@@ -101,7 +109,12 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             if provider == "openai" and self.openai_client and settings.OPENAI_API_KEY:
                 return await self._generate_with_openai(prompt_context, dj_settings)
             elif provider == "ollama":
-                return await self._generate_with_ollama(prompt_context, dj_settings)
+                result = await self._generate_with_ollama(prompt_context, dj_settings)
+                if result:
+                    return result
+                # Safety fallback: if Ollama fails, use templates to keep TTS flowing
+                logger.warning("Ollama failed; falling back to templates provider for this job")
+                return await self._generate_with_templates(prompt_context)
             elif provider == "templates":
                 return await self._generate_with_templates(prompt_context)
             else:

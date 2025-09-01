@@ -48,8 +48,24 @@ class TTSService:
                 except Exception:
                     speed_override = None
             
+            # Primary path
             if provider == "kokoro":
-                return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
+                primary = await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
+                if primary:
+                    return primary
+                # Fallback to XTTS if available
+                try:
+                    if getattr(settings, 'XTTS_BASE_URL', None):
+                        xtts_voice = None
+                        xtts_speaker = None
+                        if dj_settings and isinstance(dj_settings, dict):
+                            xtts_voice = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
+                            xtts_speaker = dj_settings.get('xtts_speaker') or dj_settings.get('dj_voice_speaker')
+                        logger.warning("Kokoro failed; falling back to XTTS")
+                        return await self._generate_with_xtts(text, job_id, voice_override=xtts_voice, speaker_override=xtts_speaker)
+                except Exception:
+                    pass
+                return None
             elif provider == "liquidsoap":
                 return await self._generate_with_liquidsoap(text, job_id)
             elif provider == "xtts":
@@ -59,7 +75,39 @@ class TTSService:
                 if dj_settings and isinstance(dj_settings, dict):
                     xtts_voice = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
                     xtts_speaker = dj_settings.get('xtts_speaker') or dj_settings.get('dj_voice_speaker')
-                return await self._generate_with_xtts(text, job_id, voice_override=xtts_voice, speaker_override=xtts_speaker)
+                primary = await self._generate_with_xtts(text, job_id, voice_override=xtts_voice, speaker_override=xtts_speaker)
+                if primary:
+                    return primary
+                # Fallback to Kokoro if configured
+                try:
+                    logger.warning("XTTS failed; falling back to Kokoro")
+                    return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
+                except Exception:
+                    return None
+            elif provider == "chatterbox":
+                # Allow admin override for Chatterbox voice via 'chatterbox_voice' or generic 'dj_voice_id'
+                chatterbox_voice = None
+                chatterbox_exaggeration = None
+                chatterbox_cfg_weight = None
+                if dj_settings and isinstance(dj_settings, dict):
+                    chatterbox_voice = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
+                    try:
+                        chatterbox_exaggeration = float(dj_settings.get('chatterbox_exaggeration', 1.0))
+                    except Exception:
+                        chatterbox_exaggeration = None
+                    try:
+                        chatterbox_cfg_weight = float(dj_settings.get('chatterbox_cfg_weight', 0.5))
+                    except Exception:
+                        chatterbox_cfg_weight = None
+                primary = await self._generate_with_chatterbox(text, job_id, voice_override=chatterbox_voice, exaggeration_override=chatterbox_exaggeration, cfg_weight_override=chatterbox_cfg_weight)
+                if primary:
+                    return primary
+                # Fallback to Kokoro if configured
+                try:
+                    logger.warning("Chatterbox failed; falling back to Kokoro")
+                    return await self._generate_with_kokoro(text, job_id, voice_override=voice_override, speed_override=speed_override)
+                except Exception:
+                    return None
             else:
                 logger.error("No valid TTS provider configured", provider=provider)
                 return None
@@ -233,4 +281,62 @@ class TTSService:
 
         except Exception as e:
             logger.error("XTTS generation failed", error=str(e))
+            return None
+    
+    async def _generate_with_chatterbox(self, text: str, job_id: str, *, voice_override: Optional[str] = None, exaggeration_override: Optional[float] = None, cfg_weight_override: Optional[float] = None) -> Optional[str]:
+        """Generate audio using Chatterbox TTS with OpenAI-compatible API."""
+        try:
+            import httpx
+
+            base = (settings.CHATTERBOX_BASE_URL or '').rstrip('/')
+            if not base:
+                logger.error("Chatterbox base URL not configured")
+                return None
+
+            # Clean text for speech synthesis
+            clean_text = text.replace('<speak>', '').replace('</speak>', '')
+            clean_text = clean_text.replace('<break time="400ms"/>', ' ')
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            preferred_ext = 'mp3'
+            filename = f"commentary_{job_id}_{timestamp}.{preferred_ext}"
+            
+            # Use voice override or default
+            use_voice = voice_override or settings.CHATTERBOX_VOICE
+            use_exaggeration = exaggeration_override or settings.CHATTERBOX_EXAGGERATION
+            use_cfg_weight = cfg_weight_override or settings.CHATTERBOX_CFG_WEIGHT
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                # Use OpenAI-compatible endpoint
+                response = await client.post(
+                    f"{base}/v1/audio/speech",
+                    json={
+                        "model": "tts-1",
+                        "input": clean_text,
+                        "voice": use_voice,
+                        "response_format": preferred_ext,
+                        # Chatterbox-specific parameters
+                        "exaggeration": use_exaggeration,
+                        "cfg_weight": use_cfg_weight,
+                    },
+                )
+
+                if response.status_code != 200:
+                    logger.error("Chatterbox TTS request failed", status=response.status_code, text=response.text[:200])
+                    return None
+
+                # Save audio file
+                filepath = os.path.join(settings.TTS_CACHE_DIR, filename)
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(response.content)
+
+                logger.info("Chatterbox TTS audio generated", 
+                           filepath=filepath, 
+                           voice=use_voice, 
+                           exaggeration=use_exaggeration,
+                           cfg_weight=use_cfg_weight)
+                return filename
+
+        except Exception as e:
+            logger.error("Chatterbox TTS generation failed", error=str(e))
             return None

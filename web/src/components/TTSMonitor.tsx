@@ -49,6 +49,7 @@ const TTSMonitor: React.FC = () => {
   const [showAllXttsVoices, setShowAllXttsVoices] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+  const [chatterboxVoices, setChatterboxVoices] = useState<string[]>([])
 
   // Admin settings state
   const [settings, setSettings] = useState<any | null>(null)
@@ -71,16 +72,25 @@ const TTSMonitor: React.FC = () => {
           if (Array.isArray(vs)) setVoices(vs)
           else setVoices([])
           setXttsVoicesMap((res.data?.voices_map && typeof res.data.voices_map === 'object') ? res.data.voices_map : {})
+        } else if (provider === 'chatterbox') {
+          const res = await api.get('/admin/voices-chatterbox')
+          const vs = res.data?.voices
+          if (Array.isArray(vs)) setChatterboxVoices(vs)
+          else setChatterboxVoices([])
+          setVoices([])
+          setXttsVoicesMap({})
         } else {
           const res = await api.get('/admin/voices')
           const vs = res.data?.voices
           if (Array.isArray(vs)) setVoices(vs)
           else setVoices([])
           setXttsVoicesMap({})
+          setChatterboxVoices([])
         }
       } catch {
         setVoices([])
         setXttsVoicesMap({})
+        setChatterboxVoices([])
       }
     }
     load()
@@ -112,6 +122,17 @@ const TTSMonitor: React.FC = () => {
     if (!ms) return 'N/A'
     if (ms < 1000) return `${ms}ms`
     return `${(ms / 1000).toFixed(1)}s`
+  }
+
+  const deleteCommentary = async (commentaryId: number) => {
+    if (!confirm('Delete this TTS entry? This will also remove the audio file.')) return
+    
+    try {
+      await apiHelpers.deleteCommentary(commentaryId)
+      refetch() // Refresh the list after deletion
+    } catch (error) {
+      console.error('Failed to delete commentary:', error)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -231,27 +252,38 @@ const TTSMonitor: React.FC = () => {
                 <option value="openai_tts">OpenAI TTS</option>
                 <option value="liquidsoap">Liquidsoap</option>
                 <option value="xtts">XTTS</option>
+                <option value="chatterbox">Chatterbox</option>
               </select>
             </div>
-            {/* Voice selection (switches between Kokoro and XTTS) */}
+            {/* Voice selection (switches between Kokoro, XTTS, and Chatterbox) */}
             <div>
               <label className="block text-sm text-gray-300 mb-1">
-                {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
+                {settings.dj_voice_provider === 'xtts' ? 'XTTS Voice' : 
+                 settings.dj_voice_provider === 'chatterbox' ? 'Chatterbox Voice' : 'Kokoro Voice'}
               </label>
               {(() => {
-                let list = voices.length ? voices : (
-                  settings.dj_voice_provider === 'xtts' ? [] : [
+                let list = []
+                if (settings.dj_voice_provider === 'chatterbox') {
+                  list = chatterboxVoices.length ? chatterboxVoices : [
+                    'default', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'
+                  ]
+                } else if (settings.dj_voice_provider === 'xtts') {
+                  list = voices.length ? voices : []
+                  // For XTTS: filter to only show available downloaded models unless user opts to show all
+                  if (!showAllXttsVoices) {
+                    const availableModels = ['coqui-tts:en_ljspeech', 'coqui-tts:en_vctk']
+                    list = list.filter(v => availableModels.includes(v))
+                  }
+                } else {
+                  list = voices.length ? voices : [
                     'af_bella','af_aria','af_sky','af_nicole',
                     'am_onyx','am_michael','am_ryan','am_alex',
                     'bf_ava','bf_sophie','bm_george','bm_james'
                   ]
-                )
-                // For XTTS: filter to only show available downloaded models unless user opts to show all
-                if (settings.dj_voice_provider === 'xtts' && !showAllXttsVoices) {
-                  const availableModels = ['coqui-tts:en_ljspeech', 'coqui-tts:en_vctk']
-                  list = list.filter(v => availableModels.includes(v))
                 }
-                const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 'kokoro_voice'
+                
+                const field = settings.dj_voice_provider === 'xtts' ? 'xtts_voice' : 
+                             settings.dj_voice_provider === 'chatterbox' ? 'chatterbox_voice' : 'kokoro_voice'
                 const current = settings[field] || ''
                 const isCustom = current && !list.includes(current)
                 const value = isCustom ? 'custom' : (current || (list[0] || ''))
@@ -280,7 +312,8 @@ const TTSMonitor: React.FC = () => {
                         className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
                         value={current}
                         onChange={(e)=>setSettings({...settings, [field]: e.target.value})}
-                        placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 'Enter Kokoro voice id'}
+                        placeholder={settings.dj_voice_provider === 'xtts' ? 'Enter XTTS voice id' : 
+                                   settings.dj_voice_provider === 'chatterbox' ? 'Enter Chatterbox voice id' : 'Enter Kokoro voice id'}
                       />
                     )}
                     {settings.dj_voice_provider === 'xtts' && (() => {
@@ -306,7 +339,40 @@ const TTSMonitor: React.FC = () => {
                   </div>
                 )
               })()}
-              {settings.dj_voice_provider !== 'xtts' && (
+              {settings.dj_voice_provider === 'chatterbox' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    onClick={async ()=>{
+                      if (!settings) return
+                      setTesting(true)
+                      setTestUrl(null)
+                      try {
+                        const sample = `Welcome to Raido. Testing Chatterbox voice ${settings.chatterbox_voice || 'default'}.`
+                        const res = await api.post('/admin/tts-test-chatterbox', {
+                          text: sample,
+                          voice: settings.chatterbox_voice,
+                          exaggeration: settings.chatterbox_exaggeration,
+                          cfg_weight: settings.chatterbox_cfg_weight,
+                        })
+                        const url = res.data?.audio_url
+                        if (url) setTestUrl(url)
+                      } catch (e) {
+                        setSettingsError('Chatterbox TTS test failed')
+                      } finally {
+                        setTesting(false)
+                      }
+                    }}
+                    disabled={testing}
+                    className={`px-3 py-2 rounded-lg text-white text-sm ${testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'} transition-colors`}
+                  >{testing ? 'Testing…' : 'Test Chatterbox Voice'}</button>
+                  {testUrl && (
+                    <audio controls className="h-8">
+                      <source src={testUrl} type="audio/mpeg" />
+                    </audio>
+                  )}
+                </div>
+              )}
+              {(settings.dj_voice_provider !== 'xtts' && settings.dj_voice_provider !== 'chatterbox') && (
                 <div className="mt-3 flex items-center gap-3">
                   <button
                     onClick={async ()=>{
@@ -390,6 +456,60 @@ const TTSMonitor: React.FC = () => {
               </div>
               <p className="text-xs text-gray-400 mt-1">Playback speed multiplier (0.5×–1.5×). Kokoro only.</p>
             </div>
+            {/* Chatterbox Exaggeration */}
+            {settings.dj_voice_provider === 'chatterbox' && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Chatterbox Exaggeration</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.25}
+                    max={2.0}
+                    step={0.05}
+                    value={Number(settings.chatterbox_exaggeration ?? 1.0)}
+                    onChange={(e)=>setSettings({...settings, chatterbox_exaggeration: parseFloat(e.target.value)})}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min={0.25}
+                    max={2.0}
+                    step={0.05}
+                    value={Number(settings.chatterbox_exaggeration ?? 1.0)}
+                    onChange={(e)=>setSettings({...settings, chatterbox_exaggeration: parseFloat(e.target.value)})}
+                    className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Emotion intensity (0.25×–2.0×). Higher = more expressive.</p>
+              </div>
+            )}
+            {/* Chatterbox CFG Weight */}
+            {settings.dj_voice_provider === 'chatterbox' && (
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Chatterbox CFG Weight</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.0}
+                    max={1.0}
+                    step={0.05}
+                    value={Number(settings.chatterbox_cfg_weight ?? 0.5)}
+                    onChange={(e)=>setSettings({...settings, chatterbox_cfg_weight: parseFloat(e.target.value)})}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min={0.0}
+                    max={1.0}
+                    step={0.05}
+                    value={Number(settings.chatterbox_cfg_weight ?? 0.5)}
+                    onChange={(e)=>setSettings({...settings, chatterbox_cfg_weight: parseFloat(e.target.value)})}
+                    className="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Pace control (0.0–1.0). Higher = slower, more deliberate.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
               <input
@@ -609,7 +729,7 @@ const TTSMonitor: React.FC = () => {
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
+                    <div className="flex-1 min-w-0 pr-2">
                       <h4 className="font-medium text-white whitespace-pre-wrap break-words">
                         {item.transcript ? item.transcript : stripTags(item.text)}
                       </h4>
@@ -618,15 +738,24 @@ const TTSMonitor: React.FC = () => {
                         {item.voice_id ? ` • voice: ${item.voice_id}` : ''}
                       </p>
                     </div>
-                    <div className="text-right text-sm text-gray-400 flex-shrink-0 ml-4">
-                      <div>{new Date(item.created_at).toLocaleTimeString()}</div>
-                      {(item.generation_time_ms || item.tts_time_ms) && (
-                        <div className="text-xs">
-                          {item.generation_time_ms && `Gen: ${formatDuration(item.generation_time_ms)}`}
-                          {item.generation_time_ms && item.tts_time_ms && ' • '}
-                          {item.tts_time_ms && `TTS: ${formatDuration(item.tts_time_ms)}`}
-                        </div>
-                      )}
+                    <div className="flex items-start gap-2 flex-shrink-0">
+                      <div className="text-right text-sm text-gray-400">
+                        <div>{new Date(item.created_at).toLocaleTimeString()}</div>
+                        {(item.generation_time_ms || item.tts_time_ms) && (
+                          <div className="text-xs">
+                            {item.generation_time_ms && `Gen: ${formatDuration(item.generation_time_ms)}`}
+                            {item.generation_time_ms && item.tts_time_ms && ' • '}
+                            {item.tts_time_ms && `TTS: ${formatDuration(item.tts_time_ms)}`}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => deleteCommentary(item.id)}
+                        className="text-red-400 hover:text-red-300 p-1 rounded transition-colors"
+                        title="Delete TTS entry"
+                      >
+                        <span className="text-sm">🗑️</span>
+                      </button>
                     </div>
                   </div>
                   
