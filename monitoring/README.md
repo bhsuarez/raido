@@ -27,10 +27,10 @@ Automated monitoring with Signal notifications when services go down.
 4. **Register Signal number (first time only):**
    ```bash
    # Get verification code
-   curl -X POST http://localhost:8080/v1/register/+1234567890
+   curl -X POST http://localhost:8082/v1/register/+1234567890
    
    # Enter the code you receive
-   curl -X POST http://localhost:8080/v1/register/+1234567890/verify/123456
+   curl -X POST http://localhost:8082/v1/register/+1234567890/verify/123456
    ```
 
 ## What It Monitors
@@ -86,7 +86,7 @@ docker compose -f docker-compose.monitoring.yml logs -f raido-monitor
 docker compose -f docker-compose.monitoring.yml down
 
 # Test Signal setup
-curl -X POST http://localhost:8080/v2/send \
+curl -X POST http://localhost:8082/v2/send \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Test message from Raido monitoring",
@@ -108,7 +108,7 @@ Edit `monitoring/.env.monitoring`:
 
 **Signal not working:**
 1. Check Signal registration: `docker compose -f docker-compose.monitoring.yml logs signal-cli`
-2. Test API: `curl http://localhost:8080/v1/health`
+2. Test API: `curl http://localhost:8082/v1/health`
 3. Re-register if needed
 
 **Monitor not running:**

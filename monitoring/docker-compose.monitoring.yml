@@ -6,7 +6,7 @@ services:
     environment:
       - MODE=json-rpc  # json-rpc or normal
     ports:
-      - "8080:8080"
+      - "8082:8080"
     volumes:
       - signal-data:/home/.local/share/signal-cli
     networks:
