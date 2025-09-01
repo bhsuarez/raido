@@ -8,6 +8,7 @@ import {
   WifiOffIcon,
   MicIcon,
   BarChart3Icon,
+  SettingsIcon,
 } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -24,7 +25,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
-    { name: 'DJ Admin', href: '/tts', icon: MicIcon },
+    { name: 'DJ Admin', href: '/tts', icon: SettingsIcon },
     { name: 'Analytics', href: '/analytics', icon: BarChart3Icon },
   ]
 
@@ -36,15 +37,6 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center justify-between h-16">
             {/* Logo and Title */}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <Radio className="h-8 w-8 text-primary-500" />
-                <div>
-                  <h1 className="text-xl font-bold font-pirate text-primary-400 glitch" data-text="RAIDO">
-                    RAIDO
-                  </h1>
-                  <p className="text-xs text-gray-400 -mt-1">AI Pirate Radio</p>
-                </div>
-              </div>
             </div>
 
             {/* Navigation */}

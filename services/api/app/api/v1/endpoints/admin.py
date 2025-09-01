@@ -658,6 +658,66 @@ async def tts_test_chatterbox(payload: Dict[str, Any]):
         logger.error("Failed to synthesize Chatterbox TTS test", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to synthesize Chatterbox TTS test: {str(e)}")
 
+@router.post("/tts-test-openai")
+async def tts_test_openai(payload: Dict[str, Any]):
+    """Synthesize a short sample with OpenAI TTS and return an audio URL.
+    Body fields:
+    - text: sample text (optional; default provided)
+    - voice: OpenAI voice (alloy, echo, fable, onyx, nova, shimmer)
+    - model: OpenAI TTS model (tts-1, tts-1-hd, default: tts-1)
+    """
+    logger = structlog.get_logger()
+    try:
+        text = str(payload.get("text") or "This is a Raido OpenAI TTS voice test.")
+        voice = payload.get("voice") or "onyx"
+        model = payload.get("model") or "tts-1"
+        
+        # Validate OpenAI API key is configured
+        if not settings.OPENAI_API_KEY:
+            raise HTTPException(status_code=503, detail="OpenAI API key not configured")
+        
+        from openai import AsyncOpenAI
+        
+        filename = f"openai_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.mp3"
+        out_path = f"/shared/tts/{filename}"
+        
+        # Use OpenAI directly in API container
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        response = await client.audio.speech.create(
+            model=model,
+            voice=voice,
+            input=text,
+            response_format="mp3"
+        )
+        audio_data = response.content
+        
+        if not audio_data:
+            raise HTTPException(status_code=500, detail="OpenAI TTS returned no audio data")
+        
+        # Write audio content to file
+        with open(out_path, "wb") as f:
+            f.write(audio_data)
+        
+        url = f"/static/tts/{filename}"
+        logger.info("OpenAI TTS test synthesized", 
+                   voice=voice, 
+                   model=model,
+                   url=url,
+                   text_preview=text[:50])
+        return {
+            "status": "success", 
+            "audio_url": url, 
+            "voice": voice,
+            "model": model,
+            "provider": "openai_tts"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to synthesize OpenAI TTS test", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to synthesize OpenAI TTS test: {str(e)}")
+
 @router.post("/tts-benchmark")
 async def tts_benchmark(payload: Dict[str, Any]):
     """Benchmark TTS speed comparison between Kokoro and Chatterbox for DJ commentary.

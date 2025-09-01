@@ -9,7 +9,7 @@ import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
-// import DJSettings from './components/DJSettings'
+// import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
 
@@ -46,7 +46,7 @@ function App() {
             path="/analytics" 
             element={<Analytics />} 
           />
-          { /* DJ Settings route intentionally removed in favor of DJ Admin */ }
+          {/* DJ Settings route removed - functionality moved to /tts */}
           <Route 
             path="*" 
             element={

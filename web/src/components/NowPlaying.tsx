@@ -193,23 +193,6 @@ const NowPlaying: React.FC = () => {
             </button>
           </div>
 
-          {/* Stream Connection section removed as requested */}
-
-          {/* AI Features */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <Link 
-              to="/tts"
-              className="bg-gradient-to-r from-pirate-600 to-pirate-500 hover:from-pirate-700 hover:to-pirate-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
-            >
-              🤖 AI Commentary Active - Monitor
-            </Link>
-            <span className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              🎙️ Kokoro TTS
-            </span>
-            <span className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              📻 24/7 Live
-            </span>
-          </div>
         </div>
       </div>
     </div>
