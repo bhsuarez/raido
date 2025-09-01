@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.services.kokoro_client import KokoroClient
+from app.services.openai_client import OpenAIClient
 
 logger = structlog.get_logger()
 
@@ -15,6 +16,7 @@ class TTSService:
     
     def __init__(self):
         self.kokoro_client = KokoroClient()
+        self._openai_client = None  # Lazy initialization
         
         # Try to ensure TTS cache directory exists
         try:
@@ -23,6 +25,13 @@ class TTSService:
         except PermissionError as e:
             logger.error("Cannot create TTS cache directory", dir=settings.TTS_CACHE_DIR, error=str(e))
             raise
+    
+    @property
+    def openai_client(self):
+        """Lazy initialization of OpenAI client"""
+        if self._openai_client is None:
+            self._openai_client = OpenAIClient()
+        return self._openai_client
     
     async def generate_audio(self, text: str, job_id: str, dj_settings: Optional[dict] = None) -> Optional[str]:
         """Generate audio from text using the configured TTS provider.
