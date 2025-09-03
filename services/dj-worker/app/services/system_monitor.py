@@ -28,14 +28,14 @@ class SystemMonitor:
         self.cpu_critical_threshold = 95.0  # %
         self.memory_warning_threshold = 80.0  # %
         self.memory_critical_threshold = 95.0  # %
-        self.load_critical_threshold = 10.0  # 1-minute load average
+        self.load_critical_threshold = 20.0  # 1-minute load average (temporarily raised)
         
         # Circuit breaker for system protection
         self._consecutive_unhealthy_checks = 0
         self._max_consecutive_unhealthy = 5
         self._system_protection_active = False
         self._protection_end_time = None
-        self._protection_duration = 300  # 5 minutes
+        self._protection_duration = 30  # 30 seconds (temporarily reduced)
         
     async def check_system_health(self) -> SystemHealth:
         """Check current system health status"""

@@ -67,6 +67,8 @@ def track_change_handler(m)
   artist = meta_get(m, "artist", "Unknown artist")
   title  = meta_get(m, "title",  "Unknown title")
   album  = meta_get(m, "album",  "")
+  duration = meta_get(m, "duration", "")
+  filename = meta_get(m, "filename", "")
   
   # Create a unique key for this track
   track_key = artist ^ "|" ^ title
@@ -79,7 +81,7 @@ def track_change_handler(m)
     log("🏴‍☠️ AUTO-DJ: Requesting intro for upcoming track: " ^ title ^ " by " ^ artist)
     
     # Call our API to trigger both logging and DJ commentary using Liquidsoap's http.post
-    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '"}'
+    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '","filename":"' ^ filename ^ '"}'
     url = "http://api:8000/api/v1/liquidsoap/track_change"
     
     # Use thread to avoid blocking liquidsoap
@@ -92,9 +94,6 @@ def track_change_handler(m)
   end
 end
 
-# Attach the combined callback to the music source
-music = source.on_metadata(music, track_change_handler)
-
 # Try a simpler approach: rotate between TTS and music using add weights
 # This creates a round-robin style approach where TTS plays before tracks
 
@@ -104,6 +103,9 @@ sine_src = sine()
 # Create a rotation between TTS and music
 # TTS gets priority when available, then falls back to music
 primary = fallback(track_sensitive=true, [tts_q, music])
+
+# Attach the metadata callback to the primary source (not just music)
+primary = source.on_metadata(primary, track_change_handler)
 
 # Log track changes on the primary source for debugging
 primary = source.on_track(primary, fun (m) -> log("🎤 Track starting: " ^ meta_get(m, "artist", "Unknown") ^ " - " ^ meta_get(m, "title", "Unknown")))

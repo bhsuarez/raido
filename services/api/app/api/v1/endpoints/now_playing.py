@@ -28,25 +28,53 @@ async def get_now_playing():
                 if (ls_meta.get('source') or '').lower() != 'tts':
                     filename = ls_meta.get("filename") or ls_meta.get("initial_uri")
                     track: Optional[Track] = None
-                    # Try to enrich from DB if available
+                    # Try to enrich from DB with improved path matching
                     try:
                         if filename:
                             async with AsyncSessionLocal() as db:
+                                # Try exact path match first
                                 result = await db.execute(select(Track).where(Track.file_path == filename))
                                 track = result.scalar_one_or_none()
+                                
+                                # Try filename ending match
                                 if not track:
                                     result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
                                     track = result.scalar_one_or_none()
+                                
+                                # Try without /mnt/music prefix if present
+                                if not track and filename.startswith("/mnt/music/"):
+                                    relative_path = filename[11:]  # Remove "/mnt/music/"
+                                    result = await db.execute(select(Track).where(Track.file_path.endswith(relative_path)))
+                                    track = result.scalar_one_or_none()
+                                    
+                                # Try basename match as last resort for path matching
+                                if not track:
+                                    import os
+                                    basename = os.path.basename(filename)
+                                    result = await db.execute(select(Track).where(Track.file_path.endswith(basename)))
+                                    track = result.scalar_one_or_none()
                     except Exception:
                         track = None
+                        
+                    # If no path match, try title/artist metadata matching  
                     if not track:
                         title = ls_meta.get("title")
                         artist = ls_meta.get("artist")
                         if title and artist:
                             try:
                                 async with AsyncSessionLocal() as db:
+                                    # Try exact match first
                                     result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
                                     track = result.scalar_one_or_none()
+                                    
+                                    # Try case-insensitive match as fallback
+                                    if not track:
+                                        from sqlalchemy import func
+                                        result = await db.execute(select(Track).where(
+                                            func.lower(Track.title) == func.lower(title),
+                                            func.lower(Track.artist) == func.lower(artist)
+                                        ))
+                                        track = result.scalar_one_or_none()
                             except Exception:
                                 track = None
 
@@ -249,21 +277,49 @@ async def get_next_up(limit: int = 1, db: AsyncSession = Depends(get_db)):
 
             for rid in next_rids:
                 ls_meta = client.get_request_metadata(rid)
-                # Map to DB
+                # Map to DB with improved path matching
                 filename = ls_meta.get("filename") or ls_meta.get("initial_uri")
                 track: Optional[Track] = None
                 if filename:
+                    # Try exact path match first
                     result = await db.execute(select(Track).where(Track.file_path == filename))
                     track = result.scalar_one_or_none()
+                    
+                    # Try filename ending match 
                     if not track:
                         result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
                         track = result.scalar_one_or_none()
+                    
+                    # Try without /mnt/music prefix if present
+                    if not track and filename.startswith("/mnt/music/"):
+                        relative_path = filename[11:]  # Remove "/mnt/music/"
+                        result = await db.execute(select(Track).where(Track.file_path.endswith(relative_path)))
+                        track = result.scalar_one_or_none()
+                        
+                    # Try basename match as last resort for path matching
+                    if not track:
+                        import os
+                        basename = os.path.basename(filename)
+                        result = await db.execute(select(Track).where(Track.file_path.endswith(basename)))
+                        track = result.scalar_one_or_none()
+                        
+                # If no path match, try title/artist metadata matching
                 if not track:
                     title = ls_meta.get("title")
                     artist = ls_meta.get("artist")
                     if title and artist:
+                        # Try exact match first
                         result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
                         track = result.scalar_one_or_none()
+                        
+                        # Try case-insensitive match as fallback
+                        if not track:
+                            from sqlalchemy import func
+                            result = await db.execute(select(Track).where(
+                                func.lower(Track.title) == func.lower(title),
+                                func.lower(Track.artist) == func.lower(artist)
+                            ))
+                            track = result.scalar_one_or_none()
 
                 if track:
                     # Proactive artwork fetching for next track
