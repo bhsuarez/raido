@@ -564,6 +564,52 @@ make status
 make health
 ```
 
+## TTS Commentary Configuration
+
+The AI DJ commentary system uses a time-based cooldown to control TTS generation frequency:
+
+### Commentary Frequency Settings
+
+```bash
+# Set commentary interval (in minutes)
+# 0 = Every track (classic radio DJ experience)  
+# 5 = Every 5 minutes
+# 10 = Every 10 minutes (default)
+docker exec raido-db-1 psql -U raido -d raido -c "UPDATE settings SET value = '0' WHERE key = 'dj_commentary_interval';"
+```
+
+### Commentary System Workflow
+
+1. **Track Change** → Liquidsoap notifies API when tracks end
+2. **Cooldown Check** → DJ Worker verifies if interval has passed
+3. **Track Lookup** → Gets next track metadata from `/api/v1/now/next`
+4. **AI Generation** → Creates commentary using Ollama or templates
+5. **TTS Conversion** → Converts to speech (Kokoro TTS, OpenAI TTS)
+6. **Stream Injection** → Injects audio before next track plays
+
+### Troubleshooting TTS Issues
+
+**No Commentary Generated:**
+```bash
+# Check DJ settings in database
+docker exec raido-db-1 psql -U raido -d raido -c "SELECT key, value FROM settings WHERE key IN ('dj_provider', 'enable_commentary');"
+
+# Enable commentary if disabled
+docker exec raido-db-1 psql -U raido -d raido -c "UPDATE settings SET value = 'ollama' WHERE key = 'dj_provider'; UPDATE settings SET value = 'True' WHERE key = 'enable_commentary';"
+```
+
+**TTS Duplication/Spam:**
+```bash
+# Increase cooldown interval (e.g., to 10 minutes)
+docker exec raido-db-1 psql -U raido -d raido -c "UPDATE settings SET value = '10' WHERE key = 'dj_commentary_interval';"
+```
+
+**Ollama Connection Issues:**
+```bash
+# Update Ollama URL for external service
+docker exec raido-db-1 psql -U raido -d raido -c "UPDATE settings SET value = 'http://host.docker.internal:11434' WHERE key = 'ollama_base_url';"
+```
+
 ## Contributing
 
 1. Fork the repository

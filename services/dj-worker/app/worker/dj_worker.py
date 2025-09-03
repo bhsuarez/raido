@@ -34,6 +34,8 @@ class DJWorker:
         # Track the current playing track to detect changes
         self._current_track_id: Optional[int] = None
         self._last_track_change: Optional[float] = None
+        # Track last commentary generation time for cooldown
+        self._last_commentary_time: Optional[float] = None
     
     async def run(self):
         """Main worker loop with system health monitoring"""
@@ -226,25 +228,31 @@ class DJWorker:
                                  memory=system_health.memory_percent)
                     return False
 
-            # Since we're now only called on track changes, check the commentary interval
-            interval = int(settings_response.get('dj_commentary_interval', 1))
+            # Use time-based cooldown instead of track-count interval
+            # This is more reliable since track IDs from Liquidsoap are inconsistent
+            cooldown_minutes = int(settings_response.get('dj_commentary_interval', 10))  # Default 10 minutes
             
-            # Check if we should generate commentary based on interval
-            # Generate commentary every N tracks
-            recent_history = await self.api_client.get_history(limit=interval + 1)
-            if not recent_history or 'tracks' not in recent_history:
-                return True  # Default to generating if we can't check history
+            # Check if enough time has passed since last commentary generation
+            import time
+            current_time = time.time()
             
-            tracks_since_commentary = 0
-            for track_play in recent_history['tracks']:
-                if track_play.get('commentary'):
-                    break  # Found the last commentary
-                tracks_since_commentary += 1
+            # Initialize if not set
+            if not hasattr(self, '_last_commentary_time'):
+                self._last_commentary_time = None
             
-            # Generate commentary if we've played enough tracks since last commentary
-            should_generate = tracks_since_commentary >= interval
-            logger.info(f"🎯 Should generate commentary: {should_generate} (tracks since last: {tracks_since_commentary}, interval: {interval})")
-            return should_generate
+            # Check if we have a recent cooldown entry
+            if self._last_commentary_time is not None:
+                time_since_last = current_time - self._last_commentary_time
+                cooldown_seconds = cooldown_minutes * 60
+                
+                if time_since_last < cooldown_seconds:
+                    remaining_minutes = (cooldown_seconds - time_since_last) / 60
+                    logger.info(f"🎯 Should generate commentary: False (cooldown: {remaining_minutes:.1f} min remaining)")
+                    return False
+            
+            # Enough time has passed, allow generation
+            logger.info(f"🎯 Should generate commentary: True (interval: {cooldown_minutes} min)")
+            return True
         
         except Exception as e:
             logger.error("Error checking if commentary should be generated", error=str(e))
@@ -414,6 +422,10 @@ class DJWorker:
                         self._recent_intros[int(track_id)] = time.time()
                 except Exception:
                     pass
+                
+                # Update cooldown timer for time-based interval
+                import time
+                self._last_commentary_time = time.time()
                 
                 logger.info("Commentary job completed successfully",
                            duration_ms=(job.completed_at - job.started_at).total_seconds() * 1000)
