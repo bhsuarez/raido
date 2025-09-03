@@ -75,11 +75,22 @@ async def track_change_notification(
                 filename_metadata = MetadataExtractor._parse_filename_metadata(file_path)
                 logger.debug("Parsed filename metadata", file_path=file_path, metadata=filename_metadata)
             
-            # Use parsed metadata as fallback
-            title = request.title or filename_metadata.get('title') or "Unknown Title"
-            artist = request.artist or filename_metadata.get('artist') or "Unknown Artist" 
-            album = request.album or filename_metadata.get('album')
-            genre = request.genre or filename_metadata.get('genre')
+            # Check if this is a TTS commentary file
+            is_commentary = False
+            if file_path and ("/shared/tts/" in file_path or "commentary_" in file_path):
+                is_commentary = True
+            
+            # Use parsed metadata as fallback, with special handling for commentary
+            if is_commentary:
+                title = "DJ Commentary"
+                artist = "Raido AI DJ"
+                album = "Commentary"
+                genre = "Radio Commentary"
+            else:
+                title = request.title or filename_metadata.get('title') or "Unknown Title"
+                artist = request.artist or filename_metadata.get('artist') or "Unknown Artist" 
+                album = request.album or filename_metadata.get('album')
+                genre = request.genre or filename_metadata.get('genre')
             
             # Try to get artwork URL
             artwork_url = await _lookup_artwork(artist, title, album)
@@ -90,6 +101,20 @@ async def track_change_notification(
             if year_value and str(year_value).strip() and str(year_value).strip().isdigit():
                 year_int = int(str(year_value).strip())
             
+            # Extract duration if not provided and we have a file path
+            duration_sec = request.duration
+            if not duration_sec and file_path and not file_path.startswith("liquidsoap://"):
+                try:
+                    # Try to extract duration using mutagen
+                    from mutagen import File as MutagenFile
+                    full_path = f"/mnt/music/{file_path}" if not file_path.startswith("/") else file_path
+                    audio_file = MutagenFile(full_path)
+                    if audio_file and hasattr(audio_file, 'info') and audio_file.info and hasattr(audio_file.info, 'length'):
+                        duration_sec = float(audio_file.info.length)
+                        logger.debug("Extracted duration from file", file_path=file_path, duration=duration_sec)
+                except Exception as e:
+                    logger.debug("Could not extract duration", file_path=file_path, error=str(e))
+            
             track = Track(
                 title=title,
                 artist=artist,
@@ -97,7 +122,7 @@ async def track_change_notification(
                 year=year_int,
                 genre=genre,
                 file_path=file_path,
-                duration_sec=request.duration,
+                duration_sec=duration_sec,
                 artwork_url=artwork_url,
                 tags=request.metadata
             )
@@ -106,9 +131,38 @@ async def track_change_notification(
         else:
             # Update existing track with any new metadata we received
             updated = False
+            
+            # Check if existing track is commentary that needs metadata update
+            is_commentary = False
+            if track.file_path and ("/shared/tts/" in track.file_path or "commentary_" in track.file_path):
+                is_commentary = True
+                
+            if is_commentary and (track.title == "Unknown title" or track.artist == "Unknown artist"):
+                track.title = "DJ Commentary"
+                track.artist = "Raido AI DJ"
+                track.album = "Commentary" 
+                track.genre = "Radio Commentary"
+                updated = True
+                logger.debug("Updated commentary track metadata", track_id=track.id)
+            
             if request.duration and not track.duration_sec:
                 track.duration_sec = request.duration
                 updated = True
+            elif not track.duration_sec and track.file_path and not track.file_path.startswith("liquidsoap://"):
+                # Extract duration if missing and we have a file path
+                try:
+                    import subprocess
+                    full_path = f"/mnt/music/{track.file_path}" if not track.file_path.startswith("/") else track.file_path
+                    result = subprocess.run([
+                        'ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
+                        '-of', 'default=noprint_wrappers=1:nokey=1', full_path
+                    ], capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0 and result.stdout.strip():
+                        track.duration_sec = float(result.stdout.strip())
+                        updated = True
+                        logger.debug("Extracted duration for existing track", file_path=track.file_path, duration=track.duration_sec)
+                except Exception as e:
+                    logger.debug("Could not extract duration for existing track", file_path=track.file_path, error=str(e))
             if request.year and not track.year:
                 year_int = None
                 if request.year.strip() and request.year.strip().isdigit():

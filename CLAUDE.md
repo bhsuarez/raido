@@ -100,6 +100,28 @@ Raido is a containerized AI-powered radio station with the following core servic
 4. **TTS audio** is queued in Liquidsoap via telnet interface (port 1234)
 5. **Mixed stream** (music + commentary) broadcasts via Icecast
 
+### TTS Commentary System
+**Time-Based Cooldown Configuration:**
+- **DJ Commentary Interval**: Controls TTS generation frequency (in minutes)
+  - `0` = Generate commentary for every track (classic radio DJ experience)
+  - `5` = Generate commentary every 5 minutes  
+  - `10` = Generate commentary every 10 minutes (default)
+- **Database Setting**: `UPDATE settings SET value = '0' WHERE key = 'dj_commentary_interval';`
+
+**Commentary Generation Workflow:**
+1. **Track Change Detection** → DJ Worker detects when tracks end via Liquidsoap API
+2. **Cooldown Check** → Verifies if enough time has passed since last commentary
+3. **Next Track Lookup** → Calls `/api/v1/now/next` to get upcoming track metadata  
+4. **AI Commentary Generation** → Uses Ollama (or templates) to create track introduction
+5. **TTS Audio Creation** → Converts text to speech using Kokoro TTS or OpenAI TTS
+6. **Stream Injection** → Injects TTS audio before next track plays via Liquidsoap telnet
+
+**Troubleshooting TTS Issues:**
+- **TTS Duplication**: Check `dj_commentary_interval` - set to higher value (5-10 minutes)
+- **No Commentary**: Verify `dj_provider != 'disabled'` and `enable_commentary = 'True'`
+- **Ollama Connection**: Ensure `ollama_base_url` points to correct host (e.g., `http://host.docker.internal:11434`)
+- **Track Matching**: Limited by Liquidsoap metadata - uses title/artist matching when file paths unavailable
+
 ## Project Structure
 
 ### Backend Services

@@ -73,7 +73,9 @@
       "Bash(git rm:*)",
       "Bash(cp:*)",
       "Bash(convert:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(ffprobe:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": [],

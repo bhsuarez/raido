@@ -31,6 +31,11 @@ class DJWorker:
         # Track recent intros by upcoming track id to avoid duplicates
         # Maps track_id -> unix timestamp of when an intro was generated
         self._recent_intros: Dict[int, float] = {}
+        # Track the current playing track to detect changes
+        self._current_track_id: Optional[int] = None
+        self._last_track_change: Optional[float] = None
+        # Track last commentary generation time for cooldown
+        self._last_commentary_time: Optional[float] = None
     
     async def run(self):
         """Main worker loop with system health monitoring"""
@@ -95,25 +100,108 @@ class DJWorker:
     async def _process_pending_jobs(self):
         """Check for and process pending commentary jobs"""
         try:
-            # Check if we need to generate commentary based on current track timing
-            should_generate = await self._should_generate_commentary()
+            # Check if there was a track change
+            track_changed = await self._detect_track_change()
             
-            if should_generate:
-                # Get the next upcoming track to generate commentary for
-                next_track = await self._get_next_track_for_commentary()
+            if track_changed:
+                logger.info("🎵 Track change detected, checking if commentary should be generated...")
                 
-                if next_track and next_track.get('track'):
-                    job = CommentaryJob(
-                        track_info=next_track['track'],
-                        play_info=None,  # No play record yet for upcoming track
-                        context=await self._build_context()
-                    )
+                # Check if the current track is commentary - if so, skip generating more commentary
+                try:
+                    current_track_response = await self.api_client.get("/now/")
+                    if current_track_response and current_track_response.get('track'):
+                        current_track = current_track_response['track']
+                        current_title = current_track.get('title', '').lower()
+                        current_artist = current_track.get('artist', '').lower()
+                        current_album = current_track.get('album', '').lower()
+                        
+                        if ('commentary' in current_title or 'commentary' in current_artist or 
+                            'commentary' in current_album or current_artist == 'raido ai dj'):
+                            logger.info("⏭️ Skipping commentary generation - current track is already commentary")
+                            return
+                except Exception as e:
+                    logger.debug("Could not check current track", error=str(e))
+                
+                # Check if we need to generate commentary based on settings
+                should_generate = await self._should_generate_commentary()
+                
+                if should_generate:
+                    # Get the next upcoming track to generate commentary for
+                    next_track = await self._get_next_track_for_commentary()
+                    logger.info("🎵 Getting next track for commentary...")
+                    logger.info("🔍 Fetching next up tracks from API...")
                     
-                    # Process the job
-                    await self._process_job(job)
+                    if next_track and next_track.get('track'):
+                        track = next_track['track']
+                        logger.info("📡 API response received: True")
+                        logger.info("🎵 Found 1 upcoming tracks")
+                        logger.info("🎶 Track found: True")
+                        logger.info(f"🏷️ Track details: ID={track.get('id')}, Title='{track.get('title')}', Artist='{track.get('artist')}'")
+                        logger.info(f"🆔 Track ID: {track.get('id')}")
+                        
+                        # Skip commentary generation for commentary tracks (avoid recursion)
+                        track_title = track.get('title', '').lower()
+                        track_artist = track.get('artist', '').lower()
+                        track_album = track.get('album', '').lower()
+                        
+                        if ('commentary' in track_title or 'commentary' in track_artist or 
+                            'commentary' in track_album or track_artist == 'raido ai dj'):
+                            logger.info("⏭️ Skipping commentary generation - next track is already commentary")
+                        else:
+                            # Check if this track already has recent commentary
+                            track_id = track.get('id')
+                            has_recent = await self._has_recent_commentary(track_id) if track_id is not None else False
+                            logger.info(f"⏰ Has recent commentary: {has_recent}")
+                            
+                            if not has_recent:
+                                logger.info("✅ Track selected for commentary")
+                                logger.info("📀 Next track found: True")
+                                logger.info(f"🎤 Processing track: {track.get('title')} by {track.get('artist')}")
+                                
+                                job = CommentaryJob(
+                                    track_info=track,
+                                    play_info=None,  # No play record yet for upcoming track
+                                    context=await self._build_context()
+                                )
+                                
+                                # Process the job
+                                await self._process_job(job)
+                            else:
+                                logger.info("⏭️ Skipping commentary generation - track already has recent commentary")
+                    else:
+                        logger.info("❌ No next track found for commentary")
+                else:
+                    logger.info("🚫 Commentary generation disabled or not needed")
+            else:
+                logger.debug("🔄 No track change detected, continuing to monitor...")
         
         except Exception as e:
             logger.error("Error processing pending jobs", error=str(e))
+    
+    async def _detect_track_change(self) -> bool:
+        """Detect if the currently playing track has changed"""
+        try:
+            # Get current playing track
+            now_playing = await self.api_client.get_now_playing()
+            if not now_playing or not now_playing.get('track'):
+                return False
+            
+            current_track = now_playing['track']
+            current_track_id = current_track.get('id')
+            
+            # Check if track has changed
+            if self._current_track_id != current_track_id:
+                logger.info(f"🎵 Track changed from {self._current_track_id} to {current_track_id}")
+                logger.info(f"🎧 Now playing: '{current_track.get('title')}' by '{current_track.get('artist')}'")
+                self._current_track_id = current_track_id
+                self._last_track_change = time.time()
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error("Error detecting track change", error=str(e))
+            return False
     
     async def _should_generate_commentary(self) -> bool:
         """Determine if commentary should be generated for next track"""
@@ -139,30 +227,32 @@ class DJWorker:
                                  cpu=system_health.cpu_percent,
                                  memory=system_health.memory_percent)
                     return False
+
+            # Use time-based cooldown instead of track-count interval
+            # This is more reliable since track IDs from Liquidsoap are inconsistent
+            cooldown_minutes = int(settings_response.get('dj_commentary_interval', 10))  # Default 10 minutes
+            
+            # Check if enough time has passed since last commentary generation
+            import time
+            current_time = time.time()
+            
+            # Initialize if not set
+            if not hasattr(self, '_last_commentary_time'):
+                self._last_commentary_time = None
+            
+            # Check if we have a recent cooldown entry
+            if self._last_commentary_time is not None:
+                time_since_last = current_time - self._last_commentary_time
+                cooldown_seconds = cooldown_minutes * 60
                 
-            # Determine commentary interval
-            interval = int(settings_response.get('dj_commentary_interval', 1))
+                if time_since_last < cooldown_seconds:
+                    remaining_minutes = (cooldown_seconds - time_since_last) / 60
+                    logger.info(f"🎯 Should generate commentary: False (cooldown: {remaining_minutes:.1f} min remaining)")
+                    return False
             
-            # Get current playing track info to determine timing
-            now_playing = await self.api_client.get_now_playing()
-            # Backend returns: { is_playing: bool, track: {}, play: {}, progress: {} }
-            if not now_playing or not now_playing.get('track'):
-                return False
-            
-            # Check if we should generate commentary based on interval
-            # Generate commentary every N tracks
-            recent_history = await self.api_client.get_history(limit=interval + 1)
-            if not recent_history or 'tracks' not in recent_history:
-                return True  # Default to generating if we can't check history
-            
-            tracks_since_commentary = 0
-            for track_play in recent_history['tracks']:
-                if track_play.get('commentary'):
-                    break  # Found the last commentary
-                tracks_since_commentary += 1
-            
-            # Generate commentary if we've played enough tracks since last commentary
-            return tracks_since_commentary >= interval
+            # Enough time has passed, allow generation
+            logger.info(f"🎯 Should generate commentary: True (interval: {cooldown_minutes} min)")
+            return True
         
         except Exception as e:
             logger.error("Error checking if commentary should be generated", error=str(e))
@@ -183,7 +273,7 @@ class DJWorker:
                     # Check if this track already has recent commentary prepared
                     # (to avoid generating multiple commentaries for the same track)
                     track_id = track.get('id')
-                    if track_id and not await self._has_recent_commentary(track_id):
+                    if track_id is not None and not await self._has_recent_commentary(track_id):
                         return next_track
             
             return None
@@ -332,6 +422,10 @@ class DJWorker:
                         self._recent_intros[int(track_id)] = time.time()
                 except Exception:
                     pass
+                
+                # Update cooldown timer for time-based interval
+                import time
+                self._last_commentary_time = time.time()
                 
                 logger.info("Commentary job completed successfully",
                            duration_ms=(job.completed_at - job.started_at).total_seconds() * 1000)
