@@ -1,4 +1,5 @@
 import React from 'react'
+import { resolveMediaUrl } from '../utils/media'
 import { ClockIcon, PlayIcon, MicIcon, MusicIcon } from 'lucide-react'
 import { usePlayHistory } from '../hooks/useNowPlaying'
 import { formatDistanceToNow } from 'date-fns'
@@ -96,7 +97,7 @@ function HistoryItem({ item, isRecent }: HistoryItemProps) {
         <div className="w-12 h-12 bg-gradient-to-br from-pirate-600 to-pirate-800 rounded-md flex items-center justify-center overflow-hidden">
           {track.artwork_url ? (
             <img 
-              src={track.artwork_url} 
+              src={resolveMediaUrl(track.artwork_url) || ''} 
               alt={`${track.title} artwork`}
               className="w-full h-full object-cover"
             />

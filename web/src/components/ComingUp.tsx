@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNextUp } from '../hooks/useNowPlaying'
 import LoadingSpinner from './LoadingSpinner'
+import { resolveMediaUrl } from '../utils/media'
 
 const ComingUp: React.FC = () => {
   const { data: nextUpData, isLoading, error } = useNextUp()
@@ -30,7 +31,7 @@ const ComingUp: React.FC = () => {
           genre: t.genre || 'Various',
           duration: durationVal,
           artwork:
-            t.artwork_url ||
+            resolveMediaUrl(t.artwork_url) ||
             'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjQwIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzlCOUI5NSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIyNCI+8J+NtTwvdGV4dD4KPHN2Zz4K',
           commentary: null,
         }

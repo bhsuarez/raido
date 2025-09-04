@@ -4,6 +4,7 @@ import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
 import LoadingSpinner from './LoadingSpinner'
+import { resolveMediaUrl } from '../utils/media'
 
 const NowPlaying: React.FC = () => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
@@ -102,7 +103,7 @@ const NowPlaying: React.FC = () => {
             <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-pirate-600/30">
               {track.artwork_url ? (
                 <img
-                  src={track.artwork_url}
+                  src={resolveMediaUrl(track.artwork_url) || ''}
                   alt={`${track.album} by ${track.artist}`}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   onError={(e) => {

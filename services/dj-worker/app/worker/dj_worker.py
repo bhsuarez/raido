@@ -108,7 +108,7 @@ class DJWorker:
                 
                 # Check if the current track is commentary - if so, skip generating more commentary
                 try:
-                    current_track_response = await self.api_client.get("/now/")
+                    current_track_response = await self.api_client.get_now_playing()
                     if current_track_response and current_track_response.get('track'):
                         current_track = current_track_response['track']
                         current_title = current_track.get('title', '').lower()
@@ -349,13 +349,21 @@ class DJWorker:
 
                 # If a kokoro voice is configured in admin settings, apply it
                 try:
-                    if dj_settings and dj_settings.get('dj_kokoro_voice'):
-                        self.tts_service.kokoro_client.voice = dj_settings.get('dj_kokoro_voice')
+                    if dj_settings:
+                        # Prefer the UI field 'kokoro_voice', fall back to legacy 'dj_kokoro_voice'
+                        kv = dj_settings.get('kokoro_voice') or dj_settings.get('dj_kokoro_voice')
+                        if kv:
+                            self.tts_service.kokoro_client.voice = kv
                     if dj_settings and dj_settings.get('dj_tts_volume'):
                         vol = float(dj_settings.get('dj_tts_volume'))
                         # Clamp reasonable range 0.5x - 2.0x
                         vol = max(0.5, min(2.0, vol))
                         self.tts_service.kokoro_client.volume = vol
+                    if dj_settings and dj_settings.get('kokoro_speed') is not None:
+                        try:
+                            self.tts_service.kokoro_client.speed = float(dj_settings.get('kokoro_speed'))
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 
