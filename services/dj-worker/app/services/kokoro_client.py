@@ -105,13 +105,7 @@ class KokoroClient:
             filename = f"commentary_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
             filepath = Path(settings.TTS_CACHE_DIR) / filename
             
-            # Use worker-configured TTS timeout to accommodate longer intros
-            req_timeout = None
-            try:
-                req_timeout = float(getattr(settings, 'TTS_TIMEOUT', 30))
-            except Exception:
-                req_timeout = 30.0
-            async with httpx.AsyncClient(timeout=req_timeout) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:  # Reduced timeout
                 response = await client.post(
                     f"{self.base_url}/v1/audio/speech",
                     json={

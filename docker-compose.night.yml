@@ -1,6 +1,0 @@
-services:
-  dj-worker:
-    # Night mode: disable commentary generation to prevent spikes
-    environment:
-      DJ_PROVIDER: "disabled"
-
