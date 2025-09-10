@@ -6,6 +6,7 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 - **🎵 24/7 Music Streaming**: Continuous music playback from your collection
 - **🤖 AI DJ Commentary**: Dynamic commentary generated using OpenAI or Ollama
+  - New: Editable Ollama prompt template from the DJ Admin
 - **🎙️ Multiple TTS Options**: Kokoro TTS, OpenAI TTS, XTTS, or basic speech synthesis
 - **📱 Modern Web Interface**: Responsive React frontend with real-time updates
 - **🔄 Live Updates**: WebSocket integration for real-time track changes
@@ -108,6 +109,36 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 - **Stream**: http://localhost:8000/raido.mp3
 - **pgAdmin**: http://localhost:5050
 
+## Ollama Prompt Template & Remote Ollama
+
+### Edit Ollama Prompt Template (Dev & Prod)
+- Open the DJ Admin at `/tts`.
+- Set "Commentary Provider" to `Ollama`.
+- Use the new "Prompt Template" textarea to customize the DJ prompt.
+  - Supports Jinja variables: `{{song_title}}`, `{{artist}}`, `{{album}}`, `{{year}}`.
+- Click "Save Settings" — changes apply immediately to the DJ worker.
+
+### Point DJ Worker to a Remote Ollama Server
+If you run Ollama on another host (recommended for low-resource boxes):
+- Set in `.env` on the Raido host: `OLLAMA_BASE_URL=http://<remote-ip>:11434`
+- Restart the worker: `docker compose restart dj-worker`
+- Verify from worker container: `curl http://<remote-ip>:11434/api/tags` returns 200.
+
+### Disable Local Ollama Service (to save CPU/RAM)
+We disabled the local `ollama` service in `docker-compose.yml` so it won’t start in future `make up` runs. If you need it again, re-enable that service block.
+
+### Switch DJ Provider to Ollama
+You can set via the Admin UI (DJ Admin → Commentary Provider → Ollama) or API:
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"dj_provider":"ollama"}' \
+  http://localhost/api/v1/admin/settings
+```
+
+### Recommended Models
+- Lightweight: `llama3.2:1b` (fast on CPU)
+- Balanced: `llama3.2:3b` or `llama3.1:8b` (needs more resources)
+
 ## Development
 
 ### Development Setup & Build Process
@@ -158,6 +189,10 @@ make up-dev
 # Production: Optimized static build  
 make build && make up
 # Creates production React build served by nginx
+
+### Dev & Prod Parity for DJ Admin
+- The DJ Admin prompt editor exists in both dev (`web-dev`) and prod (`web`).
+- In dev, changes are hot-reloaded; in prod, the UI ships in the built `web` image.
 ```
 
 ### Development Workflow

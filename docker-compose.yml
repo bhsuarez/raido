@@ -55,19 +55,19 @@ services:
       retries: 3
       start_period: 40s
 
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    volumes: 
-      - ollama:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_NUM_PARALLEL=4
-      - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_FLASH_ATTENTION=1
-      - OLLAMA_KV_CACHE_TYPE=f16
-    mem_limit: "4g"
-    cpus: "2.0"
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   restart: unless-stopped
+  #   volumes: 
+  #     - ollama:/root/.ollama
+  #   environment:
+  #     - OLLAMA_HOST=0.0.0.0:11434
+  #     - OLLAMA_NUM_PARALLEL=1
+  #     - OLLAMA_MAX_LOADED_MODELS=1
+  #     - OLLAMA_FLASH_ATTENTION=1
+  #     - OLLAMA_KV_CACHE_TYPE=f16
+  #   mem_limit: "4g"
+  #   cpus: "2.0"
 
   kokoro-tts:
     image: ghcr.io/remsky/kokoro-fastapi-cpu
@@ -78,6 +78,9 @@ services:
     environment:
       - USE_GPU=false
       - DOWNLOAD_MODEL=true
+    # Constrain CPU and memory to avoid host contention
+    mem_limit: "3g"
+    cpus: "1.0"
 
   # xtts-server:  # Temporarily disabled to reduce system load during Chatterbox testing
   #   image: synesthesiam/opentts:all
@@ -130,8 +133,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-      ollama:
-        condition: service_started
     volumes: [shared:/shared]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://api:8000/health"]
@@ -174,4 +175,4 @@ services:
       - ./scripts/cleanup-tts.sh:/cleanup-tts.sh:ro
     command: ["sh", "-c", "while true; do sleep 86400; /cleanup-tts.sh; done"]
 
-volumes: { db: {}, caddy: {}, shared: {}, ollama: {}, kokoro_models: {}, chatterbox_models: {}, chatterbox_voices: {} }
+volumes: { db: {}, caddy: {}, shared: {}, kokoro_models: {}, chatterbox_models: {}, chatterbox_voices: {} }

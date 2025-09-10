@@ -415,59 +415,87 @@ const VoiceProviderSection: React.FC<{
   )
 }
 
-const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }> = ({ settings, setSettings }) => (
-  <div className="space-y-4">
-    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-      🤖 AI Model Settings
-    </h3>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
-        <select
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-          value={settings.ollama_model || 'llama3.2:1b'}
-          onChange={(e) => setSettings({...settings, ollama_model: e.target.value})}
-        >
-          <optgroup label="🚀 Fast Models">
-            <option value="llama3.2:1b">Llama 3.2 1B (Fastest)</option>
-            <option value="llama3.2:3b">Llama 3.2 3B (Good Quality)</option>
-            <option value="qwen2.5:3b">Qwen2.5 3B (Creative)</option>
-          </optgroup>
-          <optgroup label="⚡ Balanced Models">
-            <option value="llama3.1:8b">Llama 3.1 8B</option>
-            <option value="qwen2.5:7b">Qwen2.5 7B</option>
-            <option value="mistral:7b">Mistral 7B</option>
-          </optgroup>
-        </select>
-      </div>
+const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }> = ({ settings, setSettings }) => {
+  const currentProvider = settings?.dj_provider || 'templates'
+  const currentModel = settings?.dj_model || settings?.ollama_model || 'llama3.2:1b'
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        🤖 AI Model Settings
+      </h3>
       
-      <div>
-        <label className="block text-sm text-gray-300 mb-1">Temperature</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={0}
-            max={2}
-            step={0.1}
-            value={Number(settings.dj_temperature ?? 0.8)}
-            onChange={(e) => setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
-            className="flex-1"
-          />
-          <input
-            type="number"
-            min={0}
-            max={2}
-            step={0.1}
-            value={Number(settings.dj_temperature ?? 0.8)}
-            onChange={(e) => setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
-            className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
+          <select
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+            value={currentModel}
+            onChange={(e) => setSettings({
+              ...settings,
+              dj_model: e.target.value,
+              ollama_model: e.target.value,
+            })}
+          >
+            <optgroup label="🚀 Fast Models">
+              <option value="llama3.2:1b">Llama 3.2 1B (Fastest)</option>
+              <option value="llama3.2:3b">Llama 3.2 3B (Good Quality)</option>
+              <option value="qwen2.5:3b">Qwen2.5 3B (Creative)</option>
+            </optgroup>
+            <optgroup label="⚡ Balanced Models">
+              <option value="llama3.1:8b">Llama 3.1 8B</option>
+              <option value="qwen2.5:7b">Qwen2.5 7B</option>
+              <option value="mistral:7b">Mistral 7B</option>
+            </optgroup>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">Temperature</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={0.1}
+              value={Number(settings.dj_temperature ?? 0.8)}
+              onChange={(e) => setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+              className="flex-1"
+            />
+            <input
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={Number(settings.dj_temperature ?? 0.8)}
+              onChange={(e) => setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
+              className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+            />
+          </div>
         </div>
       </div>
+
+      {currentProvider === 'ollama' && (
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Prompt Template</label>
+            <textarea
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm min-h-[160px]"
+              placeholder={
+                "You're a pirate radio DJ introducing the NEXT song... Use {{song_title}}, {{artist}}, {{album}}, {{year}}."
+              }
+              value={settings.dj_prompt_template ?? ''}
+              onChange={(e) => setSettings({ ...settings, dj_prompt_template: e.target.value })}
+            />
+            <p className="text-xs text-gray-400 mt-2">
+              Supports Jinja variables like {`{{song_title}}`}, {`{{artist}}`}, {`{{album}}`}, {`{{year}}`}. Keep it short for fast TTS.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)
+  )
+}
 
 const TTSMonitor: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
