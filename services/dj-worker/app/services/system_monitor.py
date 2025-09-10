@@ -28,7 +28,10 @@ class SystemMonitor:
         self.cpu_critical_threshold = 95.0  # %
         self.memory_warning_threshold = 80.0  # %
         self.memory_critical_threshold = 95.0  # %
-        self.load_critical_threshold = 10.0  # 1-minute load average
+        # Load thresholds are evaluated per CPU core to avoid false positives
+        # in containerized environments where raw loadavg can be misleading.
+        self.load_per_core_warning_threshold = 1.0   # warning when > 1 runnable per core
+        self.load_per_core_critical_threshold = 1.5  # critical when sustained > 1.5/core
         
         # Circuit breaker for system protection
         self._consecutive_unhealthy_checks = 0
@@ -47,8 +50,10 @@ class SystemMonitor:
             memory = psutil.virtual_memory()
             memory_percent = memory.percent
             
-            # Get load average (1-minute)
-            load_avg = psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0.0
+            # Get load average (1-minute) and normalize per core
+            raw_load_avg = psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0.0
+            cpu_count = psutil.cpu_count() or 1
+            load_avg_per_core = raw_load_avg / max(1, cpu_count)
             
             # Evaluate health
             warnings = []
@@ -66,9 +71,20 @@ class SystemMonitor:
             elif memory_percent > self.memory_warning_threshold:
                 warnings.append(f"WARNING: Memory usage at {memory_percent:.1f}%")
             
-            if load_avg > self.load_critical_threshold:
-                warnings.append(f"CRITICAL: Load average at {load_avg:.2f}")
+            # Load-based gating: only consider load as CRITICAL if it's high per core
+            # AND we also see pressure on CPU or memory. This avoids tripping purely
+            # on inflated load in some LXC/docker environments where CPU is idle.
+            if load_avg_per_core > self.load_per_core_critical_threshold and (
+                cpu_percent > self.cpu_warning_threshold or memory_percent > self.memory_warning_threshold
+            ):
+                warnings.append(
+                    f"CRITICAL: Load/core {load_avg_per_core:.2f} (raw {raw_load_avg:.2f} on {cpu_count} cores)"
+                )
                 is_healthy = False
+            elif load_avg_per_core > self.load_per_core_warning_threshold:
+                warnings.append(
+                    f"WARNING: Load/core {load_avg_per_core:.2f} (raw {raw_load_avg:.2f} on {cpu_count} cores)"
+                )
             
             # Update protection state
             if not is_healthy:
@@ -82,17 +98,20 @@ class SystemMonitor:
             health = SystemHealth(
                 cpu_percent=cpu_percent,
                 memory_percent=memory_percent,
-                load_average=load_avg,
+                load_average=raw_load_avg,
                 is_healthy=is_healthy and not self.is_protection_active(),
                 warnings=warnings
             )
             
             if warnings:
-                logger.warning("System health warnings", 
-                              cpu=cpu_percent, 
-                              memory=memory_percent, 
-                              load=load_avg,
-                              warnings=warnings)
+                logger.warning(
+                    "System health warnings",
+                    cpu=cpu_percent,
+                    memory=memory_percent,
+                    load_raw=raw_load_avg,
+                    load_per_core=load_avg_per_core,
+                    warnings=warnings,
+                )
             
             return health
             

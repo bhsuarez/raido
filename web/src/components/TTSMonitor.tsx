@@ -475,24 +475,22 @@ const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }>
         </div>
       </div>
 
-      {currentProvider === 'ollama' && (
-        <div className="grid grid-cols-1 gap-3">
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Prompt Template</label>
-            <textarea
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm min-h-[160px]"
-              placeholder={
-                "You're a pirate radio DJ introducing the NEXT song... Use {{song_title}}, {{artist}}, {{album}}, {{year}}."
-              }
-              value={settings.dj_prompt_template ?? ''}
-              onChange={(e) => setSettings({ ...settings, dj_prompt_template: e.target.value })}
-            />
-            <p className="text-xs text-gray-400 mt-2">
-              Supports Jinja variables like {`{{song_title}}`}, {`{{artist}}`}, {`{{album}}`}, {`{{year}}`}. Keep it short for fast TTS.
-            </p>
-          </div>
+      <div className="grid grid-cols-1 gap-3">
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">Commentary Prompt Template (Ollama/OpenAI)</label>
+          <textarea
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm min-h-[160px]"
+            placeholder={
+              "You're a pirate radio DJ introducing the NEXT song... Use {{song_title}}, {{artist}}, {{album}}, {{year}}."
+            }
+            value={settings.dj_prompt_template ?? ''}
+            onChange={(e) => setSettings({ ...settings, dj_prompt_template: e.target.value })}
+          />
+          <p className="text-xs text-gray-400 mt-2">
+            Used when provider is Ollama or OpenAI. Supports Jinja variables like {`{{song_title}}`}, {`{{artist}}`}, {`{{album}}`}, {`{{year}}`}.
+          </p>
         </div>
-      )}
+      </div>
     </div>
   )
 }
