@@ -73,7 +73,8 @@
       "Bash(git rm:*)",
       "Bash(cp:*)",
       "Bash(convert:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": [],
     "ask": [],
