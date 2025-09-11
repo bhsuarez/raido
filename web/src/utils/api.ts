@@ -84,9 +84,14 @@ export const apiHelpers = {
   
   // TTS management
   deleteCommentary: (commentaryId: number) => api.delete(`/admin/commentary/${commentaryId}`),
-  
+
   // Stream controls
   skipTrack: () => api.post('/liquidsoap/skip'),
+
+  // Music library and stations
+  getTracks: () => api.get('/tracks'),
+  getStations: () => api.get('/stations'),
+  createStation: (data: any) => api.post('/stations', data),
 }
 
 export default api

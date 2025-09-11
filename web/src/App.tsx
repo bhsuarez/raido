@@ -9,6 +9,7 @@ import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
+import StationManager from './components/StationManager'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -42,9 +43,13 @@ function App() {
             path="/tts" 
             element={<TTSMonitor />} 
           />
-          <Route 
-            path="/analytics" 
-            element={<Analytics />} 
+          <Route
+            path="/analytics"
+            element={<Analytics />}
+          />
+          <Route
+            path="/stations"
+            element={<StationManager />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route 
