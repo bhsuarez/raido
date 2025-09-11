@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import now_playing, stream, admin, liquidsoap, metadata, request_queue, artwork
+from app.api.v1.endpoints import (
+    now_playing,
+    stream,
+    admin,
+    liquidsoap,
+    metadata,
+    request_queue,
+    artwork,
+    tracks,
+    stations,
+)
 
 api_router = APIRouter()
 
@@ -12,3 +22,5 @@ api_router.include_router(liquidsoap.router, prefix="/liquidsoap", tags=["liquid
 api_router.include_router(metadata.router, prefix="/metadata", tags=["metadata"])
 api_router.include_router(request_queue.router, prefix="/queue", tags=["queue"])
 api_router.include_router(artwork.router, prefix="/artwork", tags=["artwork"])
+api_router.include_router(tracks.router, prefix="/tracks", tags=["tracks"])
+api_router.include_router(stations.router, prefix="/stations", tags=["stations"])

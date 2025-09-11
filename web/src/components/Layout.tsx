@@ -28,6 +28,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Now Playing', href: '/', icon: HomeIcon },
     { name: 'DJ Admin', href: '/tts', icon: SettingsIcon },
     { name: 'Analytics', href: '/analytics', icon: BarChart3Icon },
+    { name: 'Stations', href: '/stations', icon: Radio },
   ]
 
   return (
