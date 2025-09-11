@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
+import Logo from './Logo'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -37,6 +38,9 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center justify-between h-16">
             {/* Logo and Title */}
             <div className="flex items-center space-x-4">
+              <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+                <Logo size="md" />
+              </Link>
             </div>
 
             {/* Navigation */}
@@ -63,13 +67,18 @@ export default function Layout({ children }: LayoutProps) {
             {/* Status and Controls */}
             <div className="flex items-center space-x-4">
               {/* Connection Status */}
-              <div className={`flex items-center space-x-2 text-xs ${
-                isConnected ? 'text-green-400' : 'text-red-400'
-              }`}>
+              <div 
+                className={`flex items-center space-x-2 text-xs ${
+                  isConnected ? 'text-green-400' : 'text-red-400'
+                }`}
+                role="status"
+                aria-live="polite"
+                aria-label={`Connection status: ${isConnected ? 'Connected' : 'Disconnected'}`}
+              >
                 {isConnected ? (
-                  <WifiIcon className="h-4 w-4" />
+                  <WifiIcon className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <WifiOffIcon className="h-4 w-4" />
+                  <WifiOffIcon className="h-4 w-4" aria-hidden="true" />
                 )}
                 <span className="hidden sm:inline">
                   {isConnected ? 'Connected' : 'Disconnected'}
@@ -79,10 +88,11 @@ export default function Layout({ children }: LayoutProps) {
               {/* Dark Mode Toggle */}
               <button
                 onClick={toggleDarkMode}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-                aria-label="Toggle dark mode"
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-pirate-400 focus:ring-opacity-50"
+                aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+                aria-pressed={isDarkMode}
               >
-                {isDarkMode ? '☀️' : '🌙'}
+                <span aria-hidden="true">{isDarkMode ? '☀️' : '🌙'}</span>
               </button>
             </div>
           </div>
