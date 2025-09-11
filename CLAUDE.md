@@ -72,6 +72,7 @@ cp monitoring/.env.monitoring.example monitoring/.env.monitoring
 docker compose -f monitoring/docker-compose.monitoring.yml logs -f raido-monitor
 ```
 
+**Important**: Signal API runs on port 8082 (changed from 8080 to avoid Liquidsoap conflicts).
 **See [monitoring/README.md](monitoring/README.md) for complete setup instructions.**
 
 ### Code Quality
@@ -126,7 +127,9 @@ Raido is a containerized AI-powered radio station with the following core servic
 
 ### External Integration Services
 - **Kokoro TTS** - Neural text-to-speech service (runs on port 8091, internal 8880)
-- **Ollama** - Local LLM service for AI commentary generation
+- **Ollama** - Local LLM service for AI commentary generation (currently disabled/commented out)
+- **XTTS/Chatterbox TTS** - Alternative TTS services (currently disabled to reduce system load)
+- **OpenAI TTS** - Cloud-based TTS service (currently configured as DJ_VOICE_PROVIDER)
 - **Caddy** - Reverse proxy handling HTTPS and routing
 
 ### Audio Processing Flow
@@ -164,16 +167,18 @@ Raido is a containerized AI-powered radio station with the following core servic
 - Always run `make migrate` after database schema changes
 
 ### AI Commentary System
-- **Providers**: OpenAI GPT models or local Ollama models
-- **TTS Options**: Kokoro TTS (neural), OpenAI TTS, or basic synthesis
+- **Providers**: OpenAI GPT models, local Ollama models (disabled), or static templates (current)
+- **TTS Options**: Kokoro TTS (neural), OpenAI TTS (current), XTTS, or Chatterbox TTS (disabled)
 - **Flow**: Track change → API → DJ Worker → AI generation → TTS → Audio queue
-- **Configuration**: DJ settings via `.env` (DJ_PROVIDER, DJ_VOICE_PROVIDER, etc.)
+- **Configuration**: DJ settings via `.env` (currently: DJ_PROVIDER=templates, DJ_VOICE_PROVIDER=openai_tts)
+- **Admin UI**: DJ settings configurable via web interface with prompt templates and voice selection
 
 ### Audio Processing
 - **Music Directory**: `/mnt/music` (supports MP3, FLAC, OGG, WAV)
 - **Metadata**: Uses Mutagen library for ID3 tag reading
 - **Streaming**: Liquidsoap manages audio mixing and Icecast streaming
 - **TTS Queue**: Interactive request queue with 10s timeout
+- **TTS Cache**: Generated audio files cached in `/shared/tts` with automatic cleanup
 
 ### WebSocket Real-time Updates
 - **Endpoint**: `/ws` for live track changes and system status
@@ -183,8 +188,10 @@ Raido is a containerized AI-powered radio station with the following core servic
 ### Development Environment
 - **Hot Reload**: Frontend via Vite, backend via file mounting
 - **Logs**: Centralized logging with structured output
-- **Health Checks**: All services include health check endpoints
+- **Health Checks**: All services include health check endpoints with automated monitoring
 - **Database Admin**: pgAdmin4 available on port 5050
+- **Resource Management**: Services configured with memory limits and CPU constraints
+- **TTS Cleanup**: Automated cleanup service for cached TTS files
 
 ### Security Considerations
 - **JWT Authentication** for API endpoints
