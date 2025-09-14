@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api, { apiHelpers } from '../utils/api'
+import api, { apiHelpers, ttsApi } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
 import { toast } from 'react-hot-toast'
 
@@ -37,6 +37,12 @@ interface TTSStatusResponse {
   status: string
   statistics: TTSStatistics
   recent_activity: TTSActivity[]
+  pagination?: {
+    limit: number
+    offset: number
+    total: number
+    has_more: boolean
+  }
   system_status: SystemStatus
 }
 
@@ -88,7 +94,7 @@ const VoiceTestSection: React.FC<{
           break
       }
       
-      const res = await api.post(endpoint, payload)
+      const res = await ttsApi.post(endpoint, payload)
       const url = res.data?.audio_url
       if (url) {
         setTestUrl(url)
@@ -189,7 +195,7 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
         <label className="block text-sm text-gray-300 mb-1">Commentary Provider</label>
         <select
           className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-          value={settings.dj_provider || 'ollama'}
+          value={settings.dj_provider || 'templates'}
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
           <option value="ollama">Ollama</option>
@@ -238,8 +244,12 @@ const VoiceProviderSection: React.FC<{
     switch (provider) {
       case 'openai_tts':
         return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-      case 'chatterbox':
-        return chatterboxVoices.length ? chatterboxVoices : ['default', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+      case 'chatterbox': {
+        const base = chatterboxVoices.length ? chatterboxVoices : ['default']
+        const cur = settings?.chatterbox_voice
+        // Ensure currently selected voice stays visible even if not in the fetched list
+        return cur && !base.includes(cur) ? [cur, ...base] : base
+      }
       case 'xtts':
         return voices.length ? voices : []
       default: // kokoro
@@ -361,6 +371,41 @@ const VoiceProviderSection: React.FC<{
 
         {provider === 'chatterbox' && (
           <>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Custom Voice (optional)</label>
+              <input
+                type="text"
+                placeholder="e.g., brian"
+                value={settings.chatterbox_voice || ''}
+                onChange={(e) => setSettings({ ...settings, chatterbox_voice: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+              />
+              <p className="text-xs text-gray-400 mt-1">If your Chatterbox server supports named voices, enter it here.</p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">TTS Volume</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e) => setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="flex-1"
+                />
+                <input
+                  type="number"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={Number(settings.dj_tts_volume ?? 1.0)}
+                  onChange={(e) => setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
+                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm text-gray-300 mb-1">Exaggeration</label>
               <div className="flex items-center gap-3">
@@ -504,14 +549,49 @@ const TTSMonitor: React.FC = () => {
 
   // Admin settings state
   const [settings, setSettings] = useState<any | null>(null)
+  const [originalSettings, setOriginalSettings] = useState<any | null>(null)
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [settingsCollapsed, setSettingsCollapsed] = useState(false)
 
+  // Gating status (interval / next-up visibility)
+  const [gating, setGating] = useState<{
+    interval: number,
+    tracksSince: number,
+    nextTrack?: { id?: number, title?: string, artist?: string } | null,
+  }>({ interval: 1, tracksSince: 0, nextTrack: null })
+
   useEffect(() => {
     apiHelpers.getSettings()
-      .then(res => setSettings(res.data))
+      .then(res => {
+        setSettings(res.data)
+        setOriginalSettings(res.data)
+      })
       .catch(() => setSettingsError('Failed to load settings'))
   }, [])
+
+  // Compute simple gating info similar to worker logic: tracks since last commentary vs interval
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const interval = Number(settings?.dj_commentary_interval ?? 1)
+        // Fetch recent history (interval+1 to be safe)
+        const histRes = await apiHelpers.getHistory(interval + 1, 0)
+        const tracks = histRes.data?.tracks || []
+        let tracksSince = 0
+        for (const t of tracks) {
+          if (t?.commentary) break
+          tracksSince += 1
+        }
+        // Fetch next-up
+        const nextRes = await apiHelpers.getNextUp(1)
+        const next = nextRes.data?.next_tracks?.[0]?.track || null
+        setGating({ interval, tracksSince, nextTrack: next ? { id: next.id, title: next.title, artist: next.artist } : null })
+      } catch {
+        // Leave gating as-is on failure
+      }
+    }
+    if (settings) run()
+  }, [settings?.dj_commentary_interval, settings?.enable_commentary, settings?.dj_provider])
 
   // Fetch voices based on selected provider
   useEffect(() => {
@@ -536,6 +616,10 @@ const TTSMonitor: React.FC = () => {
     load()
   }, [settings?.dj_voice_provider])
 
+  const hasUnsavedChanges = Boolean(
+    settings && originalSettings && JSON.stringify(settings) !== JSON.stringify(originalSettings)
+  )
+
   const saveSettings = async () => {
     if (!settings) return
     setSaving(true)
@@ -543,6 +627,7 @@ const TTSMonitor: React.FC = () => {
     try {
       await apiHelpers.updateSettings(settings)
       toast.success('Settings saved successfully! 🎛️')
+      setOriginalSettings(settings)
     } catch (e: any) {
       const errorMsg = e?.response?.data?.detail || 'Failed to save settings'
       setSettingsError(errorMsg)
@@ -554,11 +639,16 @@ const TTSMonitor: React.FC = () => {
 
   const stripTags = (s: string) => s.replace(/<[^>]*>/g, '')
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const itemsPerPage = 20
+
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus', autoRefresh],
-    queryFn: () => api.get('/admin/tts-status?window_hours=24&limit=100').then(res => res.data),
+    queryKey: ['ttsStatus', autoRefresh, currentPage],
+    queryFn: () => api.get(`/admin/tts-status?window_hours=24&limit=${itemsPerPage}&offset=${currentPage * itemsPerPage}`).then(res => res.data),
     refetchInterval: autoRefresh ? 30000 : false,
     staleTime: 10000,
+    keepPreviousData: true,
   })
 
   const formatDuration = (ms: number | null) => {
@@ -642,16 +732,50 @@ const TTSMonitor: React.FC = () => {
             <span className={`transform transition-transform ${settingsCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
             <span>🎛️ DJ Settings</span>
           </button>
-          <button
-            onClick={saveSettings}
-            disabled={!settings || saving}
-            className={`px-4 py-2 rounded-lg text-white font-medium ${
-              saving ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'
-            } transition-colors`}
-          >
-            {saving ? 'Saving…' : 'Save Settings'}
-          </button>
+          <div className="flex items-center gap-3">
+            {hasUnsavedChanges && (
+              <span className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">Unsaved changes</span>
+            )}
+            <button
+              onClick={saveSettings}
+              disabled={!settings || saving || !hasUnsavedChanges}
+              className={`px-4 py-2 rounded-lg text-white font-medium ${
+                saving || !hasUnsavedChanges ? 'bg-gray-700 cursor-not-allowed' : 'bg-pirate-600 hover:bg-pirate-700'
+              } transition-colors`}
+            >
+              {saving ? 'Saving…' : 'Save Settings'}
+            </button>
+          </div>
         </div>
+
+        {/* Generation status banner */}
+        {!settingsCollapsed && settings && (
+          <div className="mb-4">
+            {(!settings.enable_commentary || settings.dj_provider === 'disabled') ? (
+              <div className="px-3 py-2 rounded border border-red-600/30 bg-red-900/20 text-red-300 text-sm">
+                Commentary is currently disabled. Enable it and pick a provider to resume generation.
+              </div>
+            ) : (
+              <>
+                {gating.tracksSince < (gating.interval || 1) ? (
+                  <div className="px-3 py-2 rounded border border-yellow-600/30 bg-yellow-900/20 text-yellow-200 text-sm">
+                    Waiting for interval: {gating.tracksSince} of {gating.interval} tracks since last commentary. Generation will trigger once the interval is reached.
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 rounded border border-green-600/30 bg-green-900/20 text-green-200 text-sm">
+                    Eligible to generate on the next cycle.
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-gray-400">
+                  Tip: If the next-up track already had an intro in the last hour, deduplication may skip generating again. You can skip the current track or restart the DJ worker to force a new intro.
+                  {gating.nextTrack && (
+                    <span className="ml-2 text-gray-300">Next up: {gating.nextTrack.artist} — {gating.nextTrack.title}</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {settingsError && !settingsCollapsed && (
           <div className="text-red-400 text-sm mb-4 p-3 bg-red-900/20 rounded-lg border border-red-600/20">
@@ -846,9 +970,14 @@ const TTSMonitor: React.FC = () => {
                       <h4 className="font-medium text-white whitespace-pre-wrap break-words">
                         {item.transcript ? item.transcript : stripTags(item.text)}
                       </h4>
-                      <p className="text-sm text-gray-400">
-                        {item.provider} • {item.voice_provider}
-                        {item.voice_id ? ` • voice: ${item.voice_id}` : ''}
+                      <p className="text-sm text-gray-400 flex items-center gap-2 flex-wrap">
+                        <span>{item.provider} • {item.voice_provider}</span>
+                        {item.voice_id ? <span>• voice: {item.voice_id}</span> : null}
+                        {item.provider === 'ollama' && item.llm_mode === 'nonstream' && (
+                          <span className="text-xxs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
+                            non‑streaming fallback
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="flex items-start gap-2 flex-shrink-0">
@@ -887,6 +1016,37 @@ const TTSMonitor: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            {ttsStatus?.pagination && ttsStatus.pagination.total > itemsPerPage && (
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-700/50">
+                <div className="text-sm text-gray-400">
+                  Showing {ttsStatus.pagination.offset + 1}-{Math.min(ttsStatus.pagination.offset + activity.length, ttsStatus.pagination.total)} of {ttsStatus.pagination.total}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                  >
+                    Previous
+                  </button>
+
+                  <span className="px-3 py-1 text-gray-300">
+                    Page {currentPage + 1} of {Math.ceil(ttsStatus.pagination.total / itemsPerPage)}
+                  </span>
+
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={!ttsStatus.pagination.has_more}
+                    className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

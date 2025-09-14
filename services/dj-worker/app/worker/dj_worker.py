@@ -199,13 +199,21 @@ class DJWorker:
                     # (to avoid generating multiple commentaries for the same track)
                     track_id = track.get('id')
                     logger.info(f"🆔 Track ID: {track_id}")
-                    has_recent = await self._has_recent_commentary(track_id) if track_id is not None else False
+
+                    # Skip tracks with invalid metadata (ID 0, Unknown Artist, etc.)
+                    if (track_id is None or track_id == 0 or
+                        track.get('title') in ['Unknown', ''] or
+                        track.get('artist') in ['Unknown Artist', 'Unknown', '']):
+                        logger.info("❌ Track skipped (invalid metadata: ID=0 or Unknown)")
+                        continue
+
+                    has_recent = await self._has_recent_commentary(track_id)
                     logger.info(f"⏰ Has recent commentary: {has_recent}")
-                    if track_id is not None and not has_recent:
+                    if not has_recent:
                         logger.info("✅ Track selected for commentary")
                         return next_track
                     else:
-                        logger.info("❌ Track skipped (no ID or has recent commentary)")
+                        logger.info("❌ Track skipped (has recent commentary)")
             
             return None
         
@@ -304,10 +312,18 @@ class DJWorker:
                     job.error = "Failed to generate commentary text"
                     return
 
-                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full}
+                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full, gen_mode}
                 if isinstance(commentary_payload, dict):
                     ssml_text = commentary_payload.get('ssml') or commentary_payload.get('text')
                     transcript_full = commentary_payload.get('transcript_full') or None
+                    # Attach LLM generation metadata to context for observability
+                    try:
+                        gen_mode = commentary_payload.get('gen_mode')
+                        if gen_mode:
+                            job.context = dict(job.context or {})
+                            job.context['ollama_mode'] = gen_mode
+                    except Exception:
+                        pass
                 else:
                     ssml_text = str(commentary_payload)
                     transcript_full = None
@@ -391,11 +407,20 @@ class DJWorker:
             else:
                 voice_id = None
 
+            # Use the admin-selected provider when recording, falling back to env default
+            provider_used = None
+            try:
+                if isinstance(dj_settings, dict) and dj_settings.get('dj_provider'):
+                    provider_used = dj_settings.get('dj_provider')
+            except Exception:
+                provider_used = None
+            provider_used = provider_used or settings.DJ_PROVIDER
+
             commentary_data = {
                 'text': job.commentary_text,
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
-                'provider': settings.DJ_PROVIDER,
+                'provider': provider_used,
                 'voice_provider': vp,
                 'voice_id': voice_id,
                 'status': 'ready',

@@ -87,6 +87,17 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
         cleaned = re.sub(r"([.!?])([A-Za-z])", r"\1 \2", cleaned)
         return cleaned
     
+    def _is_using_chatterbox_tts(self, dj_settings: Dict[str, Any] = None) -> bool:
+        """Check if Chatterbox TTS is being used"""
+        if dj_settings:
+            voice_provider = dj_settings.get('dj_voice_provider')
+            if voice_provider == "chatterbox":
+                return True
+            # If dj_settings are provided but don't specify chatterbox, return False
+            # Don't fall back to env settings when we have API settings
+            return False
+        return settings.DJ_VOICE_PROVIDER == "chatterbox"
+
     async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate DJ commentary for a track"""
         try:
@@ -94,7 +105,11 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             if dj_settings is None:
                 dj_settings = {}
             
-            provider = dj_settings.get('dj_provider', settings.DJ_PROVIDER)
+            # Use API settings first, fall back to env only if no API settings provided
+            if dj_settings:
+                provider = dj_settings.get('dj_provider', settings.DJ_PROVIDER)
+            else:
+                provider = settings.DJ_PROVIDER
             logger.info("DJ commentary provider selected", provider=provider)
             
             # Check if commentary is disabled
@@ -104,6 +119,14 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             
             # Build prompt context
             prompt_context = self._build_prompt_context(track_info, context, dj_settings)
+            
+            # If using Chatterbox TTS, modify settings for shorter output
+            if self._is_using_chatterbox_tts(dj_settings):
+                dj_settings = dj_settings.copy()  # Don't modify original
+                # Reduce max seconds for Chatterbox to keep synthesis manageable
+                current_max = dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS)
+                dj_settings['dj_max_seconds'] = min(current_max, 15)  # Cap at 15 seconds
+                logger.info("Adjusted max_seconds for Chatterbox TTS", max_seconds=dj_settings['dj_max_seconds'])
             
             # Generate commentary based on provider
             if provider == "openai" and self.openai_client and settings.OPENAI_API_KEY:
@@ -116,7 +139,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 logger.warning("Ollama failed; falling back to templates provider for this job")
                 return await self._generate_with_templates(prompt_context)
             elif provider == "templates":
-                return await self._generate_with_templates(prompt_context)
+                return await self._generate_with_templates(prompt_context, dj_settings)
             else:
                 logger.info("DJ provider not available", provider=provider, 
                            has_openai=bool(self.openai_client and settings.OPENAI_API_KEY))
@@ -310,7 +333,12 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
                 # Heuristic trim to fit duration
                 trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
-                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
+                mode = None
+                try:
+                    mode = getattr(self.ollama_client, 'last_mode', None)
+                except Exception:
+                    mode = None
+                return {"ssml": trimmed_ssml, "transcript_full": full_transcript, "gen_mode": mode}
             
             return None
         
@@ -318,24 +346,40 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             logger.error("Ollama commentary generation failed", error=str(e))
             return None
 
-    async def _generate_with_templates(self, prompt_context: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    async def _generate_with_templates(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using pre-written templates (fast fallback)"""
         try:
             import random
             
-            # Pre-written DJ commentary templates for upcoming tracks
-            templates = [
-                "Ahoy there, mateys! Coming up next, we've got {artist} with {song_title}. This one's gonna be epic!",
-                "All hands on deck! Next up is {artist} bringing you {song_title}. Get ready to rock!",
-                "Sailing into our next treasure - {artist} and {song_title}. You're gonna love this one!",
-                "From the crow's nest, I can see our next adventure: {artist} with {song_title}. Coming up!",
-                "Batten down the hatches! {artist}'s {song_title} is next on the horizon!",
-                "Yo ho ho! Next up we've got {artist} with {song_title}. This one's pure gold!",
-                "Set your compass for this beauty coming next - {artist} performing {song_title}!",
-                "Captain's choice for our next voyage: {song_title} by {artist}. Here we go!",
-                "Smooth sailing continues with {artist} and {song_title} coming up next. Ahoy!",
-                "Next up from the radio galley - {artist} with {song_title}. Don't touch that dial!"
-            ]
+            # Check if we should use shorter templates for Chatterbox
+            is_chatterbox = self._is_using_chatterbox_tts(dj_settings)
+            
+            if is_chatterbox:
+                # Shorter templates optimized for Chatterbox TTS
+                templates = [
+                    "Next up, {artist} with {song_title}!",
+                    "Coming up: {song_title} by {artist}!",
+                    "Here's {artist} with {song_title}!",
+                    "Up next, {artist} and {song_title}!",
+                    "Now playing {song_title} by {artist}!",
+                    "{artist} with {song_title} coming up!",
+                    "Next: {song_title} from {artist}!",
+                    "Here we go with {artist}!"
+                ]
+            else:
+                # Pre-written DJ commentary templates for upcoming tracks
+                templates = [
+                    "Ahoy there, mateys! Coming up next, we've got {artist} with {song_title}. This one's gonna be epic!",
+                    "All hands on deck! Next up is {artist} bringing you {song_title}. Get ready to rock!",
+                    "Sailing into our next treasure - {artist} and {song_title}. You're gonna love this one!",
+                    "From the crow's nest, I can see our next adventure: {artist} with {song_title}. Coming up!",
+                    "Batten down the hatches! {artist}'s {song_title} is next on the horizon!",
+                    "Yo ho ho! Next up we've got {artist} with {song_title}. This one's pure gold!",
+                    "Set your compass for this beauty coming next - {artist} performing {song_title}!",
+                    "Captain's choice for our next voyage: {song_title} by {artist}. Here we go!",
+                    "Smooth sailing continues with {artist} and {song_title} coming up next. Ahoy!",
+                    "Next up from the radio galley - {artist} with {song_title}. Don't touch that dial!"
+                ]
             
             # Select random template and format it
             template = random.choice(templates)
