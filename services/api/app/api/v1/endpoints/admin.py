@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -42,7 +42,9 @@ async def get_admin_settings(db: AsyncSession = Depends(get_db)):
             elif setting.value_type == "float":
                 settings_dict[setting.key] = float(setting.value)
             else:
-                settings_dict[setting.key] = setting.value
+                # Don't include settings with string "None" - let Pydantic use defaults
+                if setting.value != "None":
+                    settings_dict[setting.key] = setting.value
         
         # Create response with database values or defaults
         return AdminSettingsResponse(**settings_dict)
@@ -245,7 +247,8 @@ async def delete_commentary(
 async def get_tts_status(
     db: AsyncSession = Depends(get_db),
     window_hours: int = Query(1, ge=1, le=168),
-    limit: int = Query(10, ge=1, le=500)
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0)
 ):
     """Get TTS generation status and statistics"""
     try:
@@ -282,15 +285,23 @@ async def get_tts_status(
         )
         failed_24h = failed_result.scalar() or 0
         
-        # Get recent activity (last hour)
+        # Get recent activity with pagination
         recent_result = await db.execute(
             select(Commentary)
             .where(Commentary.created_at >= window_start)
             .order_by(desc(Commentary.created_at))
             .limit(limit)
+            .offset(offset)
         )
         recent_commentary = recent_result.scalars().all()
-        
+
+        # Get total count of records in the window for pagination
+        count_result = await db.execute(
+            select(func.count(Commentary.id))
+            .where(Commentary.created_at >= window_start)
+        )
+        total_count = count_result.scalar() or 0
+
         # Get average generation times
         avg_gen_time_result = await db.execute(
             select(func.avg(Commentary.generation_time_ms))
@@ -309,6 +320,14 @@ async def get_tts_status(
         # Format recent activity (return full text; UI can decide how to render)
         recent_activity = []
         for comment in recent_commentary:
+            # Try to surface LLM mode info if present in context_data
+            llm_mode = None
+            try:
+                if comment.context_data and isinstance(comment.context_data, dict):
+                    llm_mode = comment.context_data.get('ollama_mode')
+            except Exception:
+                llm_mode = None
+
             recent_activity.append({
                 "id": comment.id,
                 "text": comment.text,  # may contain SSML
@@ -320,7 +339,8 @@ async def get_tts_status(
                 "generation_time_ms": comment.generation_time_ms,
                 "tts_time_ms": comment.tts_time_ms,
                 "created_at": comment.created_at,
-                "audio_url": comment.audio_url
+                "audio_url": comment.audio_url,
+                "llm_mode": llm_mode
             })
         
         return {
@@ -334,6 +354,12 @@ async def get_tts_status(
                 "avg_tts_time_ms": round(float(avg_tts_time), 1) if avg_tts_time else None
             },
             "recent_activity": recent_activity,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": total_count,
+                "has_more": offset + len(recent_activity) < total_count
+            },
             "system_status": {
                 "tts_service": "running",  # Could check actual service health
                 "dj_worker": "running",    # Could check actual worker health
@@ -540,48 +566,82 @@ async def tts_test_xtts(payload: Dict[str, Any]):
 
 @router.get("/voices-chatterbox")
 async def list_chatterbox_voices():
-    """List available Chatterbox TTS voices."""
+    """List Chatterbox voices if the server exposes them; otherwise return a small default.
+
+    Tries a few endpoints on the configured Chatterbox server:
+    - GET `${CHATTERBOX_BASE_URL}/voices`
+    - GET `${CHATTERBOX_BASE_URL}/v1/voices`
+    - GET `${CHATTERBOX_BASE_URL}/v1/audio/voices`
+    Expects either an array of names or an object with ids/names.
+    """
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            # Try to get voices from Chatterbox API
-            chatterbox_base = getattr(settings, 'CHATTERBOX_BASE_URL', None)
-            if not chatterbox_base:
-                return {"voices": []}
-            
-            resp = await client.get(f"{chatterbox_base.rstrip('/')}/v1/voices")
-            if resp.status_code == 200:
-                data = resp.json()
-                voices = data.get("data", [])
-                # Extract voice names/IDs
-                voice_list = []
-                for voice in voices:
-                    if isinstance(voice, dict):
-                        voice_id = voice.get("id") or voice.get("name")
-                        if voice_id:
-                            voice_list.append(voice_id)
-                    else:
-                        voice_list.append(str(voice))
-                return {"voices": voice_list}
-    except Exception as e:
-        logger = structlog.get_logger()
-        logger.warning("Failed to list Chatterbox voices", error=str(e))
-    
-    # Fallback to common Chatterbox voices
-    fallback = [
-        "default", "alloy", "echo", "fable", "onyx", "nova", "shimmer"
-    ]
-    return {"voices": fallback}
+        base = getattr(settings, 'CHATTERBOX_BASE_URL', None)
+        if base:
+            base = base.rstrip('/')
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                for path in ("/voices", "/v1/voices", "/v1/audio/voices"):
+                    try:
+                        resp = await client.get(f"{base}{path}")
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            voices = []
+                            if isinstance(data, list):
+                                for v in data:
+                                    if isinstance(v, dict):
+                                        name = v.get('id') or v.get('name')
+                                        if name:
+                                            voices.append(str(name))
+                                    else:
+                                        voices.append(str(v))
+                            elif isinstance(data, dict):
+                                # Collect keys or id/name fields
+                                for k, v in data.items():
+                                    if isinstance(v, dict):
+                                        name = v.get('id') or v.get('name') or k
+                                        if name:
+                                            voices.append(str(name))
+                                    else:
+                                        voices.append(str(k))
+                            # De-duplicate, preserve order
+                            out = []
+                            seen = set()
+                            for v in voices:
+                                if v not in seen:
+                                    seen.add(v)
+                                    out.append(v)
+                            if out:
+                                return {"voices": out}
+                    except Exception:
+                        # Try next path
+                        continue
+    except Exception:
+        pass
+
+    # Fallback basic list
+    return {"voices": ["default", "female", "male", "narrator", "announcer", "newscaster"]}
+
+@router.post("/upload-voice-reference")
+async def upload_voice_reference(
+    file: UploadFile = File(...),
+    voice_name: str = Form(...)
+):
+    """Voice cloning is disabled."""
+    raise HTTPException(status_code=410, detail="Voice cloning is disabled in this deployment")
+
+@router.delete("/voice-reference/{voice_name}")
+async def delete_voice_reference(voice_name: str):
+    """Voice cloning is disabled."""
+    raise HTTPException(status_code=410, detail="Voice cloning is disabled in this deployment")
+
+@router.get("/voice-references")
+async def list_voice_references():
+    """Voice cloning is disabled."""
+    return {"voices": []}
+
 
 @router.post("/tts-test-chatterbox")
 async def tts_test_chatterbox(payload: Dict[str, Any]):
-    """Synthesize a short sample with Chatterbox TTS and return an audio URL.
-
-    Body fields:
-    - text: sample text (optional; default provided)
-    - voice: Chatterbox voice id (e.g., 'alloy', 'nova', 'onyx')
-    - exaggeration: emotion intensity (0.25-2.0, default 1.0)
-    - cfg_weight: pace control (0.0-1.0, default 0.5)
-    """
+    """Synthesize a short sample with Chatterbox TTS (no voice cloning)."""
     logger = structlog.get_logger()
     try:
         text = str(payload.get("text") or "This is a Raido Chatterbox TTS voice test.")
@@ -620,18 +680,51 @@ async def tts_test_chatterbox(payload: Dict[str, Any]):
                    endpoint=f"{chatterbox_base.rstrip('/')}/v1/audio/speech")
         
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Use OpenAI-compatible endpoint
-            resp = await client.post(
-                f"{chatterbox_base.rstrip('/')}/v1/audio/speech",
-                json=payload,
-            )
-            
-            if resp.status_code != 200:
+            base = chatterbox_base.rstrip('/')
+
+            # 1) Try OpenAI-compatible POST /v1/audio/speech
+            resp = None
+            try:
+                url = f"{base}/v1/audio/speech"
+                data = {
+                    'model': 'tts-1',
+                    'input': text,
+                    'response_format': 'mp3',
+                    'exaggeration': str(exaggeration),
+                    'cfg_weight': str(cfg_weight),
+                }
+                if voice and voice != 'default':
+                    data['voice'] = voice
+
+                attempt = await client.post(url, data=data)
+                if attempt.status_code == 200 and attempt.content:
+                    resp = attempt
+                else:
+                    logger.warning("Chatterbox /v1/audio/speech failed", status=attempt.status_code, text=attempt.text[:200])
+            except Exception as e:
+                logger.warning("Chatterbox /v1/audio/speech error", error=str(e))
+
+            # 2) Fallback to legacy GET /tts (optionally include provided server reference path)
+            if resp is None:
+                params = {
+                    'text': text,
+                    'exaggeration': str(exaggeration),
+                    'cfg_weight': str(cfg_weight),
+                }
+                if voice:
+                    params['voice'] = voice
+                # Allow caller to provide a server-side reference file path
+                ref_param = payload.get('audio_prompt_path')
+                if isinstance(ref_param, str) and len(ref_param) > 0:
+                    params['audio_prompt_path'] = ref_param
+                resp = await client.get(f"{base}/tts", params=params)
+
+            if resp is None or resp.status_code != 200:
                 raise HTTPException(
-                    status_code=resp.status_code, 
-                    detail=f"Chatterbox TTS error: {resp.text[:200]}"
+                    status_code=(resp.status_code if resp is not None else 502),
+                    detail=f"Chatterbox TTS error: {(resp.text[:200] if resp is not None else 'no response')}"
                 )
-            
+
             # Write audio content to file
             with open(out_path, "wb") as f:
                 f.write(resp.content)
@@ -818,16 +911,9 @@ async def tts_benchmark(payload: Dict[str, Any]):
                 out_path = f"/shared/tts/{filename}"
                 
                 async with httpx.AsyncClient(timeout=60.0) as client:
-                    resp = await client.post(
-                        f"{chatterbox_base.rstrip('/')}/v1/audio/speech",
-                        json={
-                            "model": "tts-1",
-                            "input": text,
-                            "voice": chatterbox_voice,
-                            "response_format": "mp3",
-                            "exaggeration": chatterbox_exaggeration,
-                            "cfg_weight": chatterbox_cfg_weight,
-                        },
+                    resp = await client.get(
+                        f"{chatterbox_base.rstrip('/')}/tts",
+                        params={"text": text},
                     )
                     if resp.status_code == 200:
                         with open(out_path, "wb") as f:
