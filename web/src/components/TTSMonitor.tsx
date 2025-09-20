@@ -31,6 +31,7 @@ interface SystemStatus {
   tts_service: string
   dj_worker: string
   kokoro_tts: string
+  chatterbox_tts?: string
 }
 
 interface TTSStatusResponse {
@@ -44,6 +45,11 @@ interface TTSStatusResponse {
     has_more: boolean
   }
   system_status: SystemStatus
+  chatterbox_health?: {
+    status: string
+    detail?: string | null
+    endpoint?: string | null
+  }
 }
 
 // Voice Testing Component
@@ -95,7 +101,7 @@ const VoiceTestSection: React.FC<{
       }
       
       const res = await ttsApi.post(endpoint, payload)
-      const url = res.data?.audio_url
+      const url = apiHelpers.resolveStaticUrl(res.data?.audio_url)
       if (url) {
         setTestUrl(url)
         toast.success(`${provider.toUpperCase()} voice test generated!`)
@@ -383,6 +389,17 @@ const VoiceProviderSection: React.FC<{
               <p className="text-xs text-gray-400 mt-1">If your Chatterbox server supports named voices, enter it here.</p>
             </div>
             <div>
+              <label className="block text-sm text-gray-300 mb-1">Chatterbox Voices API URL</label>
+              <input
+                type="text"
+                placeholder="http://192.168.1.112:8080/api/voices"
+                value={settings.chatterbox_voices_url || ''}
+                onChange={(e) => setSettings({ ...settings, chatterbox_voices_url: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+              />
+              <p className="text-xs text-gray-400 mt-1">Used for listing voices only. TTS generation uses the configured Chatterbox base URL.</p>
+            </div>
+            <div>
               <label className="block text-sm text-gray-300 mb-1">TTS Volume</label>
               <div className="flex items-center gap-3">
                 <input
@@ -541,7 +558,7 @@ const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }>
 }
 
 const TTSMonitor: React.FC = () => {
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const AUTO_REFRESH_INTERVAL_MS = 30000
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
   const [chatterboxVoices, setChatterboxVoices] = useState<string[]>([])
@@ -551,7 +568,9 @@ const TTSMonitor: React.FC = () => {
   const [settings, setSettings] = useState<any | null>(null)
   const [originalSettings, setOriginalSettings] = useState<any | null>(null)
   const [settingsError, setSettingsError] = useState<string | null>(null)
-  const [settingsCollapsed, setSettingsCollapsed] = useState(false)
+  const [settingsCollapsed, setSettingsCollapsed] = useState(true)
+  const [monitoringCollapsed, setMonitoringCollapsed] = useState(true)
+  const compact = true
 
   // Gating status (interval / next-up visibility)
   const [gating, setGating] = useState<{
@@ -614,7 +633,7 @@ const TTSMonitor: React.FC = () => {
       }
     }
     load()
-  }, [settings?.dj_voice_provider])
+  }, [settings?.dj_voice_provider, settings?.chatterbox_voices_url])
 
   const hasUnsavedChanges = Boolean(
     settings && originalSettings && JSON.stringify(settings) !== JSON.stringify(originalSettings)
@@ -639,14 +658,23 @@ const TTSMonitor: React.FC = () => {
 
   const stripTags = (s: string) => s.replace(/<[^>]*>/g, '')
 
+  const getAudioFileName = (audioPath: string | null, fallbackId: number) => {
+    if (!audioPath) return `tts-commentary-${fallbackId}.mp3`
+    const segments = audioPath.split('/').filter(Boolean)
+    const lastSegment = segments[segments.length - 1] || ''
+    const cleaned = lastSegment.split('?')[0]
+    const sanitized = cleaned.replace(/[^a-zA-Z0-9._-]/g, '_')
+    return sanitized || `tts-commentary-${fallbackId}.mp3`
+  }
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0)
   const itemsPerPage = 20
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus', autoRefresh, currentPage],
+    queryKey: ['ttsStatus', currentPage],
     queryFn: () => api.get(`/admin/tts-status?window_hours=24&limit=${itemsPerPage}&offset=${currentPage * itemsPerPage}`).then(res => res.data),
-    refetchInterval: autoRefresh ? 30000 : false,
+    refetchInterval: AUTO_REFRESH_INTERVAL_MS,
     staleTime: 10000,
     keepPreviousData: true,
   })
@@ -687,6 +715,31 @@ const TTSMonitor: React.FC = () => {
     }
   }
 
+  const getStatusToneClasses = (status?: string) => {
+    switch (status) {
+      case 'running':
+        return {
+          container: 'border-green-600/30 bg-green-900/20 text-green-200',
+          badge: 'border-green-500/40 bg-green-500/10 text-green-200',
+        }
+      case 'warning':
+        return {
+          container: 'border-yellow-600/30 bg-yellow-900/20 text-yellow-200',
+          badge: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-200',
+        }
+      case 'stopped':
+        return {
+          container: 'border-red-600/30 bg-red-900/20 text-red-200',
+          badge: 'border-red-500/40 bg-red-500/10 text-red-200',
+        }
+      default:
+        return {
+          container: 'border-gray-600/30 bg-gray-800/30 text-gray-200',
+          badge: 'border-gray-500/40 bg-gray-700/40 text-gray-200',
+        }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
@@ -719,9 +772,73 @@ const TTSMonitor: React.FC = () => {
   const stats = ttsStatus?.statistics
   const activity = ttsStatus?.recent_activity || []
   const systemStatus = ttsStatus?.system_status
+  const chatterboxHealth = ttsStatus?.chatterbox_health
+  const rawChatterboxStatus = chatterboxHealth?.status || systemStatus?.chatterbox_tts
+  const effectiveChatterboxStatus = rawChatterboxStatus || (chatterboxHealth?.detail ? 'unknown' : undefined)
+  const chatterboxTone = getStatusToneClasses(effectiveChatterboxStatus)
+  const chatterboxMessage = (() => {
+    if (!effectiveChatterboxStatus) return ''
+    const detail = chatterboxHealth?.detail?.trim()
+    if (detail) {
+      return detail
+    }
+    switch (effectiveChatterboxStatus) {
+      case 'running':
+        return 'Chatterbox TTS is responding normally.'
+      case 'warning':
+        return 'Chatterbox TTS responded but indicated an issue.'
+      case 'stopped':
+        return 'Unable to reach Chatterbox TTS. Check the shim container and network.'
+      default:
+        return 'Chatterbox TTS status is unknown.'
+    }
+  })()
 
   return (
     <div className="space-y-6">
+      {effectiveChatterboxStatus && (
+        <div className={`rounded-2xl border shadow-2xl px-4 py-4 sm:px-6 ${chatterboxTone.container}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden>🗣️</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold uppercase tracking-wide text-gray-300">
+                    Chatterbox Service
+                  </span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border ${chatterboxTone.badge}`}>
+                    <span>{getServiceStatusIcon(effectiveChatterboxStatus)}</span>
+                    <span className="capitalize">{effectiveChatterboxStatus}</span>
+                  </span>
+                </div>
+                {chatterboxMessage && (
+                  <p className="mt-1 text-sm text-gray-100">
+                    {chatterboxMessage}
+                  </p>
+                )}
+                {chatterboxHealth?.endpoint && (
+                  <p className="mt-1 text-xs text-gray-300">
+                    Endpoint: <span className="text-gray-100">{chatterboxHealth.endpoint}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-300">
+              <span>Tip:</span>
+              {chatterboxHealth?.endpoint ? (
+                <span className="text-gray-100">
+                  Run <code className="bg-gray-800 px-1.5 py-0.5 rounded">curl {chatterboxHealth.endpoint}/health</code> from the host.
+                </span>
+              ) : (
+                <span className="text-gray-100">
+                  Set the Chatterbox base URL under Voice &amp; TTS settings.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Settings Panel */}
       <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
         <div className="flex items-center justify-between mb-6">
@@ -811,42 +928,31 @@ const TTSMonitor: React.FC = () => {
         )}
       </div>
 
-      {/* Header */}
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            🎙️ TTS Monitoring Dashboard
-          </h2>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded border-gray-600 text-pirate-500 focus:ring-pirate-500"
-              />
-              Auto-refresh
-            </label>
-            <button
-              onClick={() => refetch()}
-              className="px-3 py-1 bg-pirate-600 hover:bg-pirate-700 text-white rounded-lg text-sm transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
+      {/* Monitoring Header (collapsible) */}
+      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-4 shadow-2xl border border-gray-700/50">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setMonitoringCollapsed(!monitoringCollapsed)}
+            className="flex items-center gap-3 text-xl font-bold text-white hover:text-pirate-400 transition-colors"
+            aria-expanded={!monitoringCollapsed}
+          >
+            <span className={`transform transition-transform ${monitoringCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
+            <span>🎙️ TTS Monitoring Dashboard</span>
+          </button>
         </div>
       </div>
 
       {/* Statistics Cards */}
+      {!monitoringCollapsed && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-green-900/40 to-green-800/40 rounded-xl p-6 border border-green-600/20">
+        <div className={`bg-gradient-to-br from-green-900/40 to-green-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-green-600/20`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-              <span className="text-xl">✅</span>
+            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-green-600 flex items-center justify-center`}>
+              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>✅</span>
             </div>
             <div>
               <h3 className="font-semibold text-green-300">Success Rate</h3>
-              <p className="text-2xl font-bold text-white">{stats?.success_rate || 0}%</p>
+              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>{stats?.success_rate || 0}%</p>
             </div>
           </div>
           <p className="text-sm text-green-400">
@@ -854,27 +960,27 @@ const TTSMonitor: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/40 rounded-xl p-6 border border-blue-600/20">
+        <div className={`bg-gradient-to-br from-blue-900/40 to-blue-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-blue-600/20`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-              <span className="text-xl">🎵</span>
+            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-blue-600 flex items-center justify-center`}>
+              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>🎵</span>
             </div>
             <div>
               <h3 className="font-semibold text-blue-300">Total Generated</h3>
-              <p className="text-2xl font-bold text-white">{stats?.total_24h || 0}</p>
+              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>{stats?.total_24h || 0}</p>
             </div>
           </div>
           <p className="text-sm text-blue-400">Last 24 hours</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/40 rounded-xl p-6 border border-purple-600/20">
+        <div className={`bg-gradient-to-br from-purple-900/40 to-purple-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-purple-600/20`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center">
-              <span className="text-xl">⚡</span>
+            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-purple-600 flex items-center justify-center`}>
+              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>⚡</span>
             </div>
             <div>
               <h3 className="font-semibold text-purple-300">Avg Gen Time</h3>
-              <p className="text-2xl font-bold text-white">
+              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                 {formatDuration(stats?.avg_generation_time_ms || null)}
               </p>
             </div>
@@ -882,14 +988,14 @@ const TTSMonitor: React.FC = () => {
           <p className="text-sm text-purple-400">Generation speed</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-900/40 to-orange-800/40 rounded-xl p-6 border border-orange-600/20">
+        <div className={`bg-gradient-to-br from-orange-900/40 to-orange-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-orange-600/20`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center">
-              <span className="text-xl">🔊</span>
+            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-orange-600 flex items-center justify-center`}>
+              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>🔊</span>
             </div>
             <div>
               <h3 className="font-semibold text-orange-300">Avg TTS Time</h3>
-              <p className="text-2xl font-bold text-white">
+              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
                 {formatDuration(stats?.avg_tts_time_ms || null)}
               </p>
             </div>
@@ -897,51 +1003,57 @@ const TTSMonitor: React.FC = () => {
           <p className="text-sm text-orange-400">Voice synthesis</p>
         </div>
       </div>
+      )}
 
       {/* System Status */}
-      {systemStatus && (
-        <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span>⚙️</span>
+      {systemStatus && !monitoringCollapsed && (
+        <div className={`bg-gray-900/60 border border-gray-800/60 rounded-xl ${compact ? 'p-3' : 'p-4'} shadow-inner`}>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-300">
+            <span className="text-sm">⚙️</span>
             System Status
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-lg">
-              <span className="text-2xl">{getServiceStatusIcon(systemStatus.tts_service)}</span>
-              <div>
-                <h4 className="font-semibold text-white">TTS Service</h4>
-                <p className={`text-sm capitalize ${getStatusColor(systemStatus.tts_service)}`}>
-                  {systemStatus.tts_service}
-                </p>
-              </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full text-xs">
+              <span className="text-base">{getServiceStatusIcon(systemStatus.tts_service)}</span>
+              <span className="text-gray-200">TTS Service</span>
+              <span className={`font-semibold capitalize ${getStatusColor(systemStatus.tts_service)}`}>
+                {systemStatus.tts_service}
+              </span>
             </div>
-            
-            <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-lg">
-              <span className="text-2xl">{getServiceStatusIcon(systemStatus.dj_worker)}</span>
-              <div>
-                <h4 className="font-semibold text-white">DJ Worker</h4>
-                <p className={`text-sm capitalize ${getStatusColor(systemStatus.dj_worker)}`}>
-                  {systemStatus.dj_worker}
-                </p>
-              </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full text-xs">
+              <span className="text-base">{getServiceStatusIcon(systemStatus.dj_worker)}</span>
+              <span className="text-gray-200">DJ Worker</span>
+              <span className={`font-semibold capitalize ${getStatusColor(systemStatus.dj_worker)}`}>
+                {systemStatus.dj_worker}
+              </span>
             </div>
-            
-            <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-lg">
-              <span className="text-2xl">{getServiceStatusIcon(systemStatus.kokoro_tts)}</span>
-              <div>
-                <h4 className="font-semibold text-white">Kokoro TTS</h4>
-                <p className={`text-sm capitalize ${getStatusColor(systemStatus.kokoro_tts)}`}>
-                  {systemStatus.kokoro_tts}
-                </p>
-              </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full text-xs">
+              <span className="text-base">{getServiceStatusIcon(systemStatus.kokoro_tts)}</span>
+              <span className="text-gray-200">Kokoro TTS</span>
+              <span className={`font-semibold capitalize ${getStatusColor(systemStatus.kokoro_tts)}`}>
+                {systemStatus.kokoro_tts}
+              </span>
             </div>
+
+            {systemStatus.chatterbox_tts && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full text-xs">
+                <span className="text-base">{getServiceStatusIcon(systemStatus.chatterbox_tts)}</span>
+                <span className="text-gray-200">Chatterbox</span>
+                <span className={`font-semibold capitalize ${getStatusColor(systemStatus.chatterbox_tts)}`}>
+                  {systemStatus.chatterbox_tts}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Recent Activity */}
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+      {!monitoringCollapsed && (
+      <div className={`bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl ${compact ? 'p-4' : 'p-6'} shadow-2xl border border-gray-700/50`}>
         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <span>📋</span>
           Recent TTS Activity
@@ -952,70 +1064,94 @@ const TTSMonitor: React.FC = () => {
             <p>No recent TTS activity</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {activity.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700/20"
-              >
-                <div className={`w-3 h-3 rounded-full mt-2 ${
-                  item.status === 'ready' ? 'bg-green-400' :
-                  item.status === 'failed' ? 'bg-red-400' :
-                  'bg-yellow-400'
-                }`}></div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h4 className="font-medium text-white whitespace-pre-wrap break-words">
-                        {item.transcript ? item.transcript : stripTags(item.text)}
-                      </h4>
-                      <p className="text-sm text-gray-400 flex items-center gap-2 flex-wrap">
-                        <span>{item.provider} • {item.voice_provider}</span>
-                        {item.voice_id ? <span>• voice: {item.voice_id}</span> : null}
-                        {item.provider === 'ollama' && item.llm_mode === 'nonstream' && (
-                          <span className="text-xxs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
-                            non‑streaming fallback
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2 flex-shrink-0">
-                      <div className="text-right text-sm text-gray-400">
-                        <div>{new Date(item.created_at).toLocaleTimeString()}</div>
-                        {(item.generation_time_ms || item.tts_time_ms) && (
-                          <div className="text-xs">
-                            {item.generation_time_ms && `Gen: ${formatDuration(item.generation_time_ms)}`}
-                            {item.generation_time_ms && item.tts_time_ms && ' • '}
-                            {item.tts_time_ms && `TTS: ${formatDuration(item.tts_time_ms)}`}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => deleteCommentary(item.id)}
-                        className="text-red-400 hover:text-red-300 p-1 rounded transition-colors"
-                        title="Delete TTS entry"
-                      >
-                        <span className="text-sm">🗑️</span>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {item.audio_url && (
-                    <div className="mt-2">
-                      <audio 
-                        controls 
-                        className="w-full h-8"
-                        preload="metadata"
-                      >
-                        <source src={item.audio_url} type="audio/mpeg" />
-                        Your browser does not support audio playback.
-                      </audio>
-                    </div>
+          <div className={`space-y-${compact ? '2' : '3'}`}> 
+            {activity.map((item) => {
+              const audioSrc = apiHelpers.resolveStaticUrl(item.audio_url)
+              const downloadFileName = getAudioFileName(item.audio_url, item.id)
+
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-start ${compact ? 'gap-3 p-2' : 'gap-4 p-4'} bg-gray-800/30 rounded-lg border border-gray-700/20`}
+                >
+                  {item.status === 'running' ? (
+                    <span
+                      className="mt-1.5 inline-block w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+                      aria-label="Generating"
+                      title="Generating"
+                    />
+                  ) : (
+                    <div className={`w-3 h-3 rounded-full mt-2 ${
+                      item.status === 'ready' ? 'bg-green-400' :
+                      item.status === 'failed' ? 'bg-red-400' :
+                      'bg-yellow-400'
+                    }`}></div>
                   )}
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h4 className="font-medium text-white whitespace-pre-wrap break-words">
+                          {item.transcript ? item.transcript : stripTags(item.text)}
+                        </h4>
+                        <p className="text-sm text-gray-400 flex items-center gap-2 flex-wrap">
+                          <span>{item.provider} • {item.voice_provider}</span>
+                          {item.voice_id ? <span>• voice: {item.voice_id}</span> : null}
+                          {item.provider === 'ollama' && item.llm_mode === 'nonstream' && (
+                            <span className="text-xxs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">
+                              non‑streaming fallback
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2 flex-shrink-0">
+                        <div className="text-right text-sm text-gray-400">
+                          <div>{new Date(item.created_at).toLocaleTimeString()}</div>
+                          {(item.generation_time_ms || item.tts_time_ms) && (
+                            <div className="text-xs">
+                              {item.generation_time_ms && `Gen: ${formatDuration(item.generation_time_ms)}`}
+                              {item.generation_time_ms && item.tts_time_ms && ' • '}
+                              {item.tts_time_ms && `TTS: ${formatDuration(item.tts_time_ms)}`}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => deleteCommentary(item.id)}
+                          className="text-red-400 hover:text-red-300 p-1 rounded transition-colors"
+                          title="Delete TTS entry"
+                        >
+                          <span className="text-sm">🗑️</span>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {audioSrc && (
+                      <div className="mt-2 space-y-2">
+                        <audio 
+                          controls 
+                          className={`w-full ${compact ? 'h-6' : 'h-8'}`}
+                          preload="metadata"
+                        >
+                          <source src={audioSrc} type="audio/mpeg" />
+                          Your browser does not support audio playback.
+                        </audio>
+                        <div className="flex items-center justify-between gap-2 text-xs text-gray-400">
+                          <span className="truncate" title={downloadFileName}>{downloadFileName}</span>
+                          <a
+                            href={audioSrc}
+                            download={downloadFileName}
+                            className="inline-flex items-center gap-1 text-sm text-pirate-300 hover:text-pirate-200"
+                          >
+                            <span aria-hidden="true">⬇️</span>
+                            <span>Download</span>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {/* Pagination Controls */}
             {ttsStatus?.pagination && ttsStatus.pagination.total > itemsPerPage && (
@@ -1050,6 +1186,7 @@ const TTSMonitor: React.FC = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

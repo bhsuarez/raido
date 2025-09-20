@@ -42,7 +42,8 @@ services:
       - icecast
     
   web-dev:
-    image: node:18
+    # Vite 7 requires Node 20.19+ or 22.12+
+    image: node:20.19
     working_dir: /app
     ports:
       - "3001:3000"  # Direct access to React dev server
