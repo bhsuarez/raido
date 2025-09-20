@@ -99,7 +99,7 @@ class OllamaClient:
             # Prefer streaming to keep latency low; on any issue, fall back to non-streaming
             content_parts: list[str] = []
             try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=90.0, write=60.0)) as client:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0, read=90.0, write=60.0)) as client:
                     async with client.stream(
                         "POST",
                         f"{self.base_url}/api/generate",
@@ -147,7 +147,7 @@ class OllamaClient:
             # If streaming yielded no content, try a non-streaming call once
             if not content_parts:
                 try:
-                    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=90.0, write=60.0)) as client:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0, read=90.0, write=60.0)) as client:
                         resp = await client.post(
                             f"{self.base_url}/api/generate",
                             json={

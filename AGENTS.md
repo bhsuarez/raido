@@ -1,88 +1,22 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `services/api/`: FastAPI backend (DB, schemas, routes, websockets).
-- `services/dj-worker/`: Background jobs: commentary, TTS, integrations.
-- `web/`: React + TypeScript UI (Vite, Tailwind, ESLint).
-- `infra/liquidsoap/`: Liquidsoap streaming configs and helpers.
-- `shared/`: Volumes (`shared/music`, `shared/tts`, `shared/logs`).
-- `logs/`: Runtime logs (e.g., Icecast).
-- `kokoro-tts/`: Local TTS tooling/assets.
+The stack is split by service. FastAPI lives in `services/api/` (routes, schemas, websockets); background jobs run from `services/dj-worker/`; the React UI is in `web/`. Streaming configs sit under `infra/liquidsoap/`, and shared volumes for music, TTS, and logs live in `shared/`. Use `logs/` for runtime output and `kokoro-tts/` for local voice assets.
 
 ## Build, Test, and Development Commands
-- `make setup`: Copy `.env.example` → `.env`, create required dirs.
-- `make build`: Build Docker images; `make up` / `make up-dev` start the stack.
-- `make status` / `make health`: Container status and basic service checks.
-- `make logs[-api|-dj|-web|-liquidsoap]`: Tail service logs.
-- `make migrate` | `make migrate-create name=<msg>`: DB migrations.
-- `make lint` | `make format`: Lint and auto-format backend/frontend.
-- Dev URLs: API `http://localhost:8000`, Web `http://localhost:3000`, Stream `http://localhost:8000/stream/raido.mp3`.
+Run `make setup` once to seed env files and required directories. Use `make build` to build all container images, then `make up` or `make up-dev` to launch the stack. Check status with `make status` or health hints via `make health`. Tail service-specific logs (`make logs-api`, `make logs-dj`, etc.) while debugging.
 
 ## Coding Style & Naming Conventions
-- Python: 4 spaces, type hints preferred; run `ruff check` and `ruff format`.
-- Web: TypeScript + ESLint; fix with `npm run lint:fix`. 2-space indent.
-- Names: Branches `feature/<slug>`, `fix/<slug>`, `chore/<slug>`.
-- Files: Python `snake_case.py`; React components `PascalCase.tsx`.
+Python follows 4-space indents, type hints, and Ruff (`ruff check`, `ruff format`). The web app uses TypeScript, Vite, Tailwind, and ESLint with 2-space indents; fix issues with `npm run lint:fix`. Name branches `feature/<slug>`, `fix/<slug>`, or `chore/<slug>`; Python modules use `snake_case.py`, React components use `PascalCase.tsx`.
 
 ## Testing Guidelines
-- API/DJ: Place Pytest tests under `services/<service>/tests/`.
-- Web: Put Jest/Vitest tests under `web/src/__tests__/`.
-- Until `make test` is wired, run directly, e.g.: `docker compose exec api pytest -q` and `cd web && npm test`.
+Place Pytest suites under `services/<service>/tests/`; run via `docker compose exec api pytest -q` or the dj-worker equivalent. Frontend tests live in `web/src/__tests__/`; execute `cd web && npm test`. Keep tests close to implementation, favor descriptive test names, and ensure new behavior has coverage before opening a PR.
 
 ## Commit & Pull Request Guidelines
-- Commits: Imperative, scoped prefix (e.g., `api: add now-playing endpoint`).
-- PRs: Include summary, linked issues, test steps, and UI screenshots where relevant; call out migrations/config changes.
-- Pre-merge: `make lint`, `make format`, boot with `make up-dev`, verify no secrets in diffs.
+Write commits in imperative tense with scoped prefixes (e.g., `api: add now-playing endpoint`). PRs should summarize the change, link issues, document migrations or config updates, include relevant screenshots, and note test commands executed. Confirm `make lint` and `make format` pass before requesting review.
 
 ## Security & Configuration Tips
-- Keep secrets in `.env` (see `.env.example`); never commit secrets.
-- Media: put audio in `shared/music/`; generated TTS in `shared/tts/`.
-- See `SYSTEM_PROTECTION.md` for safety constraints and guardrails.
+Store secrets in `.env` (derive from `.env.example`). For low-resource hosts set `DJ_PROVIDER=templates` or `disabled`, keep `MAX_CONCURRENT_JOBS=1`, and monitor `docker stats` during high load. Use `SYSTEM_PROTECTION.md` as the guardrail reference, and place audio assets in `shared/music/` with generated TTS in `shared/tts/`.
 
-## Incident: Service Overload (Host Reboot Required)
-
-- Summary: Host became unresponsive due to sustained CPU saturation from the DJ worker triggering frequent AI commentary generation while protections were disabled. A reboot was required to recover.
-
-- Impact: High CPU load across containers (Ollama, dj-worker, API), degraded responsiveness, stream interruptions, and eventual host instability.
-
-- Root Cause:
-  - System protection in the DJ worker was disabled (import of `system_monitor` was commented out), so load-based backoff never engaged.
-  - Admin defaults returned `dj_provider=ollama`, which drives on‑host LLM inference; combined with `WORKER_POLL_INTERVAL=5` and `MAX_CONCURRENT_JOBS=3` this allowed repeated/parallel generations under load.
-  - Web/API polling of now/next endpoints adds Liquidsoap telnet calls and occasional artwork lookups, compounding CPU and I/O when under stress.
-
-- Evidence Observed:
-  - `services/dj-worker/app/worker/dj_worker.py` had `system_monitor = None` with the protective import commented out.
-  - Admin settings schema defaulted to `dj_provider=ollama`, enabling CPU-bound inference by default when DB settings are empty.
-  - Icecast logs show stream interruptions around the incident window; SYSTEM_PROTECTION.md references prior overload modes consistent with this pattern.
-
-- Fix Implemented:
-  - Re-enabled system protection in DJ worker by importing `system_monitor` (file: `services/dj-worker/app/worker/dj_worker.py`).
-  - Tuned safer worker defaults (file: `services/dj-worker/app/core/config.py`):
-    - `WORKER_POLL_INTERVAL`: 10s
-    - `MAX_CONCURRENT_JOBS`: 1
-  - Made safer admin default (file: `services/api/app/schemas/admin.py`): `dj_provider=templates` to prefer light, deterministic generation unless explicitly changed in the UI.
-
-- Recommended Config Changes (ops):
-  - Set `DJ_PROVIDER=templates` or `disabled` in `.env` for low‑resource environments; enable Ollama only when capacity is available.
-  - If using Ollama, pin a small model and keep concurrency at 1.
-  - Optionally add Docker resource limits for `ollama` and `dj-worker` (CPU shares/quotas, memory limits).
-
-## Provider Options
-
-- Commentary `dj_provider` (text): `openai`, `ollama`, `templates`, `disabled`.
-- Voice `dj_voice_provider` (TTS): `kokoro`, `xtts`, `liquidsoap`, `openai_tts`.
-- Typical combos:
-  - Lightweight: `templates` + `kokoro`
-  - Local LLM: `ollama` + (`kokoro` or `xtts`)
-  - Fully disabled: `disabled` (voice ignored)
-
-- Runbook (stabilize + verify):
-  - Disable heavy generation fast: set `DJ_PROVIDER=disabled` and restart `dj-worker`.
-  - Confirm protections active: tail dj-worker logs for health/circuit messages.
-  - Gradually re‑enable: switch to `templates` first; if stable, consider `ollama` with concurrency=1.
-  - Monitor: `docker stats`, `uptime`, `free -h`, and API `/api/v1/admin/tts-status`.
-
-- Next Steps (optional hardening):
-  - Add API rate limiting or caching on now/next endpoints.
-  - Add per‑minute max generation guard in DJ worker (soft throttle).
-  - Add compose resource limits for `ollama`.
+## Chatterbox Shim & TTS Flow
+`services/chatterbox-shim/` proxies commentary TTS to the upstream server at `http://192.168.1.112:8000`. The DJ worker posts to `{CHATTERBOX_BASE_URL}/api/speak` with `text` and `voice_id`; the shim forwards to `/v1/audio/speech` (fallback `/tts`), stores the returned audio under `/shared/tts/commentary_*.mp3`, and the API injects it via `tts.push`. Validate the shim with `curl http://localhost:18000/health`, then issue `curl -s -X POST http://localhost:18000/api/speak -H 'Content-Type: application/json' -d '{"voice_id":"cb231744-e7c6-4f56-9aaa-593720b38928","text":"Test line"}' > /tmp/test.mp3` to confirm audio output. Tail `docker compose logs chatterbox-shim` or `docker compose logs dj-worker` if jobs stall.

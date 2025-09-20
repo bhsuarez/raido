@@ -20,12 +20,9 @@ class Settings(BaseSettings):
     OPENAI_TTS_MODEL: str = "tts-1"
     
     # Ollama
-    OLLAMA_BASE_URL: str = "http://ollama:11434"
+    OLLAMA_BASE_URL: str = "http://192.168.1.204:11434"
     OLLAMA_MODEL: str = "llama3.2:1b"
     
-    # XTTS
-    XTTS_BASE_URL: Optional[str] = None
-    XTTS_VOICE: str = "pirate_dj"
     
     # Kokoro TTS
     KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
@@ -33,15 +30,15 @@ class Settings(BaseSettings):
     KOKORO_SPEED: float = 1.0
     KOKORO_VOLUME: float = 1.0
     
-    # Chatterbox TTS
-    CHATTERBOX_BASE_URL: str = "http://chatterbox-tts:4123"
+    # Chatterbox TTS (via shim proxy)
+    CHATTERBOX_BASE_URL: str = "http://chatterbox-shim:8000"
     CHATTERBOX_VOICE: str = "default"
     CHATTERBOX_EXAGGERATION: float = 1.0
     CHATTERBOX_CFG_WEIGHT: float = 0.5
     
     # DJ Configuration
     DJ_PROVIDER: str = "templates"  # openai, ollama, templates, disabled
-    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, xtts, chatterbox
+    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"
@@ -62,6 +59,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_JOBS: int = 1
     COMMENTARY_TIMEOUT: int = 60  # seconds
     TTS_TIMEOUT: int = 30  # seconds
+    CHATTERBOX_TTS_TIMEOUT: int = 180  # seconds (3 minutes for Chatterbox)
     
     class Config:
         env_file = ".env"

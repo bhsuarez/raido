@@ -84,25 +84,47 @@ class APIClient:
             logger.error("Error getting settings", error=str(e))
             return {}
     
-    async def create_commentary(self, commentary_data: Dict[str, Any]) -> bool:
-        """Create a new commentary record"""
+    async def create_commentary(self, commentary_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new commentary record and return the response JSON."""
         try:
             response = await self.client.post(
                 f"{self.base_url}/api/v1/admin/commentary",
                 json=commentary_data
             )
-            
             if response.status_code in [200, 201]:
+                try:
+                    data = response.json()
+                except Exception:
+                    data = {"status": "success"}
                 logger.info("Commentary saved successfully")
-                return True
-            
-            logger.error("Failed to save commentary", 
-                        status=response.status_code,
-                        response=response.text)
-            return False
-        
+                return data
+            logger.error(
+                "Failed to save commentary",
+                status=response.status_code,
+                response=response.text,
+            )
+            return None
         except Exception as e:
             logger.error("Error creating commentary", error=str(e))
+            return None
+
+    async def update_commentary(self, commentary_id: int, payload: Dict[str, Any]) -> bool:
+        """Update an existing commentary record by ID."""
+        try:
+            response = await self.client.patch(
+                f"{self.base_url}/api/v1/admin/commentary/{commentary_id}",
+                json=payload,
+            )
+            if response.status_code in [200, 204]:
+                return True
+            try:
+                detail = response.json()
+            except Exception:
+                detail = response.text
+            logger.error("Failed to update commentary", status=response.status_code, detail=str(detail)[:200])
+            return False
+        except Exception as e:
+            logger.error("Error updating commentary", error=str(e))
             return False
     
     async def inject_commentary(self, audio_filename: str) -> bool:

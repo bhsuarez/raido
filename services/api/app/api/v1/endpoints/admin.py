@@ -3,11 +3,12 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from typing import Dict, Any
+from typing import Any, Dict, List, Optional, Set
 from datetime import datetime, timezone, timedelta
 import structlog
 from collections import Counter
 import re
+from pathlib import Path
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -162,6 +163,7 @@ async def create_commentary(
             audio_url = f"/static/tts/{audio_url}"
         
         # Create commentary record
+        status_val = commentary_data.get("status") or "ready"
         commentary = Commentary(
             play_id=play_id,
             text=commentary_data.get("text", ""),
@@ -174,7 +176,7 @@ async def create_commentary(
             duration_ms=commentary_data.get("duration_ms"),
             generation_time_ms=commentary_data.get("generation_time_ms"),
             tts_time_ms=commentary_data.get("tts_time_ms"),
-            status="ready",
+            status=status_val,
             created_at=datetime.now(timezone.utc)
         )
         
@@ -188,10 +190,11 @@ async def create_commentary(
                    audio_url=commentary.audio_url)
         
         return {
-            "status": "success", 
+            "status": "success",
             "message": "Commentary created",
             "commentary_id": commentary.id,
-            "audio_url": commentary.audio_url
+            "audio_url": commentary.audio_url,
+            "status_val": commentary.status,
         }
         
     except Exception as e:
@@ -199,6 +202,42 @@ async def create_commentary(
         logger.error("Failed to create commentary", error=str(e), data=commentary_data)
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create commentary: {str(e)}")
+
+@router.patch("/commentary/{commentary_id}")
+async def update_commentary(
+    commentary_id: int,
+    payload: Dict[str, Any],
+    db: AsyncSession = Depends(get_db)
+):
+    """Update fields on a commentary record (status, audio_url, timings, text, etc.)."""
+    logger = structlog.get_logger()
+    try:
+        # Fetch the commentary
+        from sqlalchemy import select
+        result = await db.execute(select(Commentary).where(Commentary.id == commentary_id))
+        commentary = result.scalar_one_or_none()
+        if not commentary:
+            raise HTTPException(status_code=404, detail="Commentary not found")
+
+        # Update whitelisted fields if present
+        fields = [
+            "text", "ssml", "transcript", "audio_url", "provider", "model",
+            "voice_provider", "voice_id", "duration_ms", "generation_time_ms",
+            "tts_time_ms", "status", "error_message", "retry_count", "context_data"
+        ]
+        for key in fields:
+            if key in payload:
+                setattr(commentary, key, payload[key])
+
+        commentary.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+        return {"status": "success", "updated_id": commentary_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update commentary", error=str(e), commentary_id=commentary_id)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update commentary: {str(e)}")
 
 @router.delete("/commentary/{commentary_id}")
 async def delete_commentary(
@@ -255,12 +294,22 @@ async def get_tts_status(
         logger = structlog.get_logger()
         
         # Get recent commentary records with generation stats
-        from sqlalchemy import func, desc
+        from sqlalchemy import func, desc, update
         from datetime import timedelta
         
         now = datetime.now(timezone.utc)
         last_24h = now - timedelta(hours=24)
         window_start = now - timedelta(hours=window_hours)
+
+        # Cleanup stuck generations older than 30 seconds
+        stuck_threshold = now - timedelta(seconds=30)
+        await db.execute(
+            update(Commentary)
+            .where(Commentary.status.in_(["pending", "generating", "running"]))
+            .where(Commentary.created_at < stuck_threshold)
+            .values(status="failed", error_message="Timed out", updated_at=now)
+        )
+        await db.commit()
         
         # Count total commentary in last 24h
         total_result = await db.execute(
@@ -328,21 +377,109 @@ async def get_tts_status(
             except Exception:
                 llm_mode = None
 
+            # Map database status to frontend status
+            frontend_status = comment.status
+            if comment.status in ["pending", "generating"]:
+                frontend_status = "running"
+            elif comment.status == "ready":
+                frontend_status = "ready"
+            elif comment.status == "failed":
+                frontend_status = "failed"
+
+            # Ensure audio_url has full static path
+            audio_url = comment.audio_url
+            if audio_url and not audio_url.startswith("http") and not audio_url.startswith("/"):
+                audio_url = f"/static/tts/{audio_url}"
+
             recent_activity.append({
                 "id": comment.id,
                 "text": comment.text,  # may contain SSML
                 "transcript": comment.transcript,  # full plain-text transcript when available
-                "status": comment.status,
+                "status": frontend_status,
                 "provider": comment.provider,
                 "voice_provider": comment.voice_provider,
                 "voice_id": comment.voice_id,
                 "generation_time_ms": comment.generation_time_ms,
                 "tts_time_ms": comment.tts_time_ms,
                 "created_at": comment.created_at,
-                "audio_url": comment.audio_url,
+                "audio_url": audio_url,
                 "llm_mode": llm_mode
             })
         
+        # Determine chatterbox health
+        def _normalize_base(value: Optional[str]) -> Optional[str]:
+            if not value:
+                return None
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            return cleaned.rstrip('/')
+
+        chatterbox_candidates: List[str] = []
+        seen_candidates: Set[str] = set()
+
+        def _add_candidate(raw: Optional[str]) -> None:
+            base = _normalize_base(raw)
+            if base and base not in seen_candidates:
+                seen_candidates.add(base)
+                chatterbox_candidates.append(base)
+
+        _add_candidate(getattr(settings, 'CHATTERBOX_BASE_URL', None))
+
+        db_base_result = await db.execute(
+            select(Setting).where(Setting.key == 'chatterbox_base_url')
+        )
+        db_base_setting = db_base_result.scalars().first()
+        if db_base_setting and db_base_setting.value:
+            _add_candidate(db_base_setting.value)
+
+        _add_candidate('http://chatterbox-shim:8000')
+
+        chatterbox_status = 'unknown'
+        chatterbox_detail: Optional[str] = None
+        chatterbox_endpoint_used: Optional[str] = None
+
+        if chatterbox_candidates:
+            last_status = 'stopped'
+            last_detail: str | None = None
+
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                for base in chatterbox_candidates:
+                    health_url = f"{base}/health"
+                    try:
+                        resp = await client.get(health_url)
+                        if resp.status_code == 200:
+                            chatterbox_status = 'running'
+                            chatterbox_endpoint_used = base
+                            try:
+                                payload = resp.json()
+                                if isinstance(payload, dict):
+                                    summary = payload.get('detail') or payload.get('status') or payload.get('message')
+                                    if isinstance(summary, str) and summary.strip():
+                                        chatterbox_detail = summary.strip()
+                            except Exception:
+                                chatterbox_detail = None
+                            if not chatterbox_detail:
+                                chatterbox_detail = f"Healthy response from {base}"
+                            break
+                        else:
+                            last_status = 'warning'
+                            last_detail = f"HTTP {resp.status_code} from {health_url}"
+                            chatterbox_endpoint_used = base
+                    except Exception as exc:
+                        last_status = 'stopped'
+                        last_detail = f"{type(exc).__name__}: {exc}"[:200]
+                        chatterbox_endpoint_used = base
+                else:
+                    chatterbox_status = last_status
+                    chatterbox_detail = last_detail or 'Unable to reach Chatterbox service'
+        else:
+            chatterbox_status = 'unknown'
+            chatterbox_detail = 'Chatterbox base URL not configured.'
+
+        if chatterbox_detail and len(chatterbox_detail) > 200:
+            chatterbox_detail = chatterbox_detail[:200]
+
         return {
             "status": "success",
             "statistics": {
@@ -363,7 +500,13 @@ async def get_tts_status(
             "system_status": {
                 "tts_service": "running",  # Could check actual service health
                 "dj_worker": "running",    # Could check actual worker health
-                "kokoro_tts": "running"    # Could check Kokoro health
+                "kokoro_tts": "running",   # Could check Kokoro health
+                "chatterbox_tts": chatterbox_status
+            },
+            "chatterbox_health": {
+                "status": chatterbox_status,
+                "detail": chatterbox_detail,
+                "endpoint": chatterbox_endpoint_used,
             }
         }
         
@@ -376,7 +519,7 @@ async def get_tts_status(
 async def list_kokoro_voices():
     """List available Kokoro TTS voices via kokoro-tts service."""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{settings.KOKORO_BASE_URL}/v1/audio/voices")
             if resp.status_code == 200:
                 data = resp.json()
@@ -401,51 +544,23 @@ async def list_kokoro_voices():
     ]
     return {"voices": fallback}
 
-@router.get("/voices-xtts")
-async def list_xtts_voices():
-    """List available XTTS voices via OpenTTS-compatible server.
+## XTTS voice listing removed (voice cloning not supported)
 
-    Tries `${XTTS_BASE_URL}/api/voices` and normalizes to a simple string list.
-    """
+def _looks_like_audio(content: bytes, content_type: str | None) -> bool:
     try:
-        base = (settings.XTTS_BASE_URL or '').rstrip('/')
-        if not base:
-            # No XTTS configured; return empty list
-            return {"voices": []}
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{base}/api/voices")
-            if resp.status_code == 200:
-                data = resp.json()
-                voices = []
-                # OpenTTS returns a dict of voices with details; collect keys/ids/names
-                if isinstance(data, dict):
-                    for k, v in data.items():
-                        # Prefer the fully-qualified key (engine:id) so requests work reliably
-                        key_name = str(k)
-                        if key_name:
-                            voices.append(key_name)
-                elif isinstance(data, list):
-                    for v in data:
-                        if isinstance(v, dict):
-                            # Fall back to id/name if only a list is provided
-                            name = v.get('id') or v.get('name')
-                            if name:
-                                voices.append(str(name))
-                        else:
-                            voices.append(str(v))
-                # De-duplicate while preserving order
-                seen = set()
-                ordered = []
-                for v in voices:
-                    if v not in seen:
-                        seen.add(v)
-                        ordered.append(v)
-                # Also return the raw map so clients can discover speakers, etc.
-                return {"voices": ordered, "voices_map": data}
-    except Exception as e:
-        logger = structlog.get_logger()
-        logger.warning("Failed to list XTTS voices", error=str(e))
-    return {"voices": [], "voices_map": {}}
+        if not content or len(content) < 1000:
+            return False
+        if content_type and content_type.startswith("audio/"):
+            return True
+        head = content[:4]
+        if head.startswith(b"ID3"):
+            return True
+        if len(head) >= 2 and head[0] == 0xFF and head[1] in (0xFB, 0xF3, 0xF2):
+            return True
+        return False
+    except Exception:
+        return False
+
 
 @router.post("/tts-test")
 async def tts_test(payload: Dict[str, Any]):
@@ -488,6 +603,10 @@ async def tts_test(payload: Dict[str, Any]):
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail=f"Kokoro TTS error: {resp.text[:200]}")
 
+            if not _looks_like_audio(resp.content, resp.headers.get("content-type")):
+                detail = resp.text[:200] if resp.content else "no content"
+                raise HTTPException(status_code=502, detail=f"Kokoro TTS returned non-audio response: {detail}")
+
         with open(out_path, "wb") as f:
             f.write(resp.content)
 
@@ -500,72 +619,10 @@ async def tts_test(payload: Dict[str, Any]):
         logger.error("Failed to synthesize TTS test", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to synthesize TTS test: {str(e)}")
 
-@router.post("/tts-test-xtts")
-async def tts_test_xtts(payload: Dict[str, Any]):
-    """Synthesize a short sample with XTTS and return an audio URL.
-
-    Body fields:
-    - text: sample text (optional; default provided)
-    - voice: XTTS voice id (e.g., 'coqui-tts:en_ljspeech')
-    - speaker: speaker id for multi-speaker voices (optional)
-    """
-    logger = structlog.get_logger()
-    try:
-        text = str(payload.get("text") or "This is a Raido XTTS voice test.")
-        voice = payload.get("voice") or "coqui-tts:en_ljspeech"
-        speaker = payload.get("speaker") or None
-        
-        # Validate XTTS is configured
-        xtts_base = getattr(settings, 'XTTS_BASE_URL', None)
-        if not xtts_base:
-            raise HTTPException(status_code=503, detail="XTTS server not configured")
-        
-        filename = f"xtts_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.wav"
-        out_path = f"/shared/tts/{filename}"
-        
-        # Prepare XTTS request - use OpenTTS API format
-        params = {
-            'text': text,
-            'voice': voice
-        }
-        if speaker:
-            params['speaker'] = speaker
-            
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            # Try OpenTTS format first: GET /api/tts with query params
-            resp = await client.get(
-                f"{xtts_base.rstrip('/')}/api/tts",
-                params=params
-            )
-            
-            if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=resp.status_code, 
-                    detail=f"XTTS error: {resp.text[:200]}"
-                )
-            
-            # Write audio content to file
-            with open(out_path, "wb") as f:
-                f.write(resp.content)
-        
-        url = f"/static/tts/{filename}"
-        logger.info("XTTS test synthesized", voice=voice, speaker=speaker, url=url)
-        return {
-            "status": "success", 
-            "audio_url": url, 
-            "voice": voice, 
-            "speaker": speaker,
-            "provider": "xtts"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to synthesize XTTS test", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to synthesize XTTS test: {str(e)}")
+## XTTS test endpoint removed (voice cloning not supported)
 
 @router.get("/voices-chatterbox")
-async def list_chatterbox_voices():
+async def list_chatterbox_voices(db: AsyncSession = Depends(get_db)):
     """List Chatterbox voices if the server exposes them; otherwise return a small default.
 
     Tries a few endpoints on the configured Chatterbox server:
@@ -575,45 +632,111 @@ async def list_chatterbox_voices():
     Expects either an array of names or an object with ids/names.
     """
     try:
+        candidates = []
+        # Check DB overrides first
+        try:
+            from app.models import Setting
+            result = await db.execute(select(Setting).where(Setting.key.in_(["chatterbox_voices_url", "chatterbox_base_url"])) )
+            rows = result.scalars().all()
+            db_vals = {row.key: row.value for row in rows}
+            if db_vals.get("chatterbox_voices_url"):
+                candidates.append(db_vals["chatterbox_voices_url"].strip())
+            if db_vals.get("chatterbox_base_url") and not getattr(settings, 'CHATTERBOX_BASE_URL', None):
+                # Use DB base if env not set
+                base = db_vals["chatterbox_base_url"].strip().rstrip('/')
+                for path in ("/api/voices", "/voices", "/v1/voices", "/v1/audio/voices"):
+                    candidates.append(f"{base}{path}")
+        except Exception:
+            pass
+        # 1) Explicit voices URL if provided
+        if getattr(settings, 'CHATTERBOX_VOICES_URL', None):
+            candidates.append(settings.CHATTERBOX_VOICES_URL.strip())
+        # 2) Derive from base URL
         base = getattr(settings, 'CHATTERBOX_BASE_URL', None)
         if base:
             base = base.rstrip('/')
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                for path in ("/voices", "/v1/voices", "/v1/audio/voices"):
-                    try:
-                        resp = await client.get(f"{base}{path}")
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            voices = []
-                            if isinstance(data, list):
-                                for v in data:
-                                    if isinstance(v, dict):
-                                        name = v.get('id') or v.get('name')
-                                        if name:
-                                            voices.append(str(name))
-                                    else:
-                                        voices.append(str(v))
-                            elif isinstance(data, dict):
-                                # Collect keys or id/name fields
-                                for k, v in data.items():
-                                    if isinstance(v, dict):
-                                        name = v.get('id') or v.get('name') or k
-                                        if name:
-                                            voices.append(str(name))
-                                    else:
-                                        voices.append(str(k))
-                            # De-duplicate, preserve order
-                            out = []
-                            seen = set()
-                            for v in voices:
-                                if v not in seen:
-                                    seen.add(v)
-                                    out.append(v)
-                            if out:
-                                return {"voices": out}
-                    except Exception:
-                        # Try next path
+            # Common endpoints
+            for path in ("/api/voices", "/voices", "/v1/voices", "/v1/audio/voices"):
+                candidates.append(f"{base}{path}")
+        # 3) Try chatterbox-shim local proxy first (priority)
+        if 'http://chatterbox-shim:8000/api/voices' not in candidates:
+            candidates.insert(0, 'http://chatterbox-shim:8000/api/voices')
+        # 4) User-provided known host (fallback for convenience)
+        if 'http://192.168.1.112:8080/api/voices' not in candidates:
+            candidates.append('http://192.168.1.112:8080/api/voices')
+
+        generic_aliases = {"", "default", "voice", "sample", "voices", "prompt"}
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            for url in candidates:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code != 200:
                         continue
+                    data = resp.json()
+                    # Normalize voices list
+                    voices: list[str] = []
+
+                    def _append_candidate(raw: str | None) -> None:
+                        if raw is None:
+                            return
+                        value = str(raw).strip()
+                        if not value:
+                            return
+                        normalized = value.lower()
+                        if "_" in value:
+                            alias = value.split("_", 1)[-1].strip()
+                            if alias and alias.lower() not in generic_aliases and alias != value:
+                                voices.append(alias)
+                        if " " in value and normalized != "default":
+                            alias = value.split()[-1].strip()
+                            if alias and alias.lower() not in generic_aliases and alias != value:
+                                voices.append(alias)
+                            # Skip noisy multi-word labels like "uuid alias"
+                            return
+                        voices.append(value)
+
+                    def _append_from_path(path_value: str | None) -> None:
+                        if not path_value:
+                            return
+                        stem = Path(str(path_value)).stem
+                        _append_candidate(stem)
+
+                    # If wrapped
+                    if isinstance(data, dict) and 'voices' in data:
+                        data = data['voices']
+                    if isinstance(data, list):
+                        for v in data:
+                            if isinstance(v, dict):
+                                _append_candidate(v.get('id'))
+                                _append_candidate(v.get('name'))
+                                _append_candidate(v.get('voice'))
+                                _append_from_path(v.get('file_path') or v.get('audio_prompt_path'))
+                            else:
+                                _append_candidate(str(v))
+                    elif isinstance(data, dict):
+                        # Map of id->name or similar
+                        for k, v in data.items():
+                            if isinstance(v, dict):
+                                _append_candidate(v.get('id'))
+                                _append_candidate(v.get('name'))
+                                _append_candidate(v.get('voice'))
+                                _append_from_path(v.get('file_path') or v.get('audio_prompt_path'))
+                            else:
+                                _append_candidate(str(k))
+                    # De-duplicate
+                    out: list[str] = []
+                    seen: set[str] = set()
+                    for v in voices:
+                        normalized = v.lower()
+                        if normalized in seen:
+                            continue
+                        seen.add(normalized)
+                        out.append(v)
+                    if out:
+                        return {"voices": out}
+                except Exception:
+                    continue
     except Exception:
         pass
 
@@ -698,7 +821,10 @@ async def tts_test_chatterbox(payload: Dict[str, Any]):
 
                 attempt = await client.post(url, data=data)
                 if attempt.status_code == 200 and attempt.content:
-                    resp = attempt
+                    if _looks_like_audio(attempt.content, attempt.headers.get("content-type")):
+                        resp = attempt
+                    else:
+                        logger.warning("Chatterbox /v1/audio/speech returned non-audio", preview=attempt.text[:200])
                 else:
                     logger.warning("Chatterbox /v1/audio/speech failed", status=attempt.status_code, text=attempt.text[:200])
             except Exception as e:
@@ -724,6 +850,10 @@ async def tts_test_chatterbox(payload: Dict[str, Any]):
                     status_code=(resp.status_code if resp is not None else 502),
                     detail=f"Chatterbox TTS error: {(resp.text[:200] if resp is not None else 'no response')}"
                 )
+
+            if not _looks_like_audio(resp.content, resp.headers.get("content-type")):
+                detail = resp.text[:200] if resp.content else "no content"
+                raise HTTPException(status_code=502, detail=f"Chatterbox TTS returned non-audio response: {detail}")
 
             # Write audio content to file
             with open(out_path, "wb") as f:
@@ -786,6 +916,8 @@ async def tts_test_openai(payload: Dict[str, Any]):
         
         if not audio_data:
             raise HTTPException(status_code=500, detail="OpenAI TTS returned no audio data")
+        if not _looks_like_audio(audio_data, None):
+            raise HTTPException(status_code=502, detail="OpenAI TTS returned invalid audio data")
         
         # Write audio content to file
         with open(out_path, "wb") as f:
@@ -1069,7 +1201,32 @@ async def get_analytics(
                 "end": now.isoformat()
             }
         }
-        
+
     except Exception as e:
         logger.error("Failed to get analytics", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
+
+@router.post("/clear-recent-commentary")
+async def clear_recent_commentary(db: AsyncSession = Depends(get_db)):
+    """Clear all recent commentary records to allow new TTS generation"""
+    logger = structlog.get_logger()
+    try:
+        from sqlalchemy import delete
+
+        # Delete all commentary records
+        result = await db.execute(delete(Commentary))
+        deleted_count = result.rowcount
+        await db.commit()
+
+        logger.info("Recent commentary cleared", deleted_count=deleted_count)
+
+        return {
+            "status": "success",
+            "message": f"Cleared {deleted_count} commentary records",
+            "deleted_count": deleted_count
+        }
+
+    except Exception as e:
+        logger.error("Failed to clear recent commentary", error=str(e))
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to clear recent commentary: {str(e)}")

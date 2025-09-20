@@ -26,22 +26,21 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_MODEL: str = "llama3.1"
     
-    # XTTS
-    XTTS_BASE_URL: Optional[str] = None
-    XTTS_VOICE: str = "pirate_dj"
     
     # Kokoro TTS (API service)
     KOKORO_BASE_URL: str = "http://kokoro-tts:8880"
     
     # Chatterbox TTS
     CHATTERBOX_BASE_URL: Optional[str] = None
+    # Optional separate endpoint for listing voices (e.g., http://host:8080/api/voices)
+    CHATTERBOX_VOICES_URL: Optional[str] = None
     CHATTERBOX_VOICE: str = "default"
     CHATTERBOX_EXAGGERATION: float = 1.0
     CHATTERBOX_CFG_WEIGHT: float = 0.5
     
     # DJ Configuration
     DJ_PROVIDER: str = "openai"  # openai, ollama
-    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, xtts, chatterbox
+    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"

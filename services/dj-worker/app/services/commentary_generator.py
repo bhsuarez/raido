@@ -130,16 +130,28 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             
             # Generate commentary based on provider
             if provider == "openai" and self.openai_client and settings.OPENAI_API_KEY:
-                return await self._generate_with_openai(prompt_context, dj_settings)
+                res = await self._generate_with_openai(prompt_context, dj_settings)
+                if isinstance(res, dict):
+                    res["provider_used"] = "openai"
+                return res
             elif provider == "ollama":
                 result = await self._generate_with_ollama(prompt_context, dj_settings)
                 if result:
+                    # Mark that Ollama was used
+                    if isinstance(result, dict):
+                        result["provider_used"] = "ollama"
                     return result
                 # Safety fallback: if Ollama fails, use templates to keep TTS flowing
                 logger.warning("Ollama failed; falling back to templates provider for this job")
-                return await self._generate_with_templates(prompt_context)
+                fallback = await self._generate_with_templates(prompt_context, dj_settings)
+                if isinstance(fallback, dict):
+                    fallback["provider_used"] = "templates"
+                return fallback
             elif provider == "templates":
-                return await self._generate_with_templates(prompt_context, dj_settings)
+                res = await self._generate_with_templates(prompt_context, dj_settings)
+                if isinstance(res, dict):
+                    res["provider_used"] = "templates"
+                return res
             else:
                 logger.info("DJ provider not available", provider=provider, 
                            has_openai=bool(self.openai_client and settings.OPENAI_API_KEY))

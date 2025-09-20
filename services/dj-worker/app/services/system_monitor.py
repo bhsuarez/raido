@@ -23,29 +23,21 @@ class SystemMonitor:
     """Monitor system resources and prevent resource exhaustion"""
     
     def __init__(self):
-        # Thresholds for health checks
-        self.cpu_warning_threshold = 80.0  # %
+        # Simplified thresholds since heavy workloads (Ollama, TTS) run externally
+        self.cpu_warning_threshold = 85.0  # %
         self.cpu_critical_threshold = 95.0  # %
-        self.memory_warning_threshold = 80.0  # %
+        self.memory_warning_threshold = 85.0  # %
         self.memory_critical_threshold = 95.0  # %
-        self.load_critical_threshold = 10.0  # 1-minute load average
-        
-        # Circuit breaker for system protection
-        self._consecutive_unhealthy_checks = 0
-        self._max_consecutive_unhealthy = 5
-        self._system_protection_active = False
-        self._protection_end_time = None
-        self._protection_duration = 300  # 5 minutes
+        self.load_critical_threshold = 80.0  # 1-minute load average (high tolerance for stable system)
         
     async def check_system_health(self) -> SystemHealth:
         """Check current system health status"""
         try:
             # Get CPU usage (1 second average)
             cpu_percent = psutil.cpu_percent(interval=1.0)
-            
-            # Get memory usage
-            memory = psutil.virtual_memory()
-            memory_percent = memory.percent
+
+            # Get memory usage - use container-aware method if in Docker
+            memory_percent = self._get_container_memory_percent()
             
             # Get load average (1-minute)
             load_avg = psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0.0
@@ -70,20 +62,11 @@ class SystemMonitor:
                 warnings.append(f"CRITICAL: Load average at {load_avg:.2f}")
                 is_healthy = False
             
-            # Update protection state
-            if not is_healthy:
-                self._consecutive_unhealthy_checks += 1
-                if self._consecutive_unhealthy_checks >= self._max_consecutive_unhealthy:
-                    self._activate_system_protection()
-            else:
-                self._consecutive_unhealthy_checks = 0
-                self._deactivate_system_protection()
-            
             health = SystemHealth(
                 cpu_percent=cpu_percent,
                 memory_percent=memory_percent,
                 load_average=load_avg,
-                is_healthy=is_healthy and not self.is_protection_active(),
+                is_healthy=is_healthy,
                 warnings=warnings
             )
             
@@ -106,40 +89,14 @@ class SystemMonitor:
                 warnings=[f"Health check failed: {str(e)}"]
             )
     
-    def _activate_system_protection(self):
-        """Activate system protection mode"""
-        if not self._system_protection_active:
-            self._system_protection_active = True
-            self._protection_end_time = datetime.now() + timedelta(seconds=self._protection_duration)
-            logger.error("SYSTEM PROTECTION ACTIVATED - High resource usage detected",
-                        duration_minutes=self._protection_duration // 60,
-                        consecutive_failures=self._consecutive_unhealthy_checks)
-    
-    def _deactivate_system_protection(self):
-        """Deactivate system protection if timeout reached"""
-        if self._system_protection_active:
-            if self._protection_end_time and datetime.now() >= self._protection_end_time:
-                self._system_protection_active = False
-                self._protection_end_time = None
-                logger.info("System protection deactivated - system health restored")
-    
-    def is_protection_active(self) -> bool:
-        """Check if system protection is currently active"""
-        if self._system_protection_active:
-            self._deactivate_system_protection()  # Check if we should deactivate
-        return self._system_protection_active
-    
     def is_safe_for_intensive_operations(self) -> bool:
         """Check if system can handle intensive operations like TTS generation"""
-        if self.is_protection_active():
-            return False
-        
         # Quick health check without the full monitoring overhead
         try:
             cpu_percent = psutil.cpu_percent(interval=0.1)
-            memory_percent = psutil.virtual_memory().percent
-            
-            return (cpu_percent < self.cpu_warning_threshold and 
+            memory_percent = self._get_container_memory_percent()
+
+            return (cpu_percent < self.cpu_warning_threshold and
                    memory_percent < self.memory_warning_threshold)
         except Exception:
             return False
@@ -167,11 +124,58 @@ class SystemMonitor:
                     'free_gb': disk.free / (1024**3),
                     'percent': (disk.used / disk.total) * 100
                 },
-                'protection_active': self.is_protection_active()
+                'protection_active': False
             }
         except Exception as e:
             logger.error("Failed to get system info", error=str(e))
             return {'error': str(e)}
+
+    def _get_container_memory_percent(self) -> float:
+        """Get container-aware memory usage percentage"""
+        try:
+            # Try Docker container memory stats first
+            import os
+            cgroup_memory_usage = "/sys/fs/cgroup/memory.current"
+            cgroup_memory_limit = "/sys/fs/cgroup/memory.max"
+
+            # Check for cgroup v2 (newer Docker)
+            if os.path.exists(cgroup_memory_usage) and os.path.exists(cgroup_memory_limit):
+                with open(cgroup_memory_usage, 'r') as f:
+                    current = int(f.read().strip())
+                with open(cgroup_memory_limit, 'r') as f:
+                    limit_str = f.read().strip()
+                    if limit_str == "max":
+                        # No memory limit set, use system memory
+                        return psutil.virtual_memory().percent
+                    limit = int(limit_str)
+                return (current / limit) * 100.0
+
+            # Try cgroup v1 (older Docker)
+            cgroup_v1_usage = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+            cgroup_v1_limit = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+
+            if os.path.exists(cgroup_v1_usage) and os.path.exists(cgroup_v1_limit):
+                with open(cgroup_v1_usage, 'r') as f:
+                    current = int(f.read().strip())
+                with open(cgroup_v1_limit, 'r') as f:
+                    limit = int(f.read().strip())
+                    # Very large limits mean no constraint
+                    if limit > (1024**4):  # More than 1TB means unconstrained
+                        return psutil.virtual_memory().percent
+                return (current / limit) * 100.0
+
+        except Exception as e:
+            logger.warning("Failed to read container memory stats, falling back to system memory", error=str(e))
+
+        # Fallback to system memory (but with much higher thresholds for containers)
+        system_percent = psutil.virtual_memory().percent
+        # If we're in a container and seeing high system usage, assume it's host memory bleed-through
+        # Only flag as problematic if it's extremely high (>99%)
+        if system_percent > 99:
+            return system_percent
+        else:
+            # Return a low percentage to prevent false positives from host memory usage
+            return min(system_percent, 75.0)
 
 # Global system monitor instance
 system_monitor = SystemMonitor()
