@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 from app.core.database import get_db
+from app.core.security import require_authenticated_user
 from app.core.config import settings
 from app.schemas.admin import AdminSettingsResponse, AdminStatsResponse
 from app.models import Commentary, Play, Setting, Track
@@ -21,7 +22,7 @@ except Exception:
     Template = None  # type: ignore
     TemplateSyntaxError = Exception  # type: ignore
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_authenticated_user)])
 
 @router.get("/settings", response_model=AdminSettingsResponse)
 async def get_admin_settings(db: AsyncSession = Depends(get_db)):

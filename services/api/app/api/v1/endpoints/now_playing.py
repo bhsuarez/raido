@@ -6,11 +6,12 @@ import structlog
 from pathlib import Path
 
 from app.core.database import AsyncSessionLocal, get_db
+from app.core.security import require_authenticated_user
 from app.models import Track, Play, Commentary
 from app.schemas.stream import NowPlayingResponse, HistoryResponse, NextUpResponse
 from app.services.liquidsoap_client import LiquidsoapClient
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_authenticated_user)])
 logger = structlog.get_logger()
 
 @router.get("/", response_model=NowPlayingResponse)

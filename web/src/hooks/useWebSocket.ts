@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { useRadioStore } from '../store/radioStore'
+import { useRaidoAuth } from '../providers/AuthProvider'
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
@@ -10,13 +11,26 @@ export function useWebSocket() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
   const reconnectAttempts = useRef(0)
   const maxReconnectAttempts = 5
+  const { isEnabled: authEnabled, isAuthenticated, accessToken } = useRaidoAuth()
 
-  const connect = () => {
+  const connect = useCallback(() => {
+    if (authEnabled && (!isAuthenticated || !accessToken)) {
+      setIsConnected(false)
+      return
+    }
+
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws`
-      
-      wsRef.current = new WebSocket(wsUrl)
+      const url = new URL(`${protocol}//${window.location.host}/ws`)
+      if (authEnabled && accessToken) {
+        url.searchParams.set('token', accessToken)
+      }
+
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Reconnecting')
+      }
+
+      wsRef.current = new WebSocket(url.toString())
 
       wsRef.current.onopen = () => {
         console.log('🏴‍☠️ WebSocket connected')
@@ -60,14 +74,18 @@ export function useWebSocket() {
       wsRef.current.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason)
         setIsConnected(false)
-        
+
         // Attempt to reconnect if not a normal close
-        if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
+        if (
+          event.code !== 1000 &&
+          reconnectAttempts.current < maxReconnectAttempts &&
+          (!authEnabled || (isAuthenticated && accessToken))
+        ) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000)
           reconnectAttempts.current++
-          
+
           console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`)
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
           }, delay)
@@ -85,7 +103,7 @@ export function useWebSocket() {
       console.error('Error creating WebSocket:', error)
       setIsConnected(false)
     }
-  }
+  }, [accessToken, authEnabled, isAuthenticated, maxReconnectAttempts, queryClient, setIsConnected, updateNowPlaying])
 
   useEffect(() => {
     connect()
@@ -94,12 +112,13 @@ export function useWebSocket() {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
-      
+
       if (wsRef.current) {
         wsRef.current.close(1000, 'Component unmounting')
+        wsRef.current = null
       }
     }
-  }, [])
+  }, [connect])
 
   return {
     isConnected: useRadioStore(state => state.isConnected),

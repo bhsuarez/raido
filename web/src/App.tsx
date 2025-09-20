@@ -9,6 +9,8 @@ import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
+import AuthGuard from './components/AuthGuard'
+import AuthCallback from './components/AuthCallback'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -18,33 +20,51 @@ function App() {
       <Layout>
         <ErrorBoundary>
         <Routes>
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
-              <div className="space-y-6">
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
-                  <NowPlaying />
-                </ErrorBoundary>
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
-                  <ComingUp />
-                </ErrorBoundary>
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Play History.</div>}>
-                  <PlayHistory />
-                </ErrorBoundary>
-              </div>
-            } 
+              <AuthGuard>
+                <div className="space-y-6">
+                  <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
+                    <NowPlaying />
+                  </ErrorBoundary>
+                  <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
+                    <ComingUp />
+                  </ErrorBoundary>
+                  <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Play History.</div>}>
+                    <PlayHistory />
+                  </ErrorBoundary>
+                </div>
+              </AuthGuard>
+            }
           />
-          <Route 
-            path="/history" 
-            element={<PlayHistory />} 
+          <Route
+            path="/history"
+            element={
+              <AuthGuard>
+                <PlayHistory />
+              </AuthGuard>
+            }
           />
-          <Route 
-            path="/tts" 
-            element={<TTSMonitor />} 
+          <Route
+            path="/tts"
+            element={
+              <AuthGuard>
+                <TTSMonitor />
+              </AuthGuard>
+            }
           />
           <Route
             path="/analytics"
-            element={<Analytics />}
+            element={
+              <AuthGuard>
+                <Analytics />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/auth/callback"
+            element={<AuthCallback />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route 

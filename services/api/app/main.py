@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, WebSocketException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -12,6 +12,7 @@ from app.core.database import engine, Base
 from app.core.logging_config import configure_logging
 from app.api.v1 import api_router
 from app.core.websocket_manager import WebSocketManager
+from app.core.security import authenticate_websocket
 
 # Configure structured logging
 configure_logging()
@@ -85,6 +86,14 @@ async def health_check():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for live updates"""
+
+    try:
+        await authenticate_websocket(websocket)
+    except WebSocketException as exc:
+        logger.warning("WebSocket authentication failed", reason=exc.reason)
+        await websocket.close(code=exc.code, reason=exc.reason)
+        return
+
     await websocket_manager.connect(websocket)
     try:
         while True:
