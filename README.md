@@ -6,8 +6,9 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 - **🎵 24/7 Music Streaming**: Continuous music playback from your collection
 - **🤖 AI DJ Commentary**: Dynamic commentary generated using OpenAI or Ollama
-  - New: Editable Ollama prompt template from the DJ Admin
-- **🎙️ Multiple TTS Options**: Kokoro TTS, OpenAI TTS, XTTS, or basic speech synthesis
+  - Configurable prompt templates via DJ Admin interface
+- **🎙️ Multiple TTS Options**: Chatterbox TTS (external), Kokoro TTS, OpenAI TTS, or XTTS
+  - Chatterbox integration via OpenAI-compatible shim proxy
 - **📱 Modern Web Interface**: Responsive React frontend with real-time updates
 - **🔄 Live Updates**: WebSocket integration for real-time track changes
 - **📊 Admin Dashboard**: Configure DJ settings, monitor stats, manage users
@@ -393,12 +394,15 @@ docker compose up -d --scale dj-worker=2  # Scale DJ workers
 Configure AI commentary in `.env`:
 
 ```bash
-# AI Provider (openai or ollama)
-DJ_PROVIDER=openai
-OPENAI_API_KEY=your-key-here
+# AI Provider (openai, ollama, or templates)
+DJ_PROVIDER=ollama
+OPENAI_API_KEY=your-key-here  # Required if using openai
 
-# TTS Provider (kokoro, openai_tts, liquidsoap, or xtts)
-DJ_VOICE_PROVIDER=kokoro
+# TTS Provider (chatterbox, kokoro, openai_tts, or xtts)
+DJ_VOICE_PROVIDER=chatterbox
+
+# Chatterbox TTS Configuration (external service via shim)
+CHATTERBOX_BASE_URL=http://192.168.1.112:8000  # Your external Chatterbox service
 
 # Commentary frequency (1 = after every song)
 DJ_COMMENTARY_INTERVAL=1
@@ -410,6 +414,27 @@ DJ_MAX_SECONDS=30
 DJ_TONE=energetic
 STATION_NAME="Raido Pirate Radio"
 ```
+
+### Chatterbox TTS Settings (Recommended)
+
+For production TTS using external Chatterbox service via shim proxy:
+
+```bash
+# TTS Provider
+DJ_VOICE_PROVIDER=chatterbox
+
+# External Chatterbox service configuration
+CHATTERBOX_BASE_URL=http://192.168.1.112:8000  # Your external Chatterbox server
+CHATTERBOX_VOICE=default
+CHATTERBOX_EXAGGERATION=1.0
+CHATTERBOX_CFG_WEIGHT=0.5
+```
+
+**How it works:**
+- Local `chatterbox-shim` service (port 18000) provides OpenAI-compatible API
+- Shim proxies requests to your external Chatterbox service
+- Supports both `/v1/audio/speech` (OpenAI format) and `/tts` (direct) endpoints
+- Automatic format conversion between OpenAI TTS requests and Chatterbox API
 
 ### Kokoro TTS Settings
 

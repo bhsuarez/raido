@@ -126,10 +126,11 @@ Raido is a containerized AI-powered radio station with the following core servic
 - **PostgreSQL** - Primary database for track history, settings, and user data
 
 ### External Integration Services
+- **Chatterbox TTS** - External TTS service (192.168.1.112:8000) accessed via chatterbox-shim proxy
+- **Chatterbox Shim** - Local proxy service (port 18000) providing OpenAI-compatible API for Chatterbox TTS
 - **Kokoro TTS** - Neural text-to-speech service (runs on port 8091, internal 8880)
-- **Ollama** - Local LLM service for AI commentary generation (currently disabled/commented out)
-- **XTTS/Chatterbox TTS** - Alternative TTS services (currently disabled to reduce system load)
-- **OpenAI TTS** - Cloud-based TTS service (currently configured as DJ_VOICE_PROVIDER)
+- **Ollama** - Local LLM service for AI commentary generation (enabled)
+- **OpenAI TTS** - Cloud-based TTS service (alternative option)
 - **Caddy** - Reverse proxy handling HTTPS and routing
 
 ### Audio Processing Flow
@@ -167,11 +168,12 @@ Raido is a containerized AI-powered radio station with the following core servic
 - Always run `make migrate` after database schema changes
 
 ### AI Commentary System
-- **Providers**: OpenAI GPT models, local Ollama models (disabled), or static templates (current)
-- **TTS Options**: Kokoro TTS (neural), OpenAI TTS (current), XTTS, or Chatterbox TTS (disabled)
+- **Providers**: OpenAI GPT models, local Ollama models, or static templates
+- **TTS Options**: Chatterbox TTS (via shim proxy), Kokoro TTS (neural), OpenAI TTS, or XTTS
 - **Flow**: Track change → API → DJ Worker → AI generation → TTS → Audio queue
-- **Configuration**: DJ settings via `.env` (currently: DJ_PROVIDER=templates, DJ_VOICE_PROVIDER=openai_tts)
+- **Configuration**: DJ settings via `.env` (currently: DJ_PROVIDER=ollama, DJ_VOICE_PROVIDER=chatterbox)
 - **Admin UI**: DJ settings configurable via web interface with prompt templates and voice selection
+- **TTS Proxy**: `chatterbox-shim` service provides OpenAI-compatible API for external Chatterbox TTS
 
 ### Audio Processing
 - **Music Directory**: `/mnt/music` (supports MP3, FLAC, OGG, WAV)
@@ -340,6 +342,80 @@ make update        # Update and rebuild all services
 - **Health Checks**: `make health` to verify all services
 - **Service Logs**: Use `make logs-{service}` to debug issues
 - **Audio Stream**: Check http://localhost:8000/stream/raido.mp3
-- **Frontend**: 
+- **Frontend**:
   - Development: http://localhost:3000 (live reload)
   - Production: http://localhost (via proxy)
+
+## Recent Fixes (September 2025)
+
+### TTS Audio Playback Issues - RESOLVED
+- **Problem**: TTS files not playing in browser, generating 105-byte error files instead of audio
+- **Root Cause**:
+  1. API client bug in `dj_worker.py:258` - incorrect attribute `session` instead of `client`
+  2. External Chatterbox TTS service connectivity via chatterbox-shim proxy
+- **Fix Applied**:
+  1. Fixed API client HTTP client reference in DJ worker
+  2. Configured chatterbox-shim to proxy requests to external Chatterbox service (192.168.1.112:8000)
+  3. Updated environment configuration for proper TTS service integration
+- **Verification**: Manual TTS tests now generate proper 50KB+ MP3 files accessible via web interface
+
+### Voice Cloning Interface Removal - RESOLVED
+- **Problem**: Voice cloning page still accessible and visible in navigation
+- **Root Cause**: React routes and navigation components not properly updated
+- **Fix Applied**:
+  1. Removed `/voices` route from `web/src/App.tsx`
+  2. Removed Voice Cloning navigation link from `web/src/components/Layout.tsx`
+  3. Rebuilt frontend with asset cache invalidation (new hash: `index-CMHznLHM.js`)
+- **Verification**: `/voices` now shows 404 page, navigation no longer displays voice cloning option
+
+### System Status
+- **TTS Provider**: Chatterbox TTS (external) via chatterbox-shim proxy
+- **AI Provider**: Ollama (local LLM service)
+- **Frontend**: Production build with voice cloning removed
+- **Audio Pipeline**: Fully functional with automated commentary generation
+- Chatterbox Backend Server (Port 8000)
+
+  GET Endpoints:
+
+  - GET /tts - Text-to-speech generation
+    - Parameters:
+        - text (required): Text to synthesize
+      - audio_prompt_path (optional): Path to audio file for voice cloning
+    - Returns: WAV audio file
+  - GET /health - Health check
+    - Returns: {"status": "ok"}
+
+  POST Endpoints:
+
+  - POST /v1/audio/speech - OpenAI-compatible TTS
+    - Body: {"input": "text", "voice": "voice_name"}
+    - Supports voice mapping (e.g., "brian")
+    - Returns: WAV audio file
+
+  Frontend Upload Server (Port 8080)
+
+  GET Endpoints:
+
+  - GET /api/status - Server status
+  - GET /api/voices - List available voices
+
+  POST Endpoints:
+
+  - POST /api/upload-voice - Upload WAV files for voice cloning
+  - POST /api/download-voice - Download audio from URLs using yt-dlp
+
+  Usage Examples:
+
+  # Basic TTS
+  curl "http://192.168.1.112:8000/tts?text=Hello%20world" -o output.wav
+
+  # Voice cloning TTS
+  curl "http://192.168.1.112:8000/tts?text=Hello&audio_prompt_path=/path/to/voice.wav" -o cloned.wav
+
+  # OpenAI-compatible
+  curl -X POST "http://192.168.1.112:8000/v1/audio/speech" \
+    -H "Content-Type: application/json" \
+    -d '{"input": "Hello world", "voice": "brian"}' \
+    -o speech.wav
+
+  All endpoints support CORS and return audio as WAV files.

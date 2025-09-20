@@ -42,9 +42,9 @@ function App() {
             path="/tts" 
             element={<TTSMonitor />} 
           />
-          <Route 
-            path="/analytics" 
-            element={<Analytics />} 
+          <Route
+            path="/analytics"
+            element={<Analytics />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route 

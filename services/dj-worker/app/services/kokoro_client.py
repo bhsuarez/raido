@@ -105,7 +105,7 @@ class KokoroClient:
             filename = f"commentary_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
             filepath = Path(settings.TTS_CACHE_DIR) / filename
             
-            async with httpx.AsyncClient(timeout=15.0) as client:  # Reduced timeout
+            async with httpx.AsyncClient(timeout=60.0) as client:  # Increased for longer TTS generation
                 response = await client.post(
                     f"{self.base_url}/v1/audio/speech",
                     json={
@@ -119,13 +119,33 @@ class KokoroClient:
                 )
                 
                 if response.status_code == 200:
+                    # Basic validation to ensure we received audio content
+                    ct = response.headers.get("content-type", "")
+                    content = response.content or b""
+                    looks_audio = False
+                    try:
+                        if content and len(content) > 1000:
+                            if ct.startswith("audio/"):
+                                looks_audio = True
+                            else:
+                                head = content[:4]
+                                if head.startswith(b"ID3") or (len(head) >= 2 and head[0] == 0xFF and head[1] in (0xFB, 0xF3, 0xF2)):
+                                    looks_audio = True
+                    except Exception:
+                        looks_audio = False
+
+                    if not looks_audio:
+                        logger.error("Kokoro TTS returned non-audio content", preview=(content[:120].decode(errors='ignore') if content else ""))
+                        self._record_failure()
+                        return None
+
                     # Save audio file
                     async with aiofiles.open(filepath, 'wb') as f:
-                        await f.write(response.content)
+                        await f.write(content)
                     
                     logger.info("Kokoro TTS audio generated", 
                                filepath=str(filepath), 
-                               size=len(response.content))
+                               size=len(content))
                     
                     self._record_success()  # Record successful operation
                     return filename
@@ -145,7 +165,7 @@ class KokoroClient:
     async def test_connection(self) -> bool:
         """Test if Kokoro TTS is available"""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(f"{self.base_url}/health")
                 return response.status_code == 200
         except Exception:
