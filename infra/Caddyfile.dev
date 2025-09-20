@@ -40,9 +40,9 @@ raido.zorro.network {
 		respond "OK" 200
 	}
 
-	# Serve React frontend from development server
+	# Serve React frontend from production build
 	handle /* {
-		reverse_proxy web-dev:3000
+		reverse_proxy web:80
 	}
 
 	# Security headers
@@ -114,9 +114,9 @@ raido.zorro.network {
 		respond "OK" 200
 	}
 
-	# Serve React frontend from development server
+	# Serve React frontend from production build
 	handle /* {
-		reverse_proxy web-dev:3000
+		reverse_proxy web:80
 	}
 
 	# Security headers

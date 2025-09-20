@@ -31,6 +31,9 @@ class DJWorker:
         # Track recent intros by upcoming track id to avoid duplicates
         # Maps track_id -> unix timestamp of when an intro was generated
         self._recent_intros: Dict[int, float] = {}
+        # Track in-flight placeholder commentary IDs per track to avoid duplicates
+        # Maps track_id -> commentary_id (running)
+        self._placeholders: Dict[int, int] = {}
     
     async def run(self):
         """Main worker loop with system health monitoring"""
@@ -67,7 +70,8 @@ class DJWorker:
             try:
                 if system_monitor:
                     system_health = await system_monitor.check_system_health()
-                    if system_monitor.is_protection_active():
+                    # System protection removed since heavy services run externally
+                    if False:  # Disabled protection check
                         logger.warning("System protection is active - limiting operations")
                     
                     # Log system info periodically
@@ -199,13 +203,21 @@ class DJWorker:
                     # (to avoid generating multiple commentaries for the same track)
                     track_id = track.get('id')
                     logger.info(f"🆔 Track ID: {track_id}")
-                    has_recent = await self._has_recent_commentary(track_id) if track_id is not None else False
+
+                    # Skip tracks with invalid metadata (ID 0, Unknown Artist, etc.)
+                    if (track_id is None or track_id == 0 or
+                        track.get('title') in ['Unknown', ''] or
+                        track.get('artist') in ['Unknown Artist', 'Unknown', '']):
+                        logger.info("❌ Track skipped (invalid metadata: ID=0 or Unknown)")
+                        continue
+
+                    has_recent = await self._has_recent_commentary(track_id)
                     logger.info(f"⏰ Has recent commentary: {has_recent}")
-                    if track_id is not None and not has_recent:
+                    if not has_recent:
                         logger.info("✅ Track selected for commentary")
                         return next_track
                     else:
-                        logger.info("❌ Track skipped (no ID or has recent commentary)")
+                        logger.info("❌ Track skipped (has recent commentary)")
             
             return None
         
@@ -214,16 +226,68 @@ class DJWorker:
             return None
     
     async def _has_recent_commentary(self, track_id: int) -> bool:
-        """Check if a track has recent commentary (within last hour)"""
+        """Check if a track recently had commentary to avoid duplicates.
+
+        Uses a small in-memory cache and falls back to the API's
+        /api/v1/now/history endpoint to look for recent commentary entries
+        matching the given track_id.
+        """
         try:
             import time as _time
             now = _time.time()
-            # Prune very old entries
-            cutoff = now - 3600  # 1 hour TTL
+
+            # Use minutes window based on DJ_COMMENTARY_INTERVAL (tracks setting reused as a time guard)
+            interval_minutes = getattr(settings, 'DJ_COMMENTARY_INTERVAL', 5)
+            # Ensure a reasonable minimum dedup window (5 minutes)
+            cutoff_seconds = max(300, int(interval_minutes) * 60)
+            cutoff = now - cutoff_seconds
+
+            # Prune very old entries from in-memory cache
             self._recent_intros = {tid: ts for tid, ts in self._recent_intros.items() if ts >= cutoff}
 
+            # First check in-memory cache for recent entries
             last = self._recent_intros.get(track_id)
-            return bool(last and last >= cutoff)
+            if last and last >= cutoff:
+                return True
+
+            # Check if there's already a TTS generation in progress for this track
+            if track_id in self._placeholders:
+                logger.info(f"🎵 TTS already generating for track {track_id}")
+                return True
+
+            # Check recent history via API for commentary on this specific track
+            try:
+                from datetime import datetime, timezone
+                hist = await self.api_client.get_history(limit=20)
+                if hist and isinstance(hist, dict):
+                    items = hist.get('tracks') or []
+                    for item in items:
+                        t = (item or {}).get('track') or {}
+                        com = (item or {}).get('commentary') or None
+                        # Match by track id and ensure commentary is recent
+                        if int(t.get('id') or 0) == int(track_id) and com:
+                            # Parse created_at if present; otherwise assume "recent enough"
+                            created_at = com.get('created_at') if isinstance(com, dict) else None
+                            if created_at:
+                                try:
+                                    # created_at is ISO8601 from API
+                                    dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+                                    if (datetime.now(timezone.utc) - dt).total_seconds() <= cutoff_seconds:
+                                        self._recent_intros[track_id] = now
+                                        return True
+                                except Exception:
+                                    # If parsing fails, still treat as recent to be safe
+                                    self._recent_intros[track_id] = now
+                                    return True
+                            else:
+                                # No timestamp; conservatively assume recent
+                                self._recent_intros[track_id] = now
+                                return True
+            except Exception as api_err:
+                logger.warning("Recent commentary check via history failed; using in-memory only", error=str(api_err))
+
+            return False
+
         except Exception as e:
             logger.error("Error checking recent commentary", error=str(e))
             return False
@@ -274,9 +338,62 @@ class DJWorker:
                 job.status = JobStatus.GENERATING_TEXT
                 job.started_at = datetime.now(timezone.utc)
                 gen_started = datetime.now(timezone.utc)
-                
+
                 # Get DJ settings from API
                 dj_settings = await self.api_client.get_settings()
+                # Determine current voice provider & voice for placeholder record
+                try:
+                    vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER
+                except Exception:
+                    vp = 'kokoro'
+                voice_id = None
+                try:
+                    if isinstance(dj_settings, dict):
+                        if vp == 'chatterbox':
+                            voice_id = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
+                        elif vp == 'openai_tts':
+                            voice_id = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
+                        else:
+                            # Default to kokoro or generic id
+                            voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_kokoro_voice') or dj_settings.get('dj_voice_id')
+                except Exception:
+                    voice_id = None
+
+                # Create a placeholder commentary record with status=running so UI can show it
+                placeholder_id = None
+                try:
+                    provider_pref = None
+                    try:
+                        provider_pref = dj_settings.get('dj_provider') if isinstance(dj_settings, dict) else None
+                    except Exception:
+                        provider_pref = None
+                    provider_pref = provider_pref or settings.DJ_PROVIDER
+                    # Avoid duplicate placeholders for the same upcoming track within this process
+                    track_id = None
+                    try:
+                        track_id = job.track_info.get('id')
+                    except Exception:
+                        track_id = None
+
+                    if track_id and track_id in self._placeholders:
+                        placeholder_id = self._placeholders.get(track_id)
+                        logger.info("Reusing existing placeholder for track", track_id=track_id, placeholder_id=placeholder_id)
+                    else:
+                        placeholder = await self.api_client.create_commentary({
+                            'text': '<speak>Generating…</speak>',
+                            'transcript': None,
+                            'provider': provider_pref,
+                            'voice_provider': vp,
+                            'voice_id': voice_id,
+                            'status': 'running',
+                            'context_data': job.context,
+                        })
+                        if placeholder and isinstance(placeholder, dict):
+                            placeholder_id = placeholder.get('commentary_id')
+                            if track_id and placeholder_id:
+                                self._placeholders[track_id] = int(placeholder_id)
+                except Exception:
+                    placeholder_id = None
 
                 # If a kokoro voice is configured in admin settings, apply it
                 try:
@@ -304,13 +421,27 @@ class DJWorker:
                     job.error = "Failed to generate commentary text"
                     return
 
-                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full}
+                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full, gen_mode, provider_used}
                 if isinstance(commentary_payload, dict):
                     ssml_text = commentary_payload.get('ssml') or commentary_payload.get('text')
                     transcript_full = commentary_payload.get('transcript_full') or None
+                    # Attach LLM generation metadata to context for observability
+                    try:
+                        gen_mode = commentary_payload.get('gen_mode')
+                        if gen_mode:
+                            job.context = dict(job.context or {})
+                            job.context['ollama_mode'] = gen_mode
+                    except Exception:
+                        pass
+                    # Capture the actual provider used after any fallback
+                    try:
+                        provider_used = commentary_payload.get('provider_used')
+                    except Exception:
+                        provider_used = None
                 else:
                     ssml_text = str(commentary_payload)
                     transcript_full = None
+                    provider_used = None
 
                 job.commentary_text = ssml_text
                 job.status = JobStatus.GENERATING_AUDIO
@@ -329,18 +460,46 @@ class DJWorker:
                     job.status = JobStatus.FAILED
                     job.error = "Failed to generate audio"
                     return
-                
+                # Validate generated file looks like audio before proceeding
+                try:
+                    import os
+                    file_path = os.path.join(settings.TTS_CACHE_DIR, audio_file if audio_file.endswith('.mp3') or audio_file.endswith('.wav') else audio_file)
+                    is_audio = False
+                    if os.path.exists(file_path):
+                        with open(file_path, 'rb') as f:
+                            head = f.read(4)
+                        size = os.path.getsize(file_path)
+                        if size > 1000 and (head.startswith(b'ID3') or (len(head) >= 2 and head[0] == 0xFF and head[1] in (0xFB, 0xF3, 0xF2)) or audio_file.endswith('.wav')):
+                            is_audio = True
+                    if not is_audio:
+                        job.status = JobStatus.FAILED
+                        job.error = "Generated file is not valid audio"
+                        logger.error("Generated TTS file failed validation", file=audio_file)
+                        return
+                except Exception:
+                    pass
+
                 job.audio_file = audio_file
                 job.status = JobStatus.READY
                 job.completed_at = datetime.now(timezone.utc)
                 
+                # Determine provider used for DB (prefer actual provider from payload; fallback to admin/env setting)
+                try:
+                    if not provider_used and isinstance(dj_settings, dict):
+                        provider_used = dj_settings.get('dj_provider') or settings.DJ_PROVIDER
+                    provider_used = provider_used or settings.DJ_PROVIDER
+                except Exception:
+                    provider_used = settings.DJ_PROVIDER
+
                 # Save to database via API
                 await self._save_commentary(
                     job,
                     transcript_full=transcript_full,
                     generation_time_ms=generation_time_ms,
                     tts_time_ms=tts_time_ms,
-                    dj_settings=dj_settings
+                    dj_settings=dj_settings,
+                    provider_used=provider_used,
+                    existing_commentary_id=placeholder_id
                 )
                 
                 # Inject into stream
@@ -351,6 +510,11 @@ class DJWorker:
                     track_id = job.track_info.get('id')
                     if track_id:
                         self._recent_intros[int(track_id)] = time.time()
+                        # Clear any placeholder tracking for this track
+                        try:
+                            self._placeholders.pop(int(track_id), None)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 
@@ -374,6 +538,8 @@ class DJWorker:
         generation_time_ms: Optional[int] = None,
         tts_time_ms: Optional[int] = None,
         dj_settings: Optional[Dict[str, Any]] = None,
+        provider_used: Optional[str] = None,
+        existing_commentary_id: Optional[int] = None,
     ):
         """Save commentary to database via API"""
         try:
@@ -383,19 +549,32 @@ class DJWorker:
                 vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER
             except Exception:
                 vp = 'kokoro'
+
+            voice_id = None
             if dj_settings and isinstance(dj_settings, dict):
-                if vp == 'xtts':
-                    voice_id = dj_settings.get('xtts_voice') or dj_settings.get('dj_voice_id')
+                if vp == 'chatterbox':
+                    voice_id = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
+                elif vp == 'openai_tts':
+                    voice_id = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
+                elif vp == 'kokoro':
+                    voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_kokoro_voice') or dj_settings.get('dj_voice_id')
                 else:
-                    voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_voice_id')
-            else:
-                voice_id = None
+                    voice_id = dj_settings.get('dj_voice_id')
+
+            # Use the admin-selected provider when recording, falling back to env default
+            provider_used = None
+            try:
+                if isinstance(dj_settings, dict) and dj_settings.get('dj_provider'):
+                    provider_used = dj_settings.get('dj_provider')
+            except Exception:
+                provider_used = None
+            provider_used = provider_used or settings.DJ_PROVIDER
 
             commentary_data = {
                 'text': job.commentary_text,
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
-                'provider': settings.DJ_PROVIDER,
+                'provider': provider_used,
                 'voice_provider': vp,
                 'voice_id': voice_id,
                 'status': 'ready',
@@ -407,10 +586,11 @@ class DJWorker:
                 'target_track_id': job.track_info.get('id')  # Track this commentary is about
             }
             
-            # For upcoming tracks, don't associate with a play_id yet
-            # The commentary will be matched when the track actually plays
-            
-            await self.api_client.create_commentary(commentary_data)
+            # If we created a placeholder, update it; otherwise create fresh
+            if existing_commentary_id:
+                await self.api_client.update_commentary(existing_commentary_id, commentary_data)
+            else:
+                await self.api_client.create_commentary(commentary_data)
             
         except Exception as e:
             logger.error("Failed to save commentary", error=str(e))
