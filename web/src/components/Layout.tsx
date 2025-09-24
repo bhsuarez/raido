@@ -10,6 +10,7 @@ import {
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Logo from './Logo'
+import { useRaidoAuth } from '../providers/AuthProvider'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -21,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
     isConnected: state.isConnected,
     nowPlaying: state.nowPlaying,
   }))
+  const { isEnabled: authEnabled, isAuthenticated, isLoading: authLoading, user, signin, signout } = useRaidoAuth()
   // Establish WebSocket connection for live updates
   useWebSocket()
 
@@ -33,6 +35,7 @@ export default function Layout({ children }: LayoutProps) {
   const trackTitle = nowPlaying?.track?.title?.trim()
   const trackArtist = nowPlaying?.track?.artist?.trim()
   const songLabel = trackTitle ? (trackArtist ? `${trackTitle} — ${trackArtist}` : trackTitle) : null
+  const displayName = user?.profile?.name || user?.profile?.preferred_username || user?.profile?.email
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">
@@ -79,7 +82,7 @@ export default function Layout({ children }: LayoutProps) {
             {/* Status and Controls */}
             <div className="ml-auto flex items-center space-x-4">
               {/* Connection Status */}
-              <div 
+              <div
                 className={`flex items-center space-x-2 text-xs ${
                   isConnected ? 'text-green-400' : 'text-red-400'
                 }`}
@@ -96,6 +99,27 @@ export default function Layout({ children }: LayoutProps) {
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
+
+              {authEnabled && (
+                <div className="flex items-center space-x-3">
+                  {isAuthenticated && displayName && (
+                    <span className="hidden sm:inline text-sm text-gray-200" title={displayName}>
+                      {displayName}
+                    </span>
+                  )}
+                  <button
+                    onClick={isAuthenticated ? signout : signin}
+                    disabled={authLoading}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      isAuthenticated
+                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                        : 'bg-pirate-600 text-white hover:bg-pirate-500'
+                    } ${authLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {isAuthenticated ? 'Sign out' : 'Sign in'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

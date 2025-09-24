@@ -110,6 +110,40 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 - **Stream**: http://localhost:8000/raido.mp3
 - **pgAdmin**: http://localhost:5050
 
+## Authentication with Authentik
+
+Raido now supports protecting the web dashboard (Now Playing, DJ controls, Analytics) using Authentik via OpenID Connect. When authentication is enabled, users must sign in before any playback or analytics data is shown.
+
+### Backend configuration (`.env`)
+
+Set the following variables in the API service environment:
+
+```bash
+AUTHENTIK_ENABLED=true
+AUTHENTIK_ISSUER=https://auth.example.com/application/o/raido/
+AUTHENTIK_CLIENT_ID=raido-client-id
+# Optional if the audience differs from the client ID
+AUTHENTIK_AUDIENCE=raido-api
+# Optional override for JWKS URI (normally discovered from the issuer)
+AUTHENTIK_JWKS_URL=https://auth.example.com/application/o/raido/jwks/
+# Comma-separated list of groups that should be treated as administrators
+AUTHENTIK_ADMIN_GROUPS=raido-admins
+```
+
+### Frontend configuration (`web/.env.local`)
+
+Vite exposes Authentik settings via `VITE_` variables:
+
+```bash
+VITE_OIDC_AUTHORITY=https://auth.example.com/application/o/raido/
+VITE_OIDC_CLIENT_ID=raido-client-id
+VITE_OIDC_SCOPE="openid profile email"
+VITE_OIDC_REDIRECT_URI=https://radio.example.com/auth/callback
+VITE_OIDC_POST_LOGOUT_REDIRECT_URI=https://radio.example.com/
+```
+
+After configuring both services, restarting the stack will present a "Sign in with Authentik" prompt in the UI. The backend validates API and WebSocket requests using the same access token, so live updates remain protected once a session is established.
+
 ## Ollama Prompt Template & Remote Ollama
 
 ### Edit Ollama Prompt Template (Dev & Prod)

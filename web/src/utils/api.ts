@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
+import { getAccessToken, handleUnauthorized } from './authTokens'
 
 // Determine API base URL
 const API_BASE = (import.meta as any)?.env?.VITE_API_URL
@@ -27,7 +28,7 @@ export const ttsApi = axios.create({
 // Request interceptors for both instances
 const requestInterceptor = (config: any) => {
   // Add auth token if available
-  const token = localStorage.getItem('raido-token')
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -48,12 +49,7 @@ const responseErrorInterceptor = (error: any) => {
 
   // Don't show error toasts for expected errors
   if (error.response?.status === 401) {
-    // Avoid reload loops if no token is set
-    const hadToken = Boolean(localStorage.getItem('raido-token'))
-    if (hadToken) {
-      localStorage.removeItem('raido-token')
-      window.location.reload()
-    }
+    handleUnauthorized()
     // If no token, surface the error without reloading the page
     return Promise.reject(error)
   } else if (error.response?.status >= 500) {

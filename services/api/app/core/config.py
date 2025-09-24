@@ -15,6 +15,14 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "your-super-secret-jwt-signing-key-minimum-32-chars"
     SESSION_SECRET: str = "your-session-secret-key-here"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
+
+    # Authentik / OIDC
+    AUTHENTIK_ENABLED: bool = False
+    AUTHENTIK_ISSUER: Optional[str] = None
+    AUTHENTIK_CLIENT_ID: Optional[str] = None
+    AUTHENTIK_AUDIENCE: Optional[str] = None
+    AUTHENTIK_JWKS_URL: Optional[str] = None
+    AUTHENTIK_ADMIN_GROUPS: str = ""
     
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
