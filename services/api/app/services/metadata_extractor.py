@@ -22,6 +22,26 @@ class MetadataExtractor:
     """Extracts comprehensive metadata from audio files"""
     
     SUPPORTED_FORMATS = {'.mp3', '.flac', '.m4a', '.mp4', '.ogg', '.wav', '.aac'}
+    CHRISTMAS_KEYWORDS = [
+        "christmas",
+        "xmas",
+        "holiday",
+        "noel",
+        "navidad",
+        "winter",
+        "snow",
+        "santa",
+        "jingle",
+        "mistletoe",
+        "yuletide",
+        "holly",
+        "reindeer",
+    ]
+    CHRISTMAS_EXCLUSIONS = [
+        "in the summertime",
+        "summer",
+        "spring",
+    ]
     
     @classmethod
     async def extract_file_metadata(cls, file_path: str) -> Dict[str, Any]:
@@ -86,6 +106,7 @@ class MetadataExtractor:
             
             # Clean and normalize metadata
             metadata = cls._normalize_metadata(metadata)
+            metadata['is_christmas'] = cls._is_christmas_track(metadata)
             
             logger.debug("Extracted metadata", file_path=file_path, 
                         title=metadata.get('title'), artist=metadata.get('artist'))
@@ -345,7 +366,8 @@ class MetadataExtractor:
             'file_path': file_path,
             'filename': path.name,
             'format': path.suffix.lower().lstrip('.') if path.suffix else None,
-            'extraction_error': error
+            'extraction_error': error,
+            'is_christmas': False,
         }
         
         # Try to get basic file stats even if audio parsing failed
@@ -358,8 +380,31 @@ class MetadataExtractor:
                 })
         except Exception:
             pass
-        
+
         return metadata
+
+    @classmethod
+    def _is_christmas_track(cls, metadata: Dict[str, Any]) -> bool:
+        """Heuristically determine if a track is Christmas themed."""
+        search_terms: List[str] = []
+        for key in ('title', 'album', 'genre', 'comment'):
+            value = metadata.get(key)
+            if isinstance(value, str):
+                search_terms.append(value.lower())
+
+        file_path = metadata.get('file_path') or metadata.get('filename')
+        if isinstance(file_path, str):
+            search_terms.append(file_path.lower())
+
+        if not search_terms:
+            return False
+
+        haystack = ' '.join(search_terms)
+
+        if any(exclusion in haystack for exclusion in cls.CHRISTMAS_EXCLUSIONS):
+            return False
+
+        return any(keyword in haystack for keyword in cls.CHRISTMAS_KEYWORDS)
     
     @classmethod
     def _parse_filename_metadata(cls, file_path: str) -> Dict[str, Any]:

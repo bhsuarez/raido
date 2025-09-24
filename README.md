@@ -5,6 +5,8 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 ## Features
 
 - **🎵 24/7 Music Streaming**: Continuous music playback from your collection
+- **📻 Multi-Station Streaming**: Switch between curated Raido stations directly from the UI menu bar
+- **🎄 Holiday Detection**: Automatic Christmas music detection with a dedicated Icecast stream
 - **🤖 AI DJ Commentary**: Dynamic commentary generated using OpenAI or Ollama
   - Configurable prompt templates via DJ Admin interface
 - **🎙️ Multiple TTS Options**: Chatterbox TTS (external), Kokoro TTS, OpenAI TTS, or XTTS
@@ -86,11 +88,17 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
    # Copy your music files to ./music directory
    ```
 
-5. **Build and start Raido (production)**:
+5. **Scan your library for metadata** (detects Christmas tracks automatically):
+   ```bash
+   curl -X GET http://localhost/api/v1/metadata/scan_music_directory
+   ```
+   This background job walks the `/music` directory, updates the database, and rewrites the station playlists in `/shared/stations`.
+
+6. **Build and start Raido (production)**:
    ```bash
    # Option 1: Full production setup (recommended)
    make production-setup
-   
+
    # Option 2: Manual production build and start
    make build  # Build all services with production optimizations
    make up     # Start all services in production mode
@@ -109,6 +117,13 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 - **API (via proxy)**: http://localhost/api/v1
 - **Stream**: http://localhost:8000/raido.mp3
 - **pgAdmin**: http://localhost:5050
+
+### Stations & Streams
+
+- Raido now maintains multiple stations. By default you'll get the **Main Deck** mix (`/raido.mp3`) and a dedicated **Christmas Waves** holiday station (`/raido-christmas.mp3`).
+- The API automatically scans your `/music` library and flags holiday tracks based on metadata and file names. Those songs are written to `/shared/stations/christmas.m3u` while the rest of the library lives in `/shared/stations/main.m3u`.
+- The Liquidsoap service watches those playlists and publishes separate Icecast mounts. The React UI exposes a station selector in the menu bar so you can switch between streams without leaving the dashboard.
+- You can create additional stations from the Station Manager panel (Admin → Stations) by providing a slug and mount name. Each new station receives its own playlist file in `/shared/stations/<slug>.m3u`.
 
 ## Ollama Prompt Template & Remote Ollama
 

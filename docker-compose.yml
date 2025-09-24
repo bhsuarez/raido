@@ -34,7 +34,8 @@ services:
     restart: unless-stopped
     depends_on: [icecast]
     volumes:
-      - /mnt/music:/mnt/music:ro
+      - ./music:/music:ro
+      - ./music:/mnt/music:ro
       - ./infra/liquidsoap/radio.liq:/radio.liq:ro
       - shared:/shared
     command: ["liquidsoap","/radio.liq"]
@@ -45,9 +46,10 @@ services:
     restart: unless-stopped
     env_file: .env
     depends_on: [db]
-    volumes: 
+    volumes:
       - shared:/shared
-      - /mnt/music:/mnt/music:ro
+      - ./music:/music:ro
+      - ./music:/mnt/music:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

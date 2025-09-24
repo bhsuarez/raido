@@ -11,6 +11,7 @@ export interface Track {
   duration_sec?: number
   artwork_url?: string
   tags: string[]
+  is_christmas?: boolean
 }
 
 export interface Play {
@@ -18,6 +19,7 @@ export interface Play {
   started_at: string
   ended_at?: string
   liquidsoap_id?: string
+  station_slug?: string
 }
 
 export interface Progress {
@@ -31,6 +33,19 @@ export interface NowPlaying {
   track?: Track
   play?: Play
   progress?: Progress
+  station_slug?: string
+  station_name?: string
+}
+
+export interface Station {
+  id: number
+  name: string
+  slug: string
+  stream_mount: string
+  stream_url?: string
+  description?: string
+  genre?: string
+  stream_name?: string
 }
 
 export interface Commentary {
@@ -45,15 +60,22 @@ export interface RadioState {
   // Connection state
   isConnected: boolean
   setIsConnected: (connected: boolean) => void
-  
+
   // Now playing
   nowPlaying?: NowPlaying
+  nowPlayingByStation: Record<string, NowPlaying | undefined>
   updateNowPlaying: (data: NowPlaying) => void
-  
+
   // UI state
   isDarkMode: boolean
   toggleDarkMode: () => void
-  
+
+  // Stations
+  stations: Station[]
+  setStations: (stations: Station[]) => void
+  currentStationSlug: string
+  setCurrentStationSlug: (slug: string) => void
+
   // Audio player state
   volume: number
   setVolume: (volume: number) => void
@@ -74,8 +96,44 @@ export const useRadioStore = create<RadioState>()(
       
       // Now playing
       nowPlaying: undefined,
-      updateNowPlaying: (data) => set({ nowPlaying: data }),
-      
+      nowPlayingByStation: {},
+      updateNowPlaying: (data) => {
+        const currentState = get()
+        const slug = data.station_slug || data.play?.station_slug || currentState.currentStationSlug || 'main'
+        set((state) => {
+          const updatedByStation = { ...state.nowPlayingByStation, [slug]: data }
+          const activeSlug = state.currentStationSlug || slug
+          return {
+            nowPlayingByStation: updatedByStation,
+            nowPlaying: updatedByStation[activeSlug] ?? state.nowPlaying,
+          }
+        })
+      },
+
+      // Stations
+      stations: [],
+      setStations: (stations) => {
+        set((state) => {
+          const nextStations = stations ?? []
+          const hasCurrent = nextStations.some((s) => s.slug === state.currentStationSlug)
+          const newSlug = hasCurrent
+            ? state.currentStationSlug
+            : nextStations[0]?.slug || state.currentStationSlug || 'main'
+          return {
+            stations: nextStations,
+            currentStationSlug: newSlug,
+            nowPlaying: state.nowPlayingByStation[newSlug] ?? state.nowPlaying,
+          }
+        })
+      },
+      currentStationSlug: 'main',
+      setCurrentStationSlug: (slug) => {
+        set((state) => ({
+          currentStationSlug: slug,
+          nowPlaying: state.nowPlayingByStation[slug] ?? state.nowPlaying,
+        }))
+      },
+
       // UI state
       isDarkMode: true,
       toggleDarkMode: () => {

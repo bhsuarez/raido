@@ -8,9 +8,10 @@ from fastapi.staticfiles import StaticFiles
 import structlog
 
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, AsyncSessionLocal
 from app.core.logging_config import configure_logging
 from app.api.v1 import api_router
+from app.services.station_manager import ensure_default_stations
 from app.core.websocket_manager import WebSocketManager
 
 # Configure structured logging
@@ -30,6 +31,10 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created/verified")
+
+        async with AsyncSessionLocal() as session:
+            await ensure_default_stations(session)
+            logger.info("Default stations ensured")
     except Exception as e:
         logger.warning("Database not available on startup; continuing", error=str(e))
 
