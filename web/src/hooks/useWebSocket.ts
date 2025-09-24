@@ -34,13 +34,22 @@ export function useWebSocket() {
           
           switch (message.type) {
             case 'now_playing':
-            case 'track_change':
-              updateNowPlaying(message.data)
+            case 'track_change': {
+              const stationSlug = message.data?.station?.slug
+                ?? message.data?.station_slug
+                ?? message.data?.play?.station_slug
+              const payload = {
+                ...message.data,
+                station_slug: stationSlug,
+                station_name: message.data?.station?.name ?? message.data?.station_name,
+              }
+              updateNowPlaying(payload)
               queryClient.invalidateQueries({ queryKey: ['nowPlaying'] })
               queryClient.invalidateQueries({ queryKey: ['nextUp'] })
               queryClient.invalidateQueries({ queryKey: ['history'] })
               break
-              
+            }
+
             case 'commentary':
               toast('🗣️ New DJ commentary!', {
                 icon: '🎙️',

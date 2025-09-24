@@ -8,7 +8,7 @@ import httpx
 from datetime import datetime, timezone
 
 from app.core.database import get_db
-from app.models import Track, Play
+from app.models import Track, Play, Station
 from app.core.websocket_manager import WebSocketManager
 from app.services.metadata_extractor import MetadataExtractor
 
@@ -27,6 +27,7 @@ class TrackChangeRequest(BaseModel):
     year: Optional[str] = None
     genre: Optional[str] = None
     metadata: Dict[str, Any] = {}
+    station_slug: Optional[str] = None
 
 @router.post("/track_change")
 async def track_change_notification(
@@ -37,6 +38,13 @@ async def track_change_notification(
     try:
         logger.info("Received track change notification", track_data=request.dict())
         
+        # Resolve station for this notification
+        station_slug = request.station_slug or request.metadata.get("station_slug") or "main"
+        station_result = await db.execute(select(Station).where(Station.slug == station_slug))
+        station = station_result.scalar_one_or_none()
+        if not station:
+            raise HTTPException(status_code=404, detail=f"Station '{station_slug}' not found")
+
         # Find or create track record
         track = None
         if request.filename:
@@ -126,7 +134,11 @@ async def track_change_notification(
         
         # End any current playing track
         current_play_result = await db.execute(
-            select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
+            select(Play)
+            .where(Play.ended_at.is_(None))
+            .where(Play.station_id == station.id)
+            .order_by(Play.started_at.desc())
+            .limit(1)
         )
         current_play = current_play_result.scalar_one_or_none()
         
@@ -137,6 +149,7 @@ async def track_change_notification(
         # Create new play record
         new_play = Play(
             track_id=track.id,
+            station_id=station.id,
             started_at=datetime.now(timezone.utc),
             liquidsoap_id=request.metadata.get("liquidsoap_id"),
             source_type="playlist"
@@ -163,14 +176,26 @@ async def track_change_notification(
                 "play": {
                     "id": new_play.id,
                     "started_at": new_play.started_at.isoformat(),
-                    "liquidsoap_id": new_play.liquidsoap_id
-                }
+                    "liquidsoap_id": new_play.liquidsoap_id,
+                    "station_slug": station.slug
+                },
+                "station": {
+                    "slug": station.slug,
+                    "name": station.name
+                },
+                "station_slug": station.slug,
+                "station_name": station.name,
             })
         
         # Commentary generation is handled by the DJ worker service
         # which monitors track changes and generates commentary based on settings
         
-        return {"status": "success", "track_id": track.id, "play_id": new_play.id}
+        return {
+            "status": "success",
+            "track_id": track.id,
+            "play_id": new_play.id,
+            "station_slug": station.slug,
+        }
         
     except Exception as e:
         logger.error("Failed to handle track change", error=str(e))

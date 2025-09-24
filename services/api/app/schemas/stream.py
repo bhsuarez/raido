@@ -12,6 +12,7 @@ class TrackInfo(BaseModel):
     duration_sec: Optional[float] = None
     artwork_url: Optional[str] = None
     tags: List[str] = []
+    is_christmas: bool = False
 
 class PlayInfo(BaseModel):
     id: int
@@ -20,6 +21,7 @@ class PlayInfo(BaseModel):
     liquidsoap_id: Optional[str] = None
     elapsed_ms: Optional[int] = None
     was_skipped: bool = False
+    station_slug: Optional[str] = None
 
 class ProgressInfo(BaseModel):
     elapsed_seconds: int
@@ -38,6 +40,8 @@ class NowPlayingResponse(BaseModel):
     track: Optional[TrackInfo] = None
     play: Optional[PlayInfo] = None
     progress: Optional[ProgressInfo] = None
+    station_slug: Optional[str] = None
+    station_name: Optional[str] = None
 
 class NextTrackInfo(BaseModel):
     track: TrackInfo

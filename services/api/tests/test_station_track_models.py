@@ -1,6 +1,6 @@
 from pathlib import Path
-import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
@@ -18,25 +18,26 @@ if _env_renamed:
 
 
 def test_station_track_relationship():
-    async def _run():
-        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-        async_session = sessionmaker(
-            engine, expire_on_commit=False, class_=AsyncSession
+    engine = create_engine("sqlite:///:memory:")
+    SessionLocal = sessionmaker(bind=engine)
+
+    Base.metadata.create_all(engine)
+
+    with SessionLocal() as session:
+        track = Track(title="Song", artist="Artist", file_path="/tmp/song.mp3")
+        station = Station(
+            name="Test Station",
+            slug="test-station",
+            stream_mount="/test.mp3",
+            stream_name="Test Stream",
         )
+        station.tracks.append(track)
+        session.add(station)
+        session.commit()
+        session.refresh(station)
+        session.refresh(track)
 
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        async with async_session() as session:
-            track = Track(title="Song", artist="Artist", file_path="/tmp/song.mp3")
-            station = Station(name="Test Station")
-            station.tracks.append(track)
-            session.add(station)
-            await session.commit()
-            await session.refresh(station, attribute_names=["tracks"])
-            await session.refresh(track, attribute_names=["stations"])
-
-            assert station.tracks[0].title == "Song"
-            assert track.stations[0].name == "Test Station"
-
-    asyncio.run(_run())
+        assert station.tracks[0].title == "Song"
+        assert track.stations[0].name == "Test Station"
+        assert track.stations[0].stream_mount == "/test.mp3"
+        assert track.stations[0].stream_name == "Test Stream"

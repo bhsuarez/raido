@@ -6,7 +6,6 @@ import { useRadioStore } from '../store/radioStore'
 
 const fallbackStreamPath = '/stream/raido.mp3'
 const configuredStream = ((import.meta as any)?.env?.VITE_STREAM_URL as string | undefined)?.trim()
-const streamSource = configuredStream && configuredStream.length > 0 ? configuredStream : fallbackStreamPath
 
 const normalizeVolume = (value: number | undefined): number => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -29,16 +28,61 @@ const RadioPlayer: React.FC = () => {
   const [hadInteraction, setHadInteraction] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
-  const { nowPlaying, volume, setVolume, isMuted, toggleMute } = useRadioStore(
+  const { nowPlaying, volume, setVolume, isMuted, toggleMute, stations, currentStationSlug } = useRadioStore(
     (state) => ({
       nowPlaying: state.nowPlaying,
       volume: state.volume,
       setVolume: state.setVolume,
       isMuted: state.isMuted,
       toggleMute: state.toggleMute,
+      stations: state.stations,
+      currentStationSlug: state.currentStationSlug,
     }),
     shallow,
   )
+
+  const currentStation = React.useMemo(
+    () => stations.find((station) => station.slug === currentStationSlug),
+    [stations, currentStationSlug]
+  )
+
+  const streamSource = React.useMemo(() => {
+    const mount = currentStation?.stream_mount
+    const normalizedMount = mount ? (mount.startsWith('/') ? mount : `/${mount}`) : '/raido.mp3'
+    const stationUrl = currentStation?.stream_url?.trim()
+    const defaultPath = stationUrl && stationUrl.length > 0
+      ? stationUrl
+      : `/stream${normalizedMount}`
+
+    if (configuredStream && configuredStream.length > 0) {
+      try {
+        if (/^https?:/i.test(defaultPath)) {
+          return defaultPath
+        }
+        const base = new URL(configuredStream, window.location.origin)
+        base.pathname = defaultPath
+        return base.toString()
+      } catch {
+        return defaultPath
+      }
+    }
+
+    return defaultPath || fallbackStreamPath
+  }, [currentStation])
+
+  React.useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const wasPlaying = !audio.paused
+    audio.src = streamSource
+
+    if (wasPlaying) {
+      void audio.play().catch(() => setIsPlaying(false))
+    } else {
+      audio.load()
+    }
+  }, [streamSource])
 
   const safeVolume = React.useMemo(() => normalizeVolume(volume), [volume])
 
@@ -190,6 +234,11 @@ const RadioPlayer: React.FC = () => {
                 <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" aria-hidden />
                 Live
               </span>
+              {currentStation ? (
+                <span className="text-xs font-semibold uppercase tracking-wide text-primary-300">
+                  {currentStation.stream_name || currentStation.name}
+                </span>
+              ) : null}
               <span className="truncate font-medium text-white" title={formatTrackDisplay(trackTitle, trackArtist)}>
                 {formatTrackDisplay(trackTitle, trackArtist)}
               </span>

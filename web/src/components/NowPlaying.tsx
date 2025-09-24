@@ -3,11 +3,19 @@ import { Link } from 'react-router-dom'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
-import LoadingSpinner from './LoadingSpinner'
 import { NowPlayingSkeleton } from './LoadingSkeleton'
+import { useRadioStore } from '../store/radioStore'
 
 const NowPlaying: React.FC = () => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
+  const { currentStationSlug, stations } = useRadioStore(state => ({
+    currentStationSlug: state.currentStationSlug,
+    stations: state.stations,
+  }))
+  const currentStation = React.useMemo(
+    () => stations.find(station => station.slug === currentStationSlug),
+    [stations, currentStationSlug]
+  )
 
   const track = nowPlaying?.track
   const progress = nowPlaying?.progress
@@ -88,7 +96,7 @@ const NowPlaying: React.FC = () => {
             role="status"
           ></div>
           <h1 className="text-2xl font-bold text-white">
-            🏴‍☠️ Now Playing on Raido
+            🏴‍☠️ Now Playing{currentStation ? ` – ${currentStation.stream_name || currentStation.name}` : ' on Raido'}
           </h1>
         </div>
         <div 
@@ -151,14 +159,19 @@ const NowPlaying: React.FC = () => {
               by {track.artist}
             </h3>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-gray-400">
-              <span 
+              <span
                 className="bg-gray-700 px-3 py-1 rounded-full text-sm w-fit"
                 aria-label={`Genre: ${track.genre}`}
               >
-                🎸 {track.genre}
+                🎸 {track.genre || 'Unknown Genre'}
               </span>
+              {track.is_christmas ? (
+                <span className="bg-red-600/80 px-3 py-1 rounded-full text-sm text-white w-fit" aria-label="Holiday track">
+                  🎄 Holiday Track
+                </span>
+              ) : null}
               <span className="text-sm" aria-label={`Album: ${track.album}, Year: ${track.year}`}>
-                {track.album} • {track.year}
+                {track.album || 'Unknown Album'} • {track.year || 'Unknown Year'}
               </span>
             </div>
           </div>

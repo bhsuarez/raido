@@ -1,15 +1,19 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   HomeIcon,
   WifiIcon,
   WifiOffIcon,
   BarChart3Icon,
   SettingsIcon,
+  RadioIcon,
+  ChevronDownIcon,
 } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Logo from './Logo'
+import { apiHelpers } from '../utils/api'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -17,12 +21,35 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
-  const { isConnected, nowPlaying } = useRadioStore((state) => ({
+  const {
+    isConnected,
+    nowPlaying,
+    stations,
+    setStations,
+    currentStationSlug,
+    setCurrentStationSlug,
+  } = useRadioStore((state) => ({
     isConnected: state.isConnected,
     nowPlaying: state.nowPlaying,
+    stations: state.stations,
+    setStations: state.setStations,
+    currentStationSlug: state.currentStationSlug,
+    setCurrentStationSlug: state.setCurrentStationSlug,
   }))
   // Establish WebSocket connection for live updates
   useWebSocket()
+
+  const { data: stationsData } = useQuery(['stations'], () => apiHelpers.getStations().then(res => res.data), {
+    staleTime: 60000,
+  })
+
+  useEffect(() => {
+    if (stationsData) {
+      setStations(stationsData)
+    }
+  }, [stationsData, setStations])
+
+  const currentStation = stations.find((station) => station.slug === currentStationSlug)
 
   const navigation = [
     { name: 'Now Playing', href: '/', icon: HomeIcon },
@@ -33,6 +60,10 @@ export default function Layout({ children }: LayoutProps) {
   const trackTitle = nowPlaying?.track?.title?.trim()
   const trackArtist = nowPlaying?.track?.artist?.trim()
   const songLabel = trackTitle ? (trackArtist ? `${trackTitle} — ${trackArtist}` : trackTitle) : null
+
+  const handleStationChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setCurrentStationSlug(event.target.value)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">
@@ -48,7 +79,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-6">
+            <nav className="hidden md:flex items-center space-x-4">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href
                 return (
@@ -66,6 +97,29 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 )
               })}
+              {stations.length > 0 ? (
+                <div className="relative">
+                  <label htmlFor="station-menu" className="sr-only">
+                    Switch station
+                  </label>
+                  <div className="relative">
+                    <RadioIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary-300" />
+                    <select
+                      id="station-menu"
+                      className="appearance-none bg-gray-700/80 border border-gray-600 text-gray-100 text-sm pl-9 pr-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      value={currentStationSlug}
+                      onChange={handleStationChange}
+                    >
+                      {stations.map((station) => (
+                        <option key={station.id} value={station.slug}>
+                          {station.stream_name || station.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" />
+                  </div>
+                </div>
+              ) : null}
             </nav>
 
             {songLabel ? (
@@ -120,6 +174,22 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               )
             })}
+            {stations.length > 0 ? (
+              <div className="mt-3">
+                <label className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Station</label>
+                <select
+                  className="w-full bg-gray-700 text-gray-100 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={currentStationSlug}
+                  onChange={handleStationChange}
+                >
+                  {stations.map((station) => (
+                    <option key={station.id} value={station.slug}>
+                      {station.stream_name || station.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             {songLabel ? (
               <div className="mt-2 px-3 py-2 rounded-md text-sm font-medium text-gray-100 bg-gray-700/40">
                 {songLabel}

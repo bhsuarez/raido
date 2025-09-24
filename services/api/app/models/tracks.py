@@ -38,6 +38,7 @@ class Track(Base):
     artwork_url = Column(String(1000), nullable=True)
     artwork_embedded = Column(Boolean, default=False)
     tags = Column(JSON, nullable=True)  # Additional metadata tags
+    is_christmas = Column(Boolean, default=False, nullable=False)
 
     # External IDs
     isrc = Column(String(50), nullable=True, index=True)

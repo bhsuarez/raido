@@ -17,9 +17,13 @@ class Station(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False, index=True)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
     genre = Column(String(100), nullable=True, index=True)
     dj_persona = Column(String(100), nullable=True)
     artwork_url = Column(String(1000), nullable=True)
+    stream_mount = Column(String(200), unique=True, nullable=False)
+    stream_name = Column(String(200), nullable=True)
 
     tracks = relationship("Track", secondary=station_tracks, back_populates="stations")
+    plays = relationship("Play", back_populates="station")
