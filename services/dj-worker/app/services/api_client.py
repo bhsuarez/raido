@@ -70,18 +70,21 @@ class APIClient:
             logger.error("Error getting next up", error=str(e))
             return None
     
-    async def get_settings(self) -> Optional[Dict[str, Any]]:
-        """Get application settings"""
+    async def get_settings(self, station: str = "main") -> Optional[Dict[str, Any]]:
+        """Get application settings for a specific station"""
         try:
-            response = await self.client.get(f"{self.base_url}/api/v1/admin/settings")
+            response = await self.client.get(
+                f"{self.base_url}/api/v1/admin/settings",
+                params={"station": station}
+            )
             if response.status_code == 200:
                 return response.json()
-            
-            logger.debug("Settings not available", status=response.status_code)
+
+            logger.debug("Settings not available", status=response.status_code, station=station)
             return {}
-        
+
         except Exception as e:
-            logger.error("Error getting settings", error=str(e))
+            logger.error("Error getting settings", error=str(e), station=station)
             return {}
     
     async def create_commentary(self, commentary_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:

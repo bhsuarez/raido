@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pause, Play, Volume1, Volume2, VolumeX, Loader2 } from 'lucide-react'
+import { Pause, Play, Loader2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { shallow } from 'zustand/shallow'
 import { useRadioStore } from '../store/radioStore'
@@ -7,13 +7,6 @@ import { useRadioStore } from '../store/radioStore'
 const fallbackStreamPath = '/stream/raido.mp3'
 const configuredStream = ((import.meta as any)?.env?.VITE_STREAM_URL as string | undefined)?.trim()
 const streamSource = configuredStream && configuredStream.length > 0 ? configuredStream : fallbackStreamPath
-
-const normalizeVolume = (value: number | undefined): number => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 75
-  }
-  return Math.min(100, Math.max(0, Math.round(value)))
-}
 
 const formatTrackDisplay = (title?: string, artist?: string) => {
   if (title && artist) return `${title} — ${artist}`
@@ -26,36 +19,22 @@ const RadioPlayer: React.FC = () => {
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [isBuffering, setIsBuffering] = React.useState(false)
-  const [hadInteraction, setHadInteraction] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
-  const { nowPlaying, volume, setVolume, isMuted, toggleMute } = useRadioStore(
+  const { nowPlaying } = useRadioStore(
     (state) => ({
       nowPlaying: state.nowPlaying,
-      volume: state.volume,
-      setVolume: state.setVolume,
-      isMuted: state.isMuted,
-      toggleMute: state.toggleMute,
     }),
     shallow,
   )
-
-  const safeVolume = React.useMemo(() => normalizeVolume(volume), [volume])
-
-  // Ensure persisted volume is always a valid number
-  React.useEffect(() => {
-    if (volume !== safeVolume) {
-      setVolume(safeVolume)
-    }
-  }, [safeVolume, setVolume, volume])
 
   React.useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    audio.volume = isMuted ? 0 : safeVolume / 100
-    audio.muted = isMuted
-  }, [safeVolume, isMuted])
+    audio.volume = 1
+    audio.muted = false
+  }, [])
 
   React.useEffect(() => {
     const audio = audioRef.current
@@ -106,7 +85,6 @@ const RadioPlayer: React.FC = () => {
     const audio = audioRef.current
     if (!audio) return
 
-    setHadInteraction(true)
     setErrorMessage(null)
     setIsBuffering(true)
 
@@ -137,30 +115,6 @@ const RadioPlayer: React.FC = () => {
       void startPlayback()
     }
   }, [isPlaying, pausePlayback, startPlayback])
-
-  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = Number(event.target.value)
-    if (Number.isNaN(nextValue)) return
-
-    setVolume(nextValue)
-    if (isMuted && nextValue > 0) {
-      toggleMute()
-    }
-  }
-
-  const handleToggleMute = () => {
-    toggleMute()
-  }
-
-  const renderVolumeIcon = () => {
-    if (isMuted || safeVolume === 0) {
-      return <VolumeX className="h-5 w-5" aria-hidden />
-    }
-    if (safeVolume < 50) {
-      return <Volume1 className="h-5 w-5" aria-hidden />
-    }
-    return <Volume2 className="h-5 w-5" aria-hidden />
-  }
 
   const trackTitle = nowPlaying?.track?.title
   const trackArtist = nowPlaying?.track?.artist
@@ -205,32 +159,9 @@ const RadioPlayer: React.FC = () => {
                 {errorMessage}
               </p>
             )}
-            {!hadInteraction && !isPlaying && !errorMessage && (
-              <p className="mt-1 text-xs text-gray-400">
-                Hit play to listen while you explore the dashboard.
-              </p>
-            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleToggleMute}
-              className="rounded-full p-2 text-gray-300 transition hover:bg-gray-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-pirate-400 focus:ring-offset-2 focus:ring-offset-gray-900"
-              aria-label={isMuted ? 'Unmute stream' : 'Mute stream'}
-            >
-              {renderVolumeIcon()}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={safeVolume}
-              onChange={handleVolumeChange}
-              aria-label="Adjust stream volume"
-              className="h-1 w-36 cursor-pointer appearance-none rounded-full bg-gray-700 accent-pirate-400"
-            />
-          </div>
+          <div className="h-12 w-12" aria-hidden />
         </div>
         <audio ref={audioRef} src={streamSource} preload="none" className="hidden" />
       </div>

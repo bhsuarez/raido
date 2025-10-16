@@ -24,13 +24,16 @@ except Exception:
 router = APIRouter()
 
 @router.get("/settings", response_model=AdminSettingsResponse)
-async def get_admin_settings(db: AsyncSession = Depends(get_db)):
-    """Get admin settings"""
+async def get_admin_settings(
+    station: str = Query("main", description="Station identifier (main, christmas, etc.)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get admin settings for a specific station"""
     try:
         logger = structlog.get_logger()
-        
-        # Get all settings from database
-        result = await db.execute(select(Setting))
+
+        # Get settings for the specified station
+        result = await db.execute(select(Setting).where(Setting.station == station))
         settings = result.scalars().all()
         
         # Build settings dict with defaults
@@ -60,12 +63,13 @@ async def get_admin_settings(db: AsyncSession = Depends(get_db)):
 @router.post("/settings")
 async def update_admin_settings(
     settings: Dict[str, Any],
+    station: str = Query("main", description="Station identifier (main, christmas, etc.)"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update admin settings"""
+    """Update admin settings for a specific station"""
     try:
         logger = structlog.get_logger()
-        
+
         # Pre-validate known complex settings to avoid saving invalid values
         if 'dj_prompt_template' in settings:
             raw_template = str(settings['dj_prompt_template'] or '')
@@ -80,12 +84,14 @@ async def update_admin_settings(
                     raise HTTPException(status_code=400, detail=f"Invalid prompt template syntax: {te}")
             else:
                 logger.warning("Jinja2 not available in API container; skipping template validation")
-        
+
         for key, value in settings.items():
-            # Check if setting exists
-            result = await db.execute(select(Setting).where(Setting.key == key))
+            # Check if setting exists for this station
+            result = await db.execute(
+                select(Setting).where(Setting.key == key, Setting.station == station)
+            )
             existing_setting = result.scalar_one_or_none()
-            
+
             if existing_setting:
                 # Update existing setting
                 existing_setting.value = str(value)
@@ -96,10 +102,10 @@ async def update_admin_settings(
                 if isinstance(value, bool):
                     value_type = "bool"
                 elif isinstance(value, int):
-                    value_type = "int" 
+                    value_type = "int"
                 elif isinstance(value, float):
                     value_type = "float"
-                
+
                 # Determine category from key
                 category = "general"
                 if key.startswith("dj_"):
@@ -110,24 +116,25 @@ async def update_admin_settings(
                     category = "ui"
                 elif key.startswith("enable_"):
                     category = "features"
-                
+
                 new_setting = Setting(
                     key=key,
                     value=str(value),
                     value_type=value_type,
                     category=category,
+                    station=station,
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc)
                 )
                 db.add(new_setting)
-        
+
         await db.commit()
-        logger.info("Settings updated", count=len(settings))
-        
-        return {"status": "success", "message": f"Updated {len(settings)} settings"}
-        
+        logger.info("Settings updated", station=station, count=len(settings))
+
+        return {"status": "success", "message": f"Updated {len(settings)} settings for {station} station"}
+
     except Exception as e:
-        logger.error("Failed to update settings", error=str(e))
+        logger.error("Failed to update settings", station=station, error=str(e))
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
 
@@ -621,6 +628,186 @@ async def tts_test(payload: Dict[str, Any]):
 
 ## XTTS test endpoint removed (voice cloning not supported)
 
+# Utility helpers -----------------------------------------------------------
+
+
+GENERIC_VOICE_ALIASES: set[str] = {
+    "", "voice", "voices", "default", "sample", "samples", "result", "results",
+    "item", "items", "entry", "entries", "alias", "aliases", "name", "names",
+    "label", "labels", "display_name", "title", "prompt", "prompts", "path",
+    "paths", "file", "files", "file_path", "filepath", "filename", "file_name",
+    "audio", "audio_prompt_path", "prompt_path", "audio_path",
+    "manifest", "list", "lists", "speaker",
+    "character", "model", "voice_id", "id", "uuid", "guid", "metadata",
+    "meta", "data", "value", "key", "chatterbox", "voiceid", "version",
+    "versions", "created_at", "updated_at", "timestamp", "timestamps",
+}
+
+NOISY_PREFIXES: tuple[str, ...] = (
+    "commentary_",
+    "tts_",
+    "voice_",
+    "audio_",
+    "sample_",
+)
+
+UUIDISH_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+
+VOICE_STRING_FIELDS: tuple[str, ...] = (
+    "id",
+    "voice_id",
+    "voice",
+    "name",
+    "label",
+    "display_name",
+    "title",
+    "alias",
+    "slug",
+    "speaker",
+    "character",
+)
+
+VOICE_PATH_FIELDS: tuple[str, ...] = (
+    "audio_prompt_path",
+    "file_path",
+    "path",
+    "sample_path",
+    "voice_sample",
+    "preview",
+)
+
+
+def _looks_like_uuidish(value: str) -> bool:
+    if not value:
+        return False
+    cleaned = value.strip().lower()
+    if not cleaned:
+        return False
+    if UUIDISH_RE.fullmatch(cleaned):
+        return True
+    # Accept UUIDs followed by suffixes (e.g. "<uuid>_alias")
+    base = cleaned.split("_", 1)[0]
+    if UUIDISH_RE.fullmatch(base):
+        return True
+    # Allow slightly non-standard UUID variants where hyphenated groups are still hex
+    parts = cleaned.split("-")
+    if len(parts) >= 5:
+        base_parts = parts[:5]
+        expected_lengths = (8, 4, 4, 4, 12)
+        if all(len(part) == expected for part, expected in zip(base_parts, expected_lengths)):
+            if all(part and all(char in "0123456789abcdef" for char in part) for part in base_parts):
+                return True
+    return False
+
+
+def _is_noise_identifier(value: str) -> bool:
+    if not value:
+        return True
+    stripped = value.strip()
+    if not stripped:
+        return True
+    if _looks_like_uuidish(stripped):
+        return True
+    lowered = stripped.lower()
+    if lowered.startswith(NOISY_PREFIXES):
+        return True
+    # Detect UUID-prefixed filenames like "<uuid>_alias"
+    prefix, _, _ = stripped.partition("_")
+    if _looks_like_uuidish(prefix):
+        return True
+    lowered = stripped.lower()
+    if "/" in stripped or "\\" in stripped:
+        return True
+    if lowered.endswith((".wav", ".mp3", ".ogg", ".flac", ".opus", ".m4a")):
+        return True
+    return False
+
+
+def _extract_voice_names(payload: Any) -> list[str]:
+    """Best-effort extraction of voice identifiers from arbitrary JSON payloads.
+
+    Chatterbox installations return widely varying structures. We walk the response,
+    collecting plausible identifiers while skipping generic metadata keys.
+
+    Updated to prefer voice IDs and avoid duplicates/display names.
+    """
+
+    voices: list[str] = []
+    seen: set[str] = set()
+
+    def _append(value: Any, is_voice_id: bool = False) -> None:
+        if value is None:
+            return
+        text = str(value).strip()
+        if not text:
+            return
+        lowered = text.lower()
+        if lowered in GENERIC_VOICE_ALIASES:
+            return
+        if "://" in text:
+            return
+        # Skip display names with parentheses like "Natalie (Custom)"
+        if "(" in text and ")" in text:
+            return
+
+        # Only add the value if it's from a voice ID field or looks like a proper voice identifier
+        # Skip extracting aliases from underscores/paths to avoid duplicates
+        skip_original = lowered.startswith(NOISY_PREFIXES) or _is_noise_identifier(text)
+
+        if lowered not in seen and not skip_original:
+            seen.add(lowered)
+            voices.append(text)
+
+    def _walk(node: Any) -> None:
+        if node is None:
+            return
+        if isinstance(node, str):
+            _append(node)
+            return
+        if isinstance(node, list):
+            for item in node:
+                _walk(item)
+            return
+        if isinstance(node, dict):
+            # Only extract from voice ID fields, not paths or display names
+            for field in ("id", "voice_id", "voice", "name"):
+                if field in node and node.get(field):
+                    _append(node.get(field), is_voice_id=True)
+            # Recursively walk nested structures
+            for key, value in node.items():
+                if isinstance(value, (dict, list)):
+                    _walk(value)
+
+    _walk(payload)
+    if not voices:
+        return []
+
+    friendly: list[str] = []
+    friendly_seen: set[str] = set()
+    noisy: list[str] = []
+    noisy_seen: set[str] = set()
+
+    for candidate in voices:
+        if not candidate:
+            continue
+        trimmed = candidate.strip()
+        if not trimmed:
+            continue
+        key = trimmed.lower()
+        if key in friendly_seen or key in noisy_seen:
+            continue
+        if _is_noise_identifier(trimmed):
+            noisy.append(trimmed)
+            noisy_seen.add(key)
+        else:
+            friendly.append(trimmed)
+            friendly_seen.add(key)
+
+    if friendly:
+        return friendly
+    return noisy
+
+
 @router.get("/voices-chatterbox")
 async def list_chatterbox_voices(db: AsyncSession = Depends(get_db)):
     """List Chatterbox voices if the server exposes them; otherwise return a small default.
@@ -662,10 +849,8 @@ async def list_chatterbox_voices(db: AsyncSession = Depends(get_db)):
         if 'http://chatterbox-shim:8000/api/voices' not in candidates:
             candidates.insert(0, 'http://chatterbox-shim:8000/api/voices')
         # 4) User-provided known host (fallback for convenience)
-        if 'http://192.168.1.112:8080/api/voices' not in candidates:
-            candidates.append('http://192.168.1.112:8080/api/voices')
-
-        generic_aliases = {"", "default", "voice", "sample", "voices", "prompt"}
+        if 'http://192.168.1.170:8080/api/voices' not in candidates:
+            candidates.append('http://192.168.1.170:8080/api/voices')
 
         async with httpx.AsyncClient(timeout=5.0) as client:
             for url in candidates:
@@ -674,67 +859,9 @@ async def list_chatterbox_voices(db: AsyncSession = Depends(get_db)):
                     if resp.status_code != 200:
                         continue
                     data = resp.json()
-                    # Normalize voices list
-                    voices: list[str] = []
-
-                    def _append_candidate(raw: str | None) -> None:
-                        if raw is None:
-                            return
-                        value = str(raw).strip()
-                        if not value:
-                            return
-                        normalized = value.lower()
-                        if "_" in value:
-                            alias = value.split("_", 1)[-1].strip()
-                            if alias and alias.lower() not in generic_aliases and alias != value:
-                                voices.append(alias)
-                        if " " in value and normalized != "default":
-                            alias = value.split()[-1].strip()
-                            if alias and alias.lower() not in generic_aliases and alias != value:
-                                voices.append(alias)
-                            # Skip noisy multi-word labels like "uuid alias"
-                            return
-                        voices.append(value)
-
-                    def _append_from_path(path_value: str | None) -> None:
-                        if not path_value:
-                            return
-                        stem = Path(str(path_value)).stem
-                        _append_candidate(stem)
-
-                    # If wrapped
-                    if isinstance(data, dict) and 'voices' in data:
-                        data = data['voices']
-                    if isinstance(data, list):
-                        for v in data:
-                            if isinstance(v, dict):
-                                _append_candidate(v.get('id'))
-                                _append_candidate(v.get('name'))
-                                _append_candidate(v.get('voice'))
-                                _append_from_path(v.get('file_path') or v.get('audio_prompt_path'))
-                            else:
-                                _append_candidate(str(v))
-                    elif isinstance(data, dict):
-                        # Map of id->name or similar
-                        for k, v in data.items():
-                            if isinstance(v, dict):
-                                _append_candidate(v.get('id'))
-                                _append_candidate(v.get('name'))
-                                _append_candidate(v.get('voice'))
-                                _append_from_path(v.get('file_path') or v.get('audio_prompt_path'))
-                            else:
-                                _append_candidate(str(k))
-                    # De-duplicate
-                    out: list[str] = []
-                    seen: set[str] = set()
-                    for v in voices:
-                        normalized = v.lower()
-                        if normalized in seen:
-                            continue
-                        seen.add(normalized)
-                        out.append(v)
-                    if out:
-                        return {"voices": out}
+                    extracted = _extract_voice_names(data)
+                    if extracted:
+                        return {"voices": extracted}
                 except Exception:
                     continue
     except Exception:
@@ -1205,6 +1332,39 @@ async def get_analytics(
     except Exception as e:
         logger.error("Failed to get analytics", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
+
+@router.get("/ollama-models")
+async def list_ollama_models():
+    """List available Ollama models from the configured Ollama server"""
+    logger = structlog.get_logger()
+    try:
+        ollama_base = getattr(settings, 'OLLAMA_BASE_URL', None)
+        if not ollama_base:
+            logger.warning("Ollama base URL not configured")
+            return {"models": []}
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{ollama_base.rstrip('/')}/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = data.get("models", [])
+                # Extract just the model names
+                model_names = []
+                for model in models:
+                    if isinstance(model, dict) and "name" in model:
+                        model_names.append(model["name"])
+                    elif isinstance(model, str):
+                        model_names.append(model)
+
+                logger.info("Ollama models fetched", count=len(model_names), models=model_names)
+                return {"models": model_names}
+            else:
+                logger.warning("Failed to fetch Ollama models", status=resp.status_code, text=resp.text[:200])
+                return {"models": []}
+
+    except Exception as e:
+        logger.warning("Failed to fetch Ollama models", error=str(e))
+        return {"models": []}
 
 @router.post("/clear-recent-commentary")
 async def clear_recent_commentary(db: AsyncSession = Depends(get_db)):
