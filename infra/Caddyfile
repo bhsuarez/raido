@@ -79,8 +79,61 @@ raido.zorro.network {
 	}
 }
 
+# Christmas frontend on subdomain and port 8888
+christmas.raido.zorro.network, raido.zorro.network:8888, :8888 {
+	# API endpoints (needed for artwork lookup and DJ admin)
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Static files (TTS audio)
+	handle /static/* {
+		reverse_proxy api:8000
+	}
+
+	# WebSocket endpoint
+	handle /ws {
+		reverse_proxy api:8000 {
+			header_up Upgrade {http.request.header.Upgrade}
+			header_up Connection {http.request.header.Connection}
+		}
+	}
+
+	# Icecast stream (needed for metadata and artwork)
+	handle_path /stream/* {
+		reverse_proxy icecast:8000
+	}
+
+	# Enable CORS for API
+	header /api/* {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type, Authorization"
+	}
+
+	# Handle preflight requests
+	@cors_preflight method OPTIONS path /api/*
+	respond @cors_preflight 204
+
+	# Finally, serve Christmas frontend (catch-all)
+	handle /* {
+		reverse_proxy christmas-web:80
+	}
+}
+
 # Main site (localhost/IP)
 :80 {
+	# Christmas path route (handle before other routes)
+	handle_path /christmas* {
+		reverse_proxy christmas-web:80
+	}
+
+	# Christmas subdomain (handle first before catch-all)
+	@christmas host christmas.raido.local
+	handle @christmas {
+		reverse_proxy christmas-web:80
+	}
+
 	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000
