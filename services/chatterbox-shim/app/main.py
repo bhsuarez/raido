@@ -17,7 +17,7 @@ import shutil
 
 logger = structlog.get_logger()
 
-UPSTREAM = os.getenv("CH_SHIM_UPSTREAM", "http://192.168.1.112:8000").rstrip("/")
+UPSTREAM = os.getenv("CH_SHIM_UPSTREAM", "http://192.168.1.170:8000").rstrip("/")
 READ_TIMEOUT = float(os.getenv("CH_SHIM_TIMEOUT", "60"))
 CONNECT_TIMEOUT = float(os.getenv("CH_SHIM_CONNECT_TIMEOUT", "5"))
 WRITE_TIMEOUT = float(os.getenv("CH_SHIM_WRITE_TIMEOUT", "10"))
@@ -283,18 +283,10 @@ UPSTREAM_STATE_LOCK = asyncio.Lock()
 HEALTH_CACHE: dict[str, object] = {"timestamp": 0.0, "payload": None}
 HEALTH_CACHE_LOCK = asyncio.Lock()
 
-FALLBACK_VOICES = [
-    {
-        "id": "d92260ce-6412-48d9-b348-d1d0706f4fbf",
-        "name": "brian",
-        "audio_prompt_path": "/root/frontend/uploads/d92260ce-6412-48d9-b348-d1d0706f4fbf_brian.wav",
-    },
-    {
-        "id": "cb231744-e7c6-4f56-9aaa-593720b38928",
-        "name": "natalie",
-        "audio_prompt_path": "/root/frontend/uploads/cb231744-e7c6-4f56-9aaa-593720b38928_natalie.wav",
-    },
-]
+# Fallback voices removed - upstream server (192.168.1.170) has different voices
+# The new server provides: default, brian, english, multilingual, custom-natalie, custom-brian-hi
+# These are auto-discovered via the /voices endpoint
+FALLBACK_VOICES = []
 
 # Seed the registry with known fallback voices on startup
 _register_from_iterable(FALLBACK_VOICES)
@@ -589,6 +581,13 @@ async def _attach_audio_prompt(
     voice_hint: str | None,
     log: structlog.typing.FilteringBoundLogger | structlog.BoundLogger | None = None,
 ) -> None:
+    """Attach audio_prompt_path only for local voice files, not server-known voices.
+
+    The upstream Chatterbox server already knows about voices in its /voices endpoint.
+    We should only send audio_prompt_path for locally uploaded files that the shim manages.
+    For voices like 'custom-british' that have audio_prompt_path in the manifest,
+    just send the voice ID - the server handles the path resolution.
+    """
     if voice_hint is None:
         return
 
@@ -607,7 +606,14 @@ async def _attach_audio_prompt(
         alias = voice_hint.split("_", 1)[-1]
         audio_path = resolve_audio_prompt(alias)
 
+    # Only attach audio_prompt_path for truly local files that exist
+    # Don't send paths for server-known voices - the server already knows them
     if audio_path:
+        # Only attach if the file actually exists locally
+        if not Path(audio_path).exists():
+            # This is a server-side voice reference, not a local file
+            # Let the server handle it by voice ID only
+            return
         metadata["audio_prompt_path"] = audio_path
 
 
@@ -948,6 +954,185 @@ async def speak(request: SpeakRequest):
     except Exception as e:
         req_logger.error("Speak endpoint failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Speak error: {str(e)}")
+
+@app.get("/api/requirements")
+async def requirements_doc():
+    """
+    Documentation endpoint for Chatterbox server implementations.
+    This describes what the shim expects from the upstream Chatterbox server.
+    """
+    return {
+        "shim_version": "1.0",
+        "upstream_url": UPSTREAM,
+        "description": "Chatterbox TTS Server API Requirements",
+        "endpoints": {
+            "health": {
+                "method": "GET",
+                "path": "/health",
+                "description": "Health check endpoint",
+                "required": True,
+                "response": {
+                    "status_code": 200,
+                    "content_type": "application/json",
+                    "example": {"status": "ok"}
+                }
+            },
+            "tts_legacy": {
+                "method": "GET",
+                "path": "/tts",
+                "description": "Legacy TTS generation endpoint (query params)",
+                "required": True,
+                "parameters": {
+                    "text": {
+                        "type": "string",
+                        "required": True,
+                        "description": "Text to synthesize"
+                    },
+                    "voice": {
+                        "type": "string",
+                        "required": False,
+                        "default": "default",
+                        "description": "Voice identifier or name"
+                    },
+                    "audio_prompt_path": {
+                        "type": "string",
+                        "required": False,
+                        "description": "Path to WAV file for voice cloning (server filesystem path)"
+                    },
+                    "exaggeration": {
+                        "type": "float",
+                        "required": False,
+                        "default": 1.0,
+                        "description": "Voice exaggeration level"
+                    },
+                    "cfg_weight": {
+                        "type": "float",
+                        "required": False,
+                        "default": 0.5,
+                        "description": "Classifier-free guidance weight"
+                    },
+                    "response_format": {
+                        "type": "string",
+                        "required": False,
+                        "default": "wav",
+                        "enum": ["wav", "mp3"],
+                        "description": "Audio format to return"
+                    }
+                },
+                "response": {
+                    "status_code": 200,
+                    "content_type": "audio/wav or audio/mpeg",
+                    "description": "Binary audio data"
+                },
+                "example_url": f"{UPSTREAM}/tts?text=Hello%20world&voice=brian&response_format=wav"
+            },
+            "tts_openai_compatible": {
+                "method": "POST",
+                "path": "/v1/audio/speech",
+                "description": "OpenAI-compatible TTS endpoint (JSON body)",
+                "required": False,
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": {
+                    "input": {
+                        "type": "string",
+                        "required": True,
+                        "description": "Text to synthesize"
+                    },
+                    "voice": {
+                        "type": "string",
+                        "required": False,
+                        "default": "default",
+                        "description": "Voice identifier"
+                    },
+                    "model": {
+                        "type": "string",
+                        "required": False,
+                        "default": "tts-1",
+                        "description": "TTS model identifier"
+                    },
+                    "response_format": {
+                        "type": "string",
+                        "required": False,
+                        "default": "mp3",
+                        "enum": ["wav", "mp3"],
+                        "description": "Audio format"
+                    },
+                    "audio_prompt_path": {
+                        "type": "string",
+                        "required": False,
+                        "description": "Path to voice cloning audio file"
+                    },
+                    "exaggeration": {
+                        "type": "float",
+                        "required": False,
+                        "default": 1.0
+                    },
+                    "cfg_weight": {
+                        "type": "float",
+                        "required": False,
+                        "default": 0.5
+                    }
+                },
+                "response": {
+                    "status_code": 200,
+                    "content_type": "audio/wav or audio/mpeg or application/octet-stream",
+                    "description": "Binary audio data"
+                },
+                "example_body": {
+                    "input": "Hello world",
+                    "voice": "brian",
+                    "response_format": "wav"
+                }
+            },
+            "voices": {
+                "method": "GET",
+                "paths": ["/voices", "/api/voices", "/v1/voices", "/list_voices", "/v1/audio/voices"],
+                "description": "List available voices (tries multiple endpoints)",
+                "required": False,
+                "response": {
+                    "status_code": 200,
+                    "content_type": "application/json",
+                    "description": "List of voice objects",
+                    "example": [
+                        {
+                            "id": "voice-uuid",
+                            "name": "brian",
+                            "audio_prompt_path": "/path/to/brian.wav"
+                        }
+                    ]
+                }
+            }
+        },
+        "voice_cloning": {
+            "description": "Voice cloning is supported via audio_prompt_path parameter",
+            "requirements": {
+                "format": "WAV file (recommended) or MP3",
+                "path": "Server filesystem path accessible to the TTS service",
+                "parameter_name": "audio_prompt_path"
+            }
+        },
+        "timeouts": {
+            "connect": f"{CONNECT_TIMEOUT}s",
+            "read": f"{READ_TIMEOUT}s",
+            "write": f"{WRITE_TIMEOUT}s"
+        },
+        "retry_behavior": {
+            "max_attempts": MAX_ATTEMPTS,
+            "backoff_base": f"{BACKOFF_BASE}s",
+            "backoff_max": f"{BACKOFF_MAX}s"
+        },
+        "circuit_breaker": {
+            "failure_threshold": BREAKER_THRESHOLD,
+            "cooldown_seconds": BREAKER_COOLDOWN
+        },
+        "test_instructions": {
+            "health_check": f"curl {UPSTREAM}/health",
+            "simple_tts": f"curl '{UPSTREAM}/tts?text=Hello%20world' -o test.wav",
+            "openai_compatible": f"curl -X POST {UPSTREAM}/v1/audio/speech -H 'Content-Type: application/json' -d '{{\"input\":\"Hello\",\"voice\":\"default\"}}' -o test.wav"
+        }
+    }
 
 @app.post("/api/upload-voice")
 async def upload_voice(

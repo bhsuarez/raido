@@ -132,7 +132,7 @@ class DJWorker:
         """Determine if commentary should be generated for next track"""
         try:
             # Load settings first to respect admin selections over env defaults
-            settings_response = await self.api_client.get_settings()
+            settings_response = await self.api_client.get_settings(station=settings.STATION_NAME)
             if not settings_response:
                 return False
 
@@ -339,8 +339,8 @@ class DJWorker:
                 job.started_at = datetime.now(timezone.utc)
                 gen_started = datetime.now(timezone.utc)
 
-                # Get DJ settings from API
-                dj_settings = await self.api_client.get_settings()
+                # Get DJ settings from API for this station
+                dj_settings = await self.api_client.get_settings(station=settings.STATION_NAME)
                 # Determine current voice provider & voice for placeholder record
                 try:
                     vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER

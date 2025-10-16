@@ -85,7 +85,10 @@
       "Bash(telnet:*)",
       "Bash(nc:*)",
       "Bash(xxd:*)",
-      "Bash(echo \"Response code: $?\")"
+      "Bash(echo \"Response code: $?\")",
+      "Bash(ollama list:*)",
+      "Bash(ping:*)",
+      "Read(//mnt/music/**)"
     ],
     "deny": [],
     "ask": [],

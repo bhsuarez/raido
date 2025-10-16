@@ -120,16 +120,52 @@ async def scan_music_directory(
         raise HTTPException(status_code=500, detail=f"Failed to start scan: {str(e)}")
 
 
+@router.get("/search")
+async def search_tracks(
+    artist: Optional[str] = None,
+    title: Optional[str] = None,
+    limit: int = 5,
+    db: AsyncSession = Depends(get_db)
+):
+    """Search for tracks by artist and/or title"""
+    try:
+        query = select(Track)
+
+        if artist:
+            query = query.where(Track.artist.ilike(f"%{artist}%"))
+        if title:
+            query = query.where(Track.title.ilike(f"%{title}%"))
+
+        query = query.limit(limit)
+        result = await db.execute(query)
+        tracks = result.scalars().all()
+
+        return [
+            {
+                "track_id": track.id,
+                "title": track.title,
+                "artist": track.artist,
+                "album": track.album,
+                "artwork_url": track.artwork_url,
+            }
+            for track in tracks
+        ]
+
+    except Exception as e:
+        logger.error("Failed to search tracks", artist=artist, title=title, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to search: {str(e)}")
+
+
 @router.get("/file/{file_id}/metadata")
 async def get_file_metadata(file_id: int, db: AsyncSession = Depends(get_db)):
     """Get detailed metadata for a specific track"""
     try:
         result = await db.execute(select(Track).where(Track.id == file_id))
         track = result.scalar_one_or_none()
-        
+
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
-        
+
         return {
             "track_id": track.id,
             "title": track.title,
@@ -145,7 +181,7 @@ async def get_file_metadata(file_id: int, db: AsyncSession = Depends(get_db)):
             "created_at": track.created_at.isoformat() if track.created_at else None,
             "tags": track.tags
         }
-        
+
     except Exception as e:
         logger.error("Failed to get track metadata", file_id=file_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get metadata: {str(e)}")

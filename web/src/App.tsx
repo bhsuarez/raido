@@ -9,12 +9,15 @@ import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
+import RadioPlayer from './components/RadioPlayer'
+import Snowfall from './components/Snowfall'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">
+    <div className="min-h-screen winter-theme">
+      <Snowfall />
       <Layout>
         <ErrorBoundary>
         <Routes>
@@ -22,6 +25,9 @@ function App() {
             path="/" 
             element={
               <div className="space-y-6">
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Stream Player.</div>}>
+                  <RadioPlayer />
+                </ErrorBoundary>
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
                   <NowPlaying />
                 </ErrorBoundary>

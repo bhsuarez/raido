@@ -1,18 +1,24 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, JSON, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, JSON, DateTime, Float, UniqueConstraint
 from sqlalchemy.sql import func
 
 from app.core.database import Base
 
 class Setting(Base):
     __tablename__ = "settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(100), unique=True, nullable=False, index=True)
+    key = Column(String(100), nullable=False, index=True)
+    station = Column(String(50), nullable=False, default="main", index=True)  # Station identifier
     value = Column(Text, nullable=True)
     value_type = Column(String(20), default="string", nullable=False)  # string, int, float, bool, json
     category = Column(String(50), nullable=False, index=True)  # dj, stream, ui, security, etc.
     description = Column(Text, nullable=True)
     is_secret = Column(Boolean, default=False, nullable=False)  # Sensitive values
+
+    # Unique constraint on (key, station) combination
+    __table_args__ = (
+        UniqueConstraint('key', 'station', name='uix_key_station'),
+    )
     
     # Validation
     min_value = Column(Float, nullable=True)  # For numeric types

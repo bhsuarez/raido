@@ -84,8 +84,8 @@ export const apiHelpers = {
   getNextUp: (limit = 1) => api.get(`/now/next?limit=${limit}`),
   
   // Admin endpoints
-  getSettings: () => api.get('/admin/settings'),
-  updateSettings: (settings: Record<string, any>) => api.post('/admin/settings', settings),
+  getSettings: (station = 'main') => api.get('/admin/settings', { params: { station } }),
+  updateSettings: (settings: Record<string, any>, station = 'main') => api.post('/admin/settings', settings, { params: { station } }),
   getStats: () => api.get('/admin/stats'),
   getVoices: () => api.get("/admin/voices"),
   
