@@ -127,24 +127,24 @@ class APIClient:
             logger.error("Error updating commentary", error=str(e))
             return False
     
-    async def inject_commentary(self, audio_filename: str) -> bool:
+    async def inject_commentary(self, audio_filename: str, station: str = "main") -> bool:
         """Tell Liquidsoap to inject commentary"""
         try:
             response = await self.client.post(
                 f"{self.base_url}/api/v1/liquidsoap/inject_commentary",
-                params={"filename": audio_filename}
+                params={"filename": audio_filename, "station": station}
             )
-            
+
             if response.status_code == 200:
-                logger.info("Commentary injection requested", filename=audio_filename)
+                logger.info("Commentary injection requested", filename=audio_filename, station=station)
                 return True
-            
-            logger.error("Failed to request commentary injection", 
-                        status=response.status_code)
+
+            logger.error("Failed to request commentary injection",
+                        status=response.status_code, station=station)
             return False
-        
+
         except Exception as e:
-            logger.error("Error injecting commentary", error=str(e))
+            logger.error("Error injecting commentary", error=str(e), station=station)
             return False
     
     async def close(self):
