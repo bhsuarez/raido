@@ -79,9 +79,11 @@ ttsApi.interceptors.response.use(responseInterceptor, responseErrorInterceptor)
 // Helper functions for common API patterns
 export const apiHelpers = {
   // Stream-related endpoints
-  getNowPlaying: () => api.get('/now'),
-  getHistory: (limit = 20, offset = 0) => api.get(`/now/history?limit=${limit}&offset=${offset}`),
-  getNextUp: (limit = 1) => api.get(`/now/next?limit=${limit}`),
+  getNowPlaying: (station = 'christmas') => api.get('/now', { params: { station } }),
+  getHistory: (limit = 20, offset = 0, station = 'christmas') =>
+    api.get('/now/history', { params: { limit, offset, station } }),
+  getNextUp: (limit = 1, station = 'christmas') =>
+    api.get('/now/next', { params: { limit, station } }),
   
   // Admin endpoints
   getSettings: (station = 'christmas') => api.get('/admin/settings', { params: { station } }),

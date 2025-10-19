@@ -1,12 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import {
-  HomeIcon,
-  WifiIcon,
-  WifiOffIcon,
-  BarChart3Icon,
-  SettingsIcon,
-} from 'lucide-react'
+import { HomeIcon, WifiIcon, WifiOffIcon, SettingsIcon, RadioIcon } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Logo from './Logo'
@@ -24,11 +18,15 @@ export default function Layout({ children }: LayoutProps) {
   // Establish WebSocket connection for live updates
   useWebSocket()
 
-  const navigation = [
-    { name: 'Now Playing', href: '/', icon: HomeIcon },
-    { name: 'DJ Admin', href: '/tts', icon: SettingsIcon },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3Icon },
-  ]
+  const isStationsPage = location.pathname.startsWith('/stations')
+
+  const navigation = isStationsPage
+    ? [{ name: 'Stations', href: '/stations', icon: RadioIcon }]
+    : [
+        { name: 'Now Playing', href: '/now-playing', icon: HomeIcon },
+        { name: 'DJ Admin', href: '/raido/admin', icon: SettingsIcon },
+        { name: 'Stations', href: '/stations', icon: RadioIcon },
+      ]
 
   const trackTitle = nowPlaying?.track?.title?.trim()
   const trackArtist = nowPlaying?.track?.artist?.trim()
@@ -80,7 +78,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="ml-auto flex items-center space-x-4">
               {/* Christmas Station Button */}
               <a
-                href="http://192.168.1.41:9000"
+                href="/christmas/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
@@ -134,7 +132,7 @@ export default function Layout({ children }: LayoutProps) {
             })}
             {/* Christmas Station Link (Mobile) */}
             <a
-              href="http://192.168.1.41:9000"
+              href="/christmas/"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"

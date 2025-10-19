@@ -1,4 +1,4 @@
-import{r as R}from"./router-CEWA_ico.js";import{r as gt}from"./vendor-D3F3s8fL.js";var L={exports:{}},M={};/**
+import{r as R}from"./router-P8FkEVy8.js";import{r as gt}from"./vendor-D3F3s8fL.js";var L={exports:{}},M={};/**
  * @license React
  * react-jsx-runtime.production.min.js
  *

@@ -7,6 +7,12 @@
 
 # Domain configuration (dev)
 raido.zorro.network {
+	# Christmas station routes (handle before catch-all)
+	redir /christmas /christmas/ 301
+	handle /christmas/* {
+		reverse_proxy christmas-web:80
+	}
+
 	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000
@@ -81,6 +87,12 @@ raido.zorro.network {
 
 # Main site (localhost/IP)
 :80 {
+	# Christmas station routes (handle before catch-all)
+	redir /christmas /christmas/ 301
+	handle /christmas/* {
+		reverse_proxy christmas-web:80
+	}
+
 	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000

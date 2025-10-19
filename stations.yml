@@ -1,0 +1,124 @@
+# Raido Station Configuration
+# This file defines all radio stations and their configurations
+
+stations:
+  # Main station - default pirate radio
+  main:
+    display_name: "Main Deck Radio"
+    identifier: "main"  # Used in API calls and service names
+    description: "The original pirate radio station"
+
+    # Liquidsoap configuration
+    liquidsoap:
+      config_file: "./infra/liquidsoap/radio.liq"
+      telnet_port: 1234
+      http_port: 8080
+      icecast_mount: "/stream"
+
+    # DJ Worker configuration
+    dj_worker:
+      enabled: true
+      default_provider: "ollama"  # ollama, openai, templates, disabled
+      default_voice_provider: "kokoro"  # kokoro, chatterbox, openai_tts
+      default_voice: "am_onyx"
+      commentary_interval: 1
+      max_seconds: 30
+      memory_limit: "1g"
+      cpu_limit: "0.50"
+
+    # Frontend configuration
+    frontend:
+      enabled: true
+      port: null  # null = served via proxy at /
+      theme: "dark"
+      custom_branding: false
+
+    # Music library
+    music:
+      path: "/mnt/music"
+      filter: null  # null = all tracks, or specify filters
+
+  # Christmas station - holiday music
+  christmas:
+    display_name: "North Pole Broadcast"
+    identifier: "christmas"
+    description: "24/7 Christmas music and holiday cheer"
+
+    liquidsoap:
+      config_file: "./infra/liquidsoap/christmas.liq"
+      telnet_port: 1235
+      http_port: null  # No HTTP admin for this station
+      icecast_mount: "/christmas"
+
+    dj_worker:
+      enabled: true
+      default_provider: "ollama"
+      default_voice_provider: "kokoro"
+      default_voice: "am_santa"
+      commentary_interval: 1
+      max_seconds: 30
+      memory_limit: "1g"
+      cpu_limit: "0.50"
+      prompt_template: |
+        You're a cheerful holiday radio DJ introducing the NEXT Christmas song coming up.
+        Create a brief 15-20 second festive intro for: "{{song_title}}" by {{artist}}.
+        Share ONE interesting fact about this Christmas song. Be warm and festive!
+
+    frontend:
+      enabled: true
+      port: 9000  # Dedicated port for Christmas frontend
+      theme: "christmas"
+      custom_branding: true
+
+    music:
+      path: "/mnt/music"
+      filter:
+        tags: ["christmas", "holiday", "xmas"]
+        genre: ["Christmas", "Holiday"]
+
+  # Example: Add more stations by copying this template
+  # jazz:
+  #   display_name: "Jazz Lounge"
+  #   identifier: "jazz"
+  #   description: "Smooth jazz 24/7"
+  #
+  #   liquidsoap:
+  #     config_file: "./infra/liquidsoap/jazz.liq"
+  #     telnet_port: 1236
+  #     http_port: null
+  #     icecast_mount: "/jazz"
+  #
+  #   dj_worker:
+  #     enabled: true
+  #     default_provider: "ollama"
+  #     default_voice_provider: "kokoro"
+  #     default_voice: "af_bella"
+  #     commentary_interval: 2
+  #     max_seconds: 20
+  #
+  #   frontend:
+  #     enabled: true
+  #     port: 9001
+  #     theme: "dark"
+  #
+  #   music:
+  #     path: "/mnt/music"
+  #     filter:
+  #       genre: ["Jazz", "Smooth Jazz", "Bebop", "Cool Jazz"]
+
+# Global settings (shared across all stations)
+global:
+  # Shared volumes
+  shared_volume: "shared"
+  db_volume: "db"
+
+  # External services
+  ollama_url: "http://192.168.1.204:11434"
+  chatterbox_shim_url: "http://chatterbox-shim:8000"
+  kokoro_tts_url: "http://kokoro-tts:8880"
+
+  # Icecast server (shared by all stations)
+  icecast:
+    host: "icecast"
+    port: 8000
+    password: "hackme"

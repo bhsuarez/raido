@@ -270,8 +270,12 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
         if dj_settings is None:
             dj_settings = {}
 
+        # Prioritize station_name from context (worker env) over database settings
+        # This ensures Christmas station uses "christmas" identifier, not generic DB default
+        station_name = context.get('station_name') or dj_settings.get('station_name', settings.STATION_NAME)
+
         return {
-            'station_name': dj_settings.get('station_name', settings.STATION_NAME),
+            'station_name': station_name,
             'max_seconds': dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS),
             'song_title': track_info.get('title', 'Unknown Title'),
             'artist': track_info.get('artist', 'Unknown Artist'),

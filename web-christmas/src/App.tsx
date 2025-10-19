@@ -8,7 +8,6 @@ import NowPlaying from './components/NowPlaying'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
-import RadioPlayer from './components/RadioPlayer'
 import Snowfall from './components/Snowfall'
 
 function App() {
@@ -23,9 +22,6 @@ function App() {
             path="/" 
             element={
               <div className="space-y-6">
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Stream Player.</div>}>
-                  <RadioPlayer />
-                </ErrorBoundary>
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
                   <NowPlaying />
                 </ErrorBoundary>

@@ -1,25 +1,37 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, update
+from sqlalchemy import select, desc, update, func
 from typing import Optional, Dict, Any
 import structlog
 from pathlib import Path
 
 from app.core.database import AsyncSessionLocal, get_db
-from app.models import Track, Play, Commentary
+from app.models import Track, Play, Commentary, Station
 from app.schemas.stream import NowPlayingResponse, HistoryResponse, NextUpResponse
 from app.services.liquidsoap_client import LiquidsoapClient
 
 router = APIRouter()
 logger = structlog.get_logger()
 
+# Station to Liquidsoap configuration mapping
+STATION_LIQUIDSOAP_CONFIG = {
+    "main": {"host": "liquidsoap", "port": 1234},
+    "christmas": {"host": "christmas-liquidsoap", "port": 1235},
+}
+
+def get_liquidsoap_client(station: str = "main") -> LiquidsoapClient:
+    """Get LiquidsoapClient configured for the specified station"""
+    config = STATION_LIQUIDSOAP_CONFIG.get(station, STATION_LIQUIDSOAP_CONFIG["main"])
+    return LiquidsoapClient(host=config["host"], port=config["port"])
+
 @router.get("/", response_model=NowPlayingResponse)
-async def get_now_playing():
-    """Get currently playing track information"""
+async def get_now_playing(station: str = Query("main", description="Station identifier (main, christmas, etc.)")):
+    """Get currently playing track information for a specific station"""
     try:
+        station_normalized = (station or "main").lower()
         # Try to read current directly from Liquidsoap (more accurate)
         try:
-            client = LiquidsoapClient()
+            client = get_liquidsoap_client(station)
             rids = client.list_request_ids()
             sorted_rids = sorted(rids)
             current_rid = sorted_rids[0] if sorted_rids else None
@@ -131,6 +143,7 @@ async def get_now_playing():
                     select(Play, Track)
                     .join(Track, Play.track_id == Track.id)
                     .where(Play.ended_at.is_(None))
+                    .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized)
                     .order_by(desc(Play.started_at))
                     .limit(1)
                 )
@@ -144,6 +157,7 @@ async def get_now_playing():
                     result = await db.execute(
                         select(Play, Track)
                         .join(Track, Play.track_id == Track.id)
+                        .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized)
                         .order_by(desc(Play.started_at))
                         .limit(1)
                     )
@@ -202,20 +216,26 @@ async def get_now_playing():
         raise HTTPException(status_code=500, detail="Failed to retrieve now playing information")
 
 @router.get("/next", response_model=NextUpResponse)
-async def get_next_up(limit: int = 1, db: AsyncSession = Depends(get_db)):
+async def get_next_up(
+    limit: int = 1,
+    station: str = Query("main", description="Station identifier (main, christmas, etc.)"),
+    db: AsyncSession = Depends(get_db)
+):
     """Get information about the next upcoming track based on Liquidsoap request queue.
 
     Falls back to a random pick when queue introspection fails.
     """
     try:
+        station_normalized = (station or "main").lower()
         # Try to determine next track from Liquidsoap request queue (RID order)
-        client = LiquidsoapClient()
+        client = get_liquidsoap_client(station)
 
         # Compute base estimated start from current play progress if possible
         current_row = await db.execute(
             select(Play, Track)
             .join(Track, Play.track_id == Track.id)
             .where(Play.ended_at.is_(None))
+            .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized)
             .order_by(desc(Play.started_at))
             .limit(1)
         )
@@ -357,17 +377,24 @@ async def get_next_up(limit: int = 1, db: AsyncSession = Depends(get_db)):
             )
 
         # Fallback: random pick excluding recent plays
-        from sqlalchemy import func
         from datetime import timedelta
         estimated_start = (base_now + timedelta(seconds=base_remaining)) if base_now else None
         recent_plays_result = await db.execute(
-            select(Play.track_id).order_by(Play.started_at.desc()).limit(10)
+            select(Play.track_id)
+            .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized)
+            .order_by(Play.started_at.desc())
+            .limit(10)
         )
         recent_track_ids = [row[0] for row in recent_plays_result.fetchall()]
         upcoming_query = select(Track).where(
             Track.title != "Unknown",
             ~Track.id.in_(recent_track_ids) if recent_track_ids else True,
         ).order_by(func.random()).limit(1)
+
+        if station_normalized != "all":
+            upcoming_query = upcoming_query.join(Station, Track.stations).where(
+                func.lower(Station.identifier) == station_normalized
+            )
 
         result = await db.execute(upcoming_query)
         next_track = result.scalar_one_or_none()
@@ -410,18 +437,32 @@ async def get_next_up(limit: int = 1, db: AsyncSession = Depends(get_db)):
 async def get_play_history(
     limit: int = 10,
     offset: int = 0,
+    station: str = Query("main", description="Station identifier (main, christmas, etc.). Use 'all' to include every station."),
     db: AsyncSession = Depends(get_db)
 ):
     """Get recent play history"""
     try:
-        result = await db.execute(
+        station_normalized = (station or "main").lower()
+
+        query = (
             select(Play, Track)
             .join(Track, Play.track_id == Track.id)
             .where(Play.ended_at.is_not(None))
+        )
+
+        if station_normalized != "all":
+            query = query.where(
+                func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized
+            )
+
+        query = (
+            query
             .order_by(desc(Play.started_at))
             .limit(limit)
             .offset(offset)
         )
+
+        result = await db.execute(query)
         
         history = []
         for play, track in result.all():

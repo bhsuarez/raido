@@ -88,7 +88,14 @@
       "Bash(echo \"Response code: $?\")",
       "Bash(ollama list:*)",
       "Bash(ping:*)",
-      "Read(//mnt/music/**)"
+      "Read(//mnt/music/**)",
+      "Read(//root/minim-test/**)",
+      "Read(//var/lib/docker/volumes/raido_shared/_data/artwork/**)",
+      "Bash(awk:*)",
+      "Bash(test -d /mnt/music/christmas)",
+      "Bash(mount)",
+      "Bash(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@192.168.1.170 \"docker ps | grep -i chatterbox\")",
+      "Bash(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@192.168.1.170 \"systemctl status chatterbox* --no-pager | head -30\")"
     ],
     "deny": [],
     "ask": [],

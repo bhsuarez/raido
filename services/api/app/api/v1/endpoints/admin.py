@@ -169,6 +169,17 @@ async def create_commentary(
             # Convert filename to full static URL
             audio_url = f"/static/tts/{audio_url}"
         
+        # Normalize context payload so station filters work across multiple stations
+        raw_context = commentary_data.get("context_data")
+        context_data: Optional[Dict[str, Any]] = None
+        if isinstance(raw_context, dict):
+            context_data = raw_context
+        elif raw_context is not None:
+            logger.warning(
+                "Dropping non-dict context_data payload",
+                context_type=type(raw_context).__name__,
+            )
+
         # Create commentary record
         status_val = commentary_data.get("status") or "ready"
         commentary = Commentary(
@@ -184,6 +195,7 @@ async def create_commentary(
             generation_time_ms=commentary_data.get("generation_time_ms"),
             tts_time_ms=commentary_data.get("tts_time_ms"),
             status=status_val,
+            context_data=context_data,
             created_at=datetime.now(timezone.utc)
         )
         
@@ -294,7 +306,11 @@ async def get_tts_status(
     db: AsyncSession = Depends(get_db),
     window_hours: int = Query(1, ge=1, le=168),
     limit: int = Query(10, ge=1, le=50),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    station: str = Query(
+        "main",
+        description="Station identifier (main, christmas, etc.). Use 'all' to include every station.",
+    ),
 ):
     """Get TTS generation status and statistics"""
     try:
@@ -318,59 +334,76 @@ async def get_tts_status(
         )
         await db.commit()
         
+        station_normalized = (station or "main").lower()
+
+        # Helper to scope queries to a station when requested
+        def apply_station_filter(stmt):
+            if station_normalized == "all":
+                return stmt
+
+            station_value = func.lower(
+                func.coalesce(
+                    Commentary.context_data.op('->>')('station_name'),
+                    Commentary.context_data.op('->>')('station'),
+                    'main',
+                )
+            )
+            return stmt.where(station_value == station_normalized)
+
         # Count total commentary in last 24h
-        total_result = await db.execute(
-            select(func.count(Commentary.id))
-            .where(Commentary.created_at >= last_24h)
-        )
+        total_query = select(func.count(Commentary.id)).where(Commentary.created_at >= last_24h)
+        total_result = await db.execute(apply_station_filter(total_query))
         total_24h = total_result.scalar() or 0
         
         # Count successful commentary in last 24h
-        success_result = await db.execute(
+        success_query = (
             select(func.count(Commentary.id))
             .where(Commentary.created_at >= last_24h)
             .where(Commentary.status == "ready")
         )
+        success_result = await db.execute(apply_station_filter(success_query))
         success_24h = success_result.scalar() or 0
         
         # Count failed commentary in last 24h
-        failed_result = await db.execute(
+        failed_query = (
             select(func.count(Commentary.id))
             .where(Commentary.created_at >= last_24h)
             .where(Commentary.status == "failed")
         )
+        failed_result = await db.execute(apply_station_filter(failed_query))
         failed_24h = failed_result.scalar() or 0
         
         # Get recent activity with pagination
-        recent_result = await db.execute(
+        recent_query = (
             select(Commentary)
             .where(Commentary.created_at >= window_start)
             .order_by(desc(Commentary.created_at))
             .limit(limit)
             .offset(offset)
         )
+        recent_result = await db.execute(apply_station_filter(recent_query))
         recent_commentary = recent_result.scalars().all()
 
         # Get total count of records in the window for pagination
-        count_result = await db.execute(
-            select(func.count(Commentary.id))
-            .where(Commentary.created_at >= window_start)
-        )
+        count_query = select(func.count(Commentary.id)).where(Commentary.created_at >= window_start)
+        count_result = await db.execute(apply_station_filter(count_query))
         total_count = count_result.scalar() or 0
 
         # Get average generation times
-        avg_gen_time_result = await db.execute(
+        avg_gen_time_query = (
             select(func.avg(Commentary.generation_time_ms))
             .where(Commentary.created_at >= last_24h)
             .where(Commentary.generation_time_ms.is_not(None))
         )
+        avg_gen_time_result = await db.execute(apply_station_filter(avg_gen_time_query))
         avg_gen_time = avg_gen_time_result.scalar() or 0
         
-        avg_tts_time_result = await db.execute(
+        avg_tts_time_query = (
             select(func.avg(Commentary.tts_time_ms))
             .where(Commentary.created_at >= last_24h)
             .where(Commentary.tts_time_ms.is_not(None))
         )
+        avg_tts_time_result = await db.execute(apply_station_filter(avg_tts_time_query))
         avg_tts_time = avg_tts_time_result.scalar() or 0
         
         # Format recent activity (return full text; UI can decide how to render)
@@ -1390,3 +1423,32 @@ async def clear_recent_commentary(db: AsyncSession = Depends(get_db)):
         logger.error("Failed to clear recent commentary", error=str(e))
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to clear recent commentary: {str(e)}")
+
+@router.get("/stations")
+async def list_stations(db: AsyncSession = Depends(get_db)):
+    """List all configured stations"""
+    logger = structlog.get_logger()
+    try:
+        from app.models import Station
+        
+        result = await db.execute(
+            select(Station).order_by(Station.id)
+        )
+        stations = result.scalars().all()
+        
+        return [
+            {
+                "id": station.id,
+                "identifier": station.identifier,
+                "name": station.name,
+                "description": station.description,
+                "is_active": station.is_active,
+                "created_at": station.created_at,
+                "updated_at": station.updated_at
+            }
+            for station in stations
+        ]
+        
+    except Exception as e:
+        logger.error("Failed to list stations", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to list stations: {str(e)}")

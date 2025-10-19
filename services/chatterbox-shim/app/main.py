@@ -17,7 +17,23 @@ import shutil
 
 logger = structlog.get_logger()
 
-UPSTREAM = os.getenv("CH_SHIM_UPSTREAM", "http://192.168.1.170:8000").rstrip("/")
+def _parse_upstream_list(raw_value: str | None) -> list[str]:
+    """Parse CH_SHIM_UPSTREAM into a list of base URLs."""
+    if not raw_value:
+        raw_value = "http://192.168.1.170:8000"
+
+    candidates: list[str] = []
+    for chunk in raw_value.replace(";", ",").split(","):
+        base = chunk.strip()
+        if not base:
+            continue
+        candidates.append(base.rstrip("/"))
+
+    return candidates or ["http://192.168.1.170:8000"]
+
+
+UPSTREAMS = _parse_upstream_list(os.getenv("CH_SHIM_UPSTREAM"))
+PRIMARY_UPSTREAM = UPSTREAMS[0]
 READ_TIMEOUT = float(os.getenv("CH_SHIM_TIMEOUT", "60"))
 CONNECT_TIMEOUT = float(os.getenv("CH_SHIM_CONNECT_TIMEOUT", "5"))
 WRITE_TIMEOUT = float(os.getenv("CH_SHIM_WRITE_TIMEOUT", "10"))
@@ -58,6 +74,46 @@ LOCAL_REFRESH_INTERVAL = float(os.getenv("CH_SHIM_LOCAL_REFRESH_INTERVAL", "3"))
 VOICE_FILE_MAP: dict[str, str] = {}
 VOICE_REFRESH_LOCK = asyncio.Lock()
 VOICE_REFRESH_STATE = {"last_refresh": 0.0, "last_local_sync": 0.0}
+
+
+def _get_active_upstream_index() -> int:
+    return int(UPSTREAM_STATE.get("active_index", 0)) % len(UPSTREAMS)
+
+
+async def _set_active_upstream(index: int) -> None:
+    async with UPSTREAM_STATE_LOCK:
+        UPSTREAM_STATE["active_index"] = index % len(UPSTREAMS)
+
+
+async def _ordered_upstream_indexes() -> list[int]:
+    async with UPSTREAM_STATE_LOCK:
+        start = int(UPSTREAM_STATE.get("active_index", 0)) % len(UPSTREAMS)
+    return [(start + offset) % len(UPSTREAMS) for offset in range(len(UPSTREAMS))]
+
+
+def _get_upstream_metrics(base: str) -> dict[str, Any]:
+    metrics = UPSTREAM_STATE.setdefault("metrics", {})
+    if base not in metrics:
+        metrics[base] = {
+            "last_success": None,
+            "last_failure": None,
+            "consecutive_failures": 0,
+        }
+    return metrics[base]
+
+
+async def _snapshot_metrics() -> dict[str, dict[str, Any]]:
+    async with UPSTREAM_STATE_LOCK:
+        snapshot = {}
+        metrics = UPSTREAM_STATE.get("metrics", {})
+        for base, data in metrics.items():
+            snapshot[base] = {
+                "last_success": data.get("last_success"),
+                "last_failure": data.get("last_failure"),
+                "consecutive_failures": data.get("consecutive_failures", 0),
+            }
+        snapshot["active"] = UPSTREAMS[_get_active_upstream_index()]
+        return snapshot
 
 
 def _normalize_voice_key(value: str | None) -> str | None:
@@ -274,9 +330,15 @@ class SimpleCircuitBreaker:
 
 CIRCUIT_BREAKER = SimpleCircuitBreaker(BREAKER_THRESHOLD, BREAKER_COOLDOWN)
 UPSTREAM_STATE = {
-    "last_success": None,
-    "last_failure": None,
-    "consecutive_failures": 0,
+    "active_index": 0,
+    "metrics": {
+        base: {
+            "last_success": None,
+            "last_failure": None,
+            "consecutive_failures": 0,
+        }
+        for base in UPSTREAMS
+    },
 }
 UPSTREAM_STATE_LOCK = asyncio.Lock()
 
@@ -334,16 +396,21 @@ async def transcode_wav_to_mp3(
         return None
 
 
-async def _mark_upstream_success() -> None:
+async def _mark_upstream_success(index: int) -> None:
+    base = UPSTREAMS[index]
     async with UPSTREAM_STATE_LOCK:
-        UPSTREAM_STATE["last_success"] = time.time()
-        UPSTREAM_STATE["consecutive_failures"] = 0
+        metrics = _get_upstream_metrics(base)
+        metrics["last_success"] = time.time()
+        metrics["consecutive_failures"] = 0
+        UPSTREAM_STATE["active_index"] = index
 
 
-async def _mark_upstream_failure() -> None:
+async def _mark_upstream_failure(index: int) -> None:
+    base = UPSTREAMS[index]
     async with UPSTREAM_STATE_LOCK:
-        UPSTREAM_STATE["last_failure"] = time.time()
-        UPSTREAM_STATE["consecutive_failures"] = UPSTREAM_STATE.get("consecutive_failures", 0) + 1
+        metrics = _get_upstream_metrics(base)
+        metrics["last_failure"] = time.time()
+        metrics["consecutive_failures"] = metrics.get("consecutive_failures", 0) + 1
 
 
 async def _probe_upstream_health() -> dict[str, object]:
@@ -354,12 +421,6 @@ async def _probe_upstream_health() -> dict[str, object]:
         if cached_payload is not None and (now - cached_ts) < HEALTH_CACHE_TTL:
             return cached_payload  # type: ignore[return-value]
 
-        probe_logger = logger.bind(route="/health", action="probe")
-        reachable = False
-        http_status: int | None = None
-        detail: str | None = None
-        payload: object | None = None
-
         probe_timeout = httpx.Timeout(
             connect=min(CONNECT_TIMEOUT, 2.0),
             read=min(READ_TIMEOUT, 5.0),
@@ -367,42 +428,58 @@ async def _probe_upstream_health() -> dict[str, object]:
             pool=POOL_TIMEOUT,
         )
 
-        try:
-            response = await _request_with_retries(
-                "GET",
-                f"{UPSTREAM}/health",
-                logger=probe_logger,
-                max_attempts=1,
-                timeout=probe_timeout,
-            )
-            http_status = response.status_code
-            if response.status_code == 200:
-                reachable = True
-                try:
-                    payload = response.json()
-                except ValueError:
-                    payload = response.text[:200]
-            else:
-                payload = response.text[:200]
-        except HTTPException as exc:
-            http_status = exc.status_code
-            detail = str(exc.detail)
-        except Exception as exc:
-            detail = str(exc)
+        statuses: list[dict[str, Any]] = []
+        any_reachable = False
 
-        result = {
-            "reachable": reachable,
-            "http_status": http_status,
-            "detail": detail,
-            "payload": payload,
+        for index, base in enumerate(UPSTREAMS):
+            probe_logger = logger.bind(route="/health", action="probe", upstream=base)
+            entry: dict[str, Any] = {
+                "upstream": base,
+                "reachable": False,
+                "http_status": None,
+                "detail": None,
+                "payload": None,
+            }
+            try:
+                response = await _request_single_upstream(
+                    index,
+                    "GET",
+                    f"{base}/health",
+                    logger=probe_logger,
+                    max_attempts=1,
+                    timeout=probe_timeout,
+                )
+                entry["http_status"] = response.status_code
+                if response.status_code == 200:
+                    entry["reachable"] = True
+                    any_reachable = True
+                    try:
+                        entry["payload"] = response.json()
+                    except ValueError:
+                        entry["payload"] = response.text[:200]
+                else:
+                    entry["detail"] = response.text[:200]
+            except HTTPException as exc:
+                entry["http_status"] = exc.status_code
+                entry["detail"] = str(exc.detail)
+            except Exception as exc:  # pragma: no cover - defensive
+                entry["detail"] = str(exc)
+
+            statuses.append(entry)
+
+        result: dict[str, Any] = {
+            "reachable": any_reachable,
             "checked_at": time.time(),
+            "upstreams": statuses,
+            "active_upstream": UPSTREAMS[_get_active_upstream_index()],
         }
         HEALTH_CACHE["timestamp"] = now
         HEALTH_CACHE["payload"] = result
         return result
 
 
-async def _request_with_retries(
+async def _request_single_upstream(
+    index: int,
     method: str,
     url: str,
     *,
@@ -419,7 +496,7 @@ async def _request_with_retries(
             response = await client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
             await CIRCUIT_BREAKER.record_failure(logger)
-            await _mark_upstream_failure()
+            await _mark_upstream_failure(index)
             if attempt == attempts:
                 raise HTTPException(status_code=502, detail=f"Upstream request failed: {exc}") from exc
             wait_time = min(backoff + random.uniform(0, BACKOFF_BASE), BACKOFF_MAX)
@@ -438,9 +515,12 @@ async def _request_with_retries(
 
         if response.status_code >= 500:
             await CIRCUIT_BREAKER.record_failure(logger)
-            await _mark_upstream_failure()
+            await _mark_upstream_failure(index)
             if attempt == attempts:
-                return response
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Upstream returned error status {response.status_code}",
+                )
             wait_time = min(backoff + random.uniform(0, BACKOFF_BASE), BACKOFF_MAX)
             logger.warning(
                 "Upstream returned error status",
@@ -456,10 +536,52 @@ async def _request_with_retries(
             continue
 
         await CIRCUIT_BREAKER.record_success()
-        await _mark_upstream_success()
+        await _mark_upstream_success(index)
         return response
 
     raise HTTPException(status_code=502, detail="Upstream request failed after retries")
+
+
+async def _request_with_failover(
+    method: str,
+    endpoint: str,
+    *,
+    logger: structlog.typing.FilteringBoundLogger | structlog.BoundLogger,
+    max_attempts: int | None = None,
+    **kwargs,
+) -> tuple[httpx.Response, str]:
+    """Try each configured upstream until a request succeeds."""
+
+    last_error: HTTPException | None = None
+    indexes = await _ordered_upstream_indexes()
+
+    for index in indexes:
+        base = UPSTREAMS[index]
+        url = f"{base}{endpoint}"
+        attempt_logger = logger.bind(upstream=base)
+        try:
+            response = await _request_single_upstream(
+                index,
+                method,
+                url,
+                logger=attempt_logger,
+                max_attempts=max_attempts,
+                **kwargs,
+            )
+            return response, base
+        except HTTPException as exc:
+            last_error = exc
+            attempt_logger.warning(
+                "Upstream attempt failed",
+                status=exc.status_code,
+                detail=str(exc.detail)[:200],
+            )
+            continue
+
+    if last_error is not None:
+        raise last_error
+
+    raise HTTPException(status_code=502, detail="No upstream endpoints configured")
 
 app = FastAPI(title="Chatterbox Compatibility Shim")
 
@@ -493,12 +615,7 @@ class SpeakRequest(BaseModel):
 async def health():
     probe = await _probe_upstream_health()
     breaker_state = await CIRCUIT_BREAKER.snapshot()
-    async with UPSTREAM_STATE_LOCK:
-        metrics_snapshot = {
-            "last_success": UPSTREAM_STATE.get("last_success"),
-            "last_failure": UPSTREAM_STATE.get("last_failure"),
-            "consecutive_failures": UPSTREAM_STATE.get("consecutive_failures", 0),
-        }
+    metrics_snapshot = await _snapshot_metrics()
 
     status = "ok" if probe.get("reachable") else "degraded"
     if breaker_state.get("open"):
@@ -506,7 +623,8 @@ async def health():
 
         return {
             "status": status,
-            "upstream": UPSTREAM,
+            "active_upstream": probe.get("active_upstream"),
+            "upstream_candidates": UPSTREAMS,
             "breaker": breaker_state,
             "metrics": metrics_snapshot,
             "upstream_probe": probe,
@@ -523,15 +641,21 @@ async def _enumerate_voices(
     for endpoint in endpoints:
         endpoint_logger = voice_logger.bind(endpoint=endpoint)
         try:
-            response = await _request_with_retries(
+            response, used_upstream = await _request_with_failover(
                 "GET",
-                f"{UPSTREAM}{endpoint}",
+                endpoint,
                 logger=endpoint_logger,
                 max_attempts=2,
             )
-        except HTTPException:
-            raise
-        except Exception as exc:
+            endpoint_logger = endpoint_logger.bind(active_upstream=used_upstream)
+        except HTTPException as exc:
+            endpoint_logger.debug(
+                "Voice endpoint request failed across upstreams",
+                status=exc.status_code,
+                detail=str(exc.detail)[:200],
+            )
+            continue
+        except Exception as exc:  # pragma: no cover - defensive
             endpoint_logger.debug("Voice endpoint request error", error=str(exc))
             continue
 
@@ -642,8 +766,14 @@ async def _call_upstream_tts(params: dict, bound_logger: structlog.typing.Filter
 
     log = (bound_logger or logger).bind(route="/tts", voice=params.get("voice"))
     started = time.monotonic()
-    log.info("Calling legacy TTS endpoint", upstream=UPSTREAM, params_sent=list(params.keys()))
-    r = await _request_with_retries("GET", f"{UPSTREAM}/tts", logger=log, params=params)
+    log.info("Calling legacy TTS endpoint", params_sent=list(params.keys()))
+    r, used_upstream = await _request_with_failover(
+        "GET",
+        "/tts",
+        logger=log,
+        params=params,
+    )
+    log = log.bind(active_upstream=used_upstream)
     elapsed = time.monotonic() - started
     log.info(
         "Legacy TTS response received",
@@ -662,7 +792,7 @@ async def _call_upstream_tts(params: dict, bound_logger: structlog.typing.Filter
             if transcoded:
                 data = transcoded
                 content_type = "audio/mpeg"
-                logger.info("Shim transcoded WAV->MP3 via ffmpeg (GET)", bytes=len(data))
+                log.info("Shim transcoded WAV->MP3 via ffmpeg (GET)", bytes=len(data))
         # Validate Content-Type to ensure it's audio (do NOT accept arbitrary content)
         if "audio" in content_type or content_type == "application/octet-stream":
             if content_type == "application/octet-stream":
@@ -709,25 +839,32 @@ async def v1_audio_speech(
                 started = time.monotonic()
                 payload = dict(base_payload)
                 payload["response_format"] = fmt
-                req_logger.info("Calling upstream Chatterbox", fmt=fmt, upstream=UPSTREAM)
-                r = await _request_with_retries(
+                fmt_logger = req_logger.bind(fmt=fmt)
+                fmt_logger.info("Calling upstream Chatterbox")
+                r, used_upstream = await _request_with_failover(
                     "POST",
-                    f"{UPSTREAM}/v1/audio/speech",
-                    logger=req_logger,
+                    "/v1/audio/speech",
+                    logger=fmt_logger,
                     json=payload,
                     headers={"Content-Type": "application/json"},
                 )
+                fmt_logger = fmt_logger.bind(active_upstream=used_upstream)
                 elapsed = time.monotonic() - started
-                req_logger.info(
+                fmt_logger.info(
                     "Upstream response received",
-                    fmt=fmt,
                     status=r.status_code,
                     duration_s=round(elapsed, 3),
                     bytes=len(r.content or b""),
                     content_type=r.headers.get("content-type"),
                 )
-            except HTTPException:
-                raise
+            except HTTPException as exc:
+                req_logger.warning(
+                    "Upstream POST /v1/audio/speech exhausted candidates",
+                    fmt=fmt,
+                    status=exc.status_code,
+                    detail=str(exc.detail)[:200],
+                )
+                continue
             except Exception as e:
                 req_logger.warning("Upstream POST /v1/audio/speech error", fmt=fmt, error=str(e))
                 continue
@@ -844,7 +981,7 @@ async def speak(request: SpeakRequest):
         await _attach_audio_prompt(tts_params, request.voice_id, req_logger)
         req_logger.info(
             "Proxying speak request",
-            upstream=UPSTREAM,
+            upstream_candidates=UPSTREAMS,
             text_len=len(request.text or ""),
             using_tts_endpoint=True,
             has_prompt=bool(tts_params.get("audio_prompt_path")),
@@ -882,25 +1019,32 @@ async def speak(request: SpeakRequest):
             try:
                 started = time.monotonic()
                 payload["response_format"] = fmt
-                req_logger.info("Calling upstream Chatterbox", fmt=fmt, upstream=UPSTREAM)
-                r = await _request_with_retries(
+                fmt_logger = req_logger.bind(fmt=fmt)
+                fmt_logger.info("Calling upstream Chatterbox (fallback)")
+                r, used_upstream = await _request_with_failover(
                     "POST",
-                    f"{UPSTREAM}/v1/audio/speech",
-                    logger=req_logger,
+                    "/v1/audio/speech",
+                    logger=fmt_logger,
                     json=payload,
                     headers={"Content-Type": "application/json"},
                 )
+                fmt_logger = fmt_logger.bind(active_upstream=used_upstream)
                 elapsed = time.monotonic() - started
-                req_logger.info(
+                fmt_logger.info(
                     "Upstream response received",
-                    fmt=fmt,
                     status=r.status_code,
                     duration_s=round(elapsed, 3),
                     bytes=len(r.content or b""),
                     content_type=r.headers.get("content-type"),
                 )
-            except HTTPException:
-                raise
+            except HTTPException as exc:
+                req_logger.warning(
+                    "Fallback POST /v1/audio/speech exhausted candidates",
+                    fmt=fmt,
+                    status=exc.status_code,
+                    detail=str(exc.detail)[:200],
+                )
+                continue
             except Exception as e:
                 req_logger.warning("Upstream POST /v1/audio/speech error", fmt=fmt, error=str(e))
                 continue
@@ -963,7 +1107,8 @@ async def requirements_doc():
     """
     return {
         "shim_version": "1.0",
-        "upstream_url": UPSTREAM,
+        "primary_upstream": PRIMARY_UPSTREAM,
+        "upstream_candidates": UPSTREAMS,
         "description": "Chatterbox TTS Server API Requirements",
         "endpoints": {
             "health": {
@@ -1024,7 +1169,7 @@ async def requirements_doc():
                     "content_type": "audio/wav or audio/mpeg",
                     "description": "Binary audio data"
                 },
-                "example_url": f"{UPSTREAM}/tts?text=Hello%20world&voice=brian&response_format=wav"
+                "example_url": f"{PRIMARY_UPSTREAM}/tts?text=Hello%20world&voice=brian&response_format=wav"
             },
             "tts_openai_compatible": {
                 "method": "POST",
@@ -1128,9 +1273,9 @@ async def requirements_doc():
             "cooldown_seconds": BREAKER_COOLDOWN
         },
         "test_instructions": {
-            "health_check": f"curl {UPSTREAM}/health",
-            "simple_tts": f"curl '{UPSTREAM}/tts?text=Hello%20world' -o test.wav",
-            "openai_compatible": f"curl -X POST {UPSTREAM}/v1/audio/speech -H 'Content-Type: application/json' -d '{{\"input\":\"Hello\",\"voice\":\"default\"}}' -o test.wav"
+            "health_check": f"curl {PRIMARY_UPSTREAM}/health",
+            "simple_tts": f"curl '{PRIMARY_UPSTREAM}/tts?text=Hello%20world' -o test.wav",
+            "openai_compatible": f"curl -X POST {PRIMARY_UPSTREAM}/v1/audio/speech -H 'Content-Type: application/json' -d '{{\"input\":\"Hello\",\"voice\":\"default\"}}' -o test.wav"
         }
     }
 
