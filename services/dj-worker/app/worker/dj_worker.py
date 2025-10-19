@@ -298,25 +298,29 @@ class DJWorker:
             # Get recent history
             history = await self.api_client.get_history(limit=5)
             recent_tracks = []
-            
+
             if history and 'tracks' in history:
                 for item in history['tracks']:
                     track = item.get('track', {})
                     recent_tracks.append(f"{track.get('artist')} - {track.get('title')}")
-            
+
             # Get next up (if available)
             next_up = await self.api_client.get_next_up()
             upcoming = []
-            
+
             if next_up and 'next_tracks' in next_up:
                 for item in next_up['next_tracks'][:3]:
                     track = item.get('track', {})
                     upcoming.append(f"{track.get('artist')} - {track.get('title')}")
-            
+
+            # Determine if this is Christmas mode based on station name
+            is_christmas = settings.STATION_NAME.lower() == 'christmas'
+
             return {
                 'recent_history': recent_tracks,
                 'up_next': upcoming,
                 'station_name': settings.STATION_NAME,
+                'christmas_mode': is_christmas,
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
         

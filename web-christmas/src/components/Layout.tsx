@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { HomeIcon, Settings } from 'lucide-react'
+import { HomeIcon, Settings, RadioIcon } from 'lucide-react'
 import Logo from './Logo'
 
 interface LayoutProps {
@@ -10,10 +10,15 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
 
-  const navigation = [
-    { name: 'Now Playing', href: '/', icon: HomeIcon },
-    { name: 'DJ Admin', href: '/admin', icon: Settings },
-  ]
+  const isStationsPage = location.pathname.startsWith('/stations')
+
+  const navigation = isStationsPage
+    ? [{ name: 'Stations', href: '/stations', icon: RadioIcon }]
+    : [
+        { name: 'Now Playing', href: '/', icon: HomeIcon },
+        { name: 'DJ Admin', href: '/admin', icon: Settings },
+        { name: 'Stations', href: '/stations', icon: RadioIcon },
+      ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900">

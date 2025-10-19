@@ -699,8 +699,15 @@ const TTSMonitor: React.FC = () => {
   const itemsPerPage = 20
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus', currentPage],
-    queryFn: () => api.get(`/admin/tts-status?window_hours=24&limit=${itemsPerPage}&offset=${currentPage * itemsPerPage}`).then(res => res.data),
+    queryKey: ['ttsStatus', 'christmas', currentPage],
+    queryFn: () => api.get('/admin/tts-status', {
+      params: {
+        station: 'christmas',
+        window_hours: 24,
+        limit: itemsPerPage,
+        offset: currentPage * itemsPerPage,
+      }
+    }).then(res => res.data),
     refetchInterval: AUTO_REFRESH_INTERVAL_MS,
     staleTime: 10000,
     keepPreviousData: true,

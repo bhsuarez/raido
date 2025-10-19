@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import structlog
@@ -8,7 +8,7 @@ import httpx
 from datetime import datetime, timezone
 
 from app.core.database import get_db
-from app.models import Track, Play
+from app.models import Track, Play, Station
 from app.core.websocket_manager import WebSocketManager
 from app.services.metadata_extractor import MetadataExtractor
 
@@ -126,10 +126,58 @@ async def track_change_notification(
                 if artwork_url:
                     track.artwork_url = artwork_url
                     updated = True
-        
+
+        # Ensure the track is associated with the station that reported it
+        station_identifier = (request.station or "main").lower()
+        station_obj = None
+        try:
+            station_result = await db.execute(
+                select(Station).where(func.lower(Station.identifier) == station_identifier)
+            )
+            station_obj = station_result.scalar_one_or_none()
+
+            if not station_obj:
+                # Create a lightweight station record if it doesn't exist yet
+                station_obj = Station(
+                    identifier=station_identifier,
+                    name=station_identifier.capitalize(),
+                    genre=request.genre,
+                )
+                db.add(station_obj)
+                await db.flush()
+
+            await db.refresh(track)
+            if station_obj not in track.stations:
+                track.stations.append(station_obj)
+
+            # Maintain station tags on the track for quick filtering
+            if track.tags is None:
+                track.tags = {"stations": [station_identifier]}
+            elif isinstance(track.tags, dict):
+                stations = track.tags.get("stations")
+                if isinstance(stations, list):
+                    if station_identifier not in stations:
+                        stations.append(station_identifier)
+                        track.tags["stations"] = stations
+                else:
+                    track.tags["stations"] = [station_identifier]
+            else:
+                track.tags = {"stations": [station_identifier]}
+        except Exception as assoc_err:
+            logger.warning(
+                "Failed to associate track with station",
+                track_id=getattr(track, "id", None),
+                station=station_identifier,
+                error=str(assoc_err),
+            )
+
         # End any current playing track
         current_play_result = await db.execute(
-            select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
+            select(Play)
+            .where(Play.ended_at.is_(None))
+            .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_identifier)
+            .order_by(Play.started_at.desc())
+            .limit(1)
         )
         current_play = current_play_result.scalar_one_or_none()
         
@@ -142,7 +190,8 @@ async def track_change_notification(
             track_id=track.id,
             started_at=datetime.now(timezone.utc),
             liquidsoap_id=request.metadata.get("liquidsoap_id"),
-            source_type="playlist"
+            source_type="playlist",
+            station_identifier=station_identifier
         )
         # Store station in metadata for now (can add proper station_id FK later)
         request.metadata["station"] = request.station

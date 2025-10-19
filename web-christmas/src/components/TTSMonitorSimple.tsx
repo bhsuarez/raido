@@ -5,8 +5,10 @@ import { api } from '../utils/api'
 
 const TTSMonitorSimple: React.FC = () => {
   const { data: ttsStatus, isLoading, error } = useQuery({
-    queryKey: ['ttsStatus'],
-    queryFn: () => api.get('/admin/tts-status').then(res => res.data),
+    queryKey: ['ttsStatus', 'christmas'],
+    queryFn: () => api.get('/admin/tts-status', {
+      params: { station: 'christmas' }
+    }).then(res => res.data),
     refetchInterval: 30000,
   })
 

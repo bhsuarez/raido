@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 // Components
 import Layout from './components/Layout'
@@ -9,25 +9,21 @@ import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
-import RadioPlayer from './components/RadioPlayer'
-import Snowfall from './components/Snowfall'
+import StationControlPanel from './components/StationControlPanel'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
 
   return (
-    <div className="min-h-screen winter-theme">
-      <Snowfall />
+    <div className="min-h-screen">
       <Layout>
         <ErrorBoundary>
         <Routes>
+          <Route path="/" element={<Navigate to="/stations" replace />} />
           <Route 
-            path="/" 
+            path="/now-playing" 
             element={
               <div className="space-y-6">
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Stream Player.</div>}>
-                  <RadioPlayer />
-                </ErrorBoundary>
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
                   <NowPlaying />
                 </ErrorBoundary>
@@ -44,13 +40,18 @@ function App() {
             path="/history" 
             element={<PlayHistory />} 
           />
-          <Route 
-            path="/tts" 
-            element={<TTSMonitor />} 
+          <Route path="/tts" element={<Navigate to="/raido/admin" replace />} />
+          <Route
+            path="/raido/admin"
+            element={<TTSMonitor />}
           />
           <Route
             path="/analytics"
             element={<Analytics />}
+          />
+          <Route
+            path="/stations"
+            element={<StationControlPanel />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route 

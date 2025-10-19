@@ -7,6 +7,22 @@
 
 # Domain configuration
 raido.zorro.network {
+	# Christmas station routes (handle before catch-all)
+	redir /christmas /christmas/ 301
+	handle /christmas/* {
+		reverse_proxy christmas-web:80
+	}
+
+	# Redirect legacy DJ admin path
+	@legacy_tts path /tts
+	@legacy_tts_sub path /tts/*
+	redir @legacy_tts /raido/admin 301
+	redir @legacy_tts_sub /raido/admin 301
+
+	# Redirect homepage to stations directory
+	@root path /
+	redir @root /stations 301
+
 	# API endpoints (specific routes first)
 	handle /api/* {
 		reverse_proxy api:8000
@@ -124,9 +140,20 @@ christmas.raido.zorro.network, raido.zorro.network:8888, :8888 {
 # Main site (localhost/IP)
 :80 {
 	# Christmas path route (handle before other routes)
-	handle_path /christmas* {
+	redir /christmas /christmas/ 301
+	handle /christmas/* {
 		reverse_proxy christmas-web:80
 	}
+
+	# Redirect homepage to stations directory
+	@root_local path /
+	redir @root_local /stations 301
+
+	# Redirect legacy DJ admin path
+	@legacy_tts_local path /tts
+	@legacy_tts_local_sub path /tts/*
+	redir @legacy_tts_local /raido/admin 301
+	redir @legacy_tts_local_sub /raido/admin 301
 
 	# Christmas subdomain (handle first before catch-all)
 	@christmas host christmas.raido.local
