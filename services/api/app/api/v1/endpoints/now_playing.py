@@ -37,101 +37,125 @@ async def get_now_playing(station: str = Query("main", description="Station iden
             current_rid = sorted_rids[0] if sorted_rids else None
             if current_rid is not None:
                 ls_meta = client.get_request_metadata(current_rid)
+
                 if (ls_meta.get('source') or '').lower() != 'tts':
                     filename = ls_meta.get("filename") or ls_meta.get("initial_uri")
-                    track: Optional[Track] = None
-                    # Try to enrich from DB if available
-                    try:
+                    allow_track = True
+                    if station_normalized == "christmas":
                         if filename:
-                            async with AsyncSessionLocal() as db:
-                                result = await db.execute(select(Track).where(Track.file_path == filename))
-                                track = result.scalar_one_or_none()
-                                if not track:
-                                    result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
-                                    track = result.scalar_one_or_none()
-                    except Exception:
-                        track = None
-                    if not track:
-                        title = ls_meta.get("title")
-                        artist = ls_meta.get("artist")
-                        if title and artist:
                             try:
-                                async with AsyncSessionLocal() as db:
-                                    result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
-                                    track = result.scalar_one_or_none()
-                            except Exception:
-                                track = None
-
-                    if track:
-                        payload = {
-                            "id": track.id,
-                            "title": track.title,
-                            "artist": track.artist,
-                            "album": track.album,
-                            "year": track.year,
-                            "genre": track.genre,
-                            "duration_sec": track.duration_sec,
-                            "artwork_url": track.artwork_url,
-                            "tags": track.tags if isinstance(track.tags, list) else [],
-                        }
-                        duration = float(track.duration_sec) if track.duration_sec else None
-                    else:
-                        year_int = None
-                        if ls_meta.get("year") and str(ls_meta.get("year")).isdigit():
-                            year_int = int(ls_meta.get("year"))
-                        payload = {
-                            "id": 0,
-                            "title": ls_meta.get("title") or "Unknown",
-                            "artist": ls_meta.get("artist") or "Unknown Artist",
-                            "album": ls_meta.get("album"),
-                            "year": year_int,
-                            "genre": ls_meta.get("genre"),
-                            "duration_sec": None,
-                            "artwork_url": None,
-                            "tags": [],
-                        }
-                        try:
-                            from app.api.v1.endpoints.liquidsoap import _lookup_artwork
-                            art = await _lookup_artwork(payload["artist"], payload["title"], payload["album"])
-                            if art:
-                                payload["artwork_url"] = art
-                        except Exception:
-                            pass
-                        duration = None
-
-                    # Compute progress if possible using on_air_timestamp
-                    progress = None
-                    try:
-                        ts = ls_meta.get("on_air_timestamp")
-                        if ts is None:
-                            on_air_str = ls_meta.get("on_air")
-                            if on_air_str:
-                                from datetime import datetime
-                                started = datetime.strptime(on_air_str, "%Y/%m/%d %H:%M:%S")
-                            else:
-                                started = None
+                                resolved_path = Path(filename).resolve()
+                                if not str(resolved_path).startswith("/mnt/music/christmas"):
+                                    logger.warning(
+                                        "Skipping current track outside christmas library",
+                                        filename=str(resolved_path),
+                                        rid=current_rid,
+                                    )
+                                    allow_track = False
+                            except Exception as resolve_err:
+                                logger.warning(
+                                    "Failed to resolve christmas track path; skipping current track",
+                                    filename=filename,
+                                    rid=current_rid,
+                                    error=str(resolve_err),
+                                )
+                                allow_track = False
                         else:
-                            from datetime import datetime, timezone
-                            started = datetime.fromtimestamp(float(ts), tz=timezone.utc)
-                        if started:
-                            from datetime import datetime, timezone
-                            now = datetime.now(timezone.utc)
-                            elapsed_seconds = max(0, int((now - started).total_seconds()))
-                            if duration and duration > 0:
-                                progress = {
-                                    "elapsed_seconds": elapsed_seconds,
-                                    "total_seconds": int(duration),
-                                    "percentage": min(100.0, (elapsed_seconds / duration) * 100),
-                                }
-                    except Exception:
-                        progress = None
+                            allow_track = False
 
-                    return NowPlayingResponse(
-                        is_playing=True,
-                        track=payload,  # type: ignore
-                        play=None,
-                        progress=progress,
-                    )
+                    track: Optional[Track] = None
+                    if allow_track:
+                        try:
+                            if filename:
+                                async with AsyncSessionLocal() as db:
+                                    result = await db.execute(select(Track).where(Track.file_path == filename))
+                                    track = result.scalar_one_or_none()
+                                    if not track:
+                                        result = await db.execute(select(Track).where(Track.file_path.endswith(filename)))
+                                        track = result.scalar_one_or_none()
+                        except Exception:
+                            track = None
+
+                        if not track:
+                            title = ls_meta.get("title")
+                            artist = ls_meta.get("artist")
+                            if title and artist:
+                                try:
+                                    async with AsyncSessionLocal() as db:
+                                        result = await db.execute(select(Track).where(Track.title == title, Track.artist == artist))
+                                        track = result.scalar_one_or_none()
+                                except Exception:
+                                    track = None
+
+                        if track:
+                            payload = {
+                                "id": track.id,
+                                "title": track.title,
+                                "artist": track.artist,
+                                "album": track.album,
+                                "year": track.year,
+                                "genre": track.genre,
+                                "duration_sec": track.duration_sec,
+                                "artwork_url": track.artwork_url,
+                                "tags": track.tags if isinstance(track.tags, list) else [],
+                            }
+                            duration = float(track.duration_sec) if track.duration_sec else None
+                        else:
+                            year_int = None
+                            if ls_meta.get("year") and str(ls_meta.get("year")).isdigit():
+                                year_int = int(ls_meta.get("year"))
+                            payload = {
+                                "id": 0,
+                                "title": ls_meta.get("title") or "Unknown",
+                                "artist": ls_meta.get("artist") or "Unknown Artist",
+                                "album": ls_meta.get("album"),
+                                "year": year_int,
+                                "genre": ls_meta.get("genre"),
+                                "duration_sec": None,
+                                "artwork_url": None,
+                                "tags": [],
+                            }
+                            try:
+                                from app.api.v1.endpoints.liquidsoap import _lookup_artwork
+                                art = await _lookup_artwork(payload["artist"], payload["title"], payload["album"])
+                                if art:
+                                    payload["artwork_url"] = art
+                            except Exception:
+                                pass
+                            duration = None
+
+                        progress = None
+                        try:
+                            ts = ls_meta.get("on_air_timestamp")
+                            if ts is None:
+                                on_air_str = ls_meta.get("on_air")
+                                if on_air_str:
+                                    from datetime import datetime
+                                    started = datetime.strptime(on_air_str, "%Y/%m/%d %H:%M:%S")
+                                else:
+                                    started = None
+                            else:
+                                from datetime import datetime, timezone
+                                started = datetime.fromtimestamp(float(ts), tz=timezone.utc)
+                            if started:
+                                from datetime import datetime, timezone
+                                now = datetime.now(timezone.utc)
+                                elapsed_seconds = max(0, int((now - started).total_seconds()))
+                                if duration and duration > 0:
+                                    progress = {
+                                        "elapsed_seconds": elapsed_seconds,
+                                        "total_seconds": int(duration),
+                                        "percentage": min(100.0, (elapsed_seconds / duration) * 100),
+                                    }
+                        except Exception:
+                            progress = None
+
+                        return NowPlayingResponse(
+                            is_playing=True,
+                            track=payload,  # type: ignore
+                            play=None,
+                            progress=progress,
+                        )
         except Exception:
             pass
 
@@ -286,6 +310,23 @@ async def get_next_up(
                         track = result.scalar_one_or_none()
 
                 if track:
+                    if station_normalized == "christmas":
+                        try:
+                            resolved_track_path = Path(track.file_path).resolve()
+                            if not str(resolved_track_path).startswith("/mnt/music/christmas"):
+                                logger.warning(
+                                    "Skipping database track outside christmas library",
+                                    track_id=track.id,
+                                    filename=str(resolved_track_path),
+                                )
+                                continue
+                        except Exception as resolve_err:
+                            logger.warning(
+                                "Unable to resolve DB track path for christmas station; skipping",
+                                track_id=track.id,
+                                error=str(resolve_err),
+                            )
+                            continue
                     # Proactive artwork fetching for next track
                     if not track.artwork_url:
                         try:
@@ -339,6 +380,22 @@ async def get_next_up(
                     }
                     duration = float(track.duration_sec) if track.duration_sec else None
                 else:
+                    if station_normalized == "christmas" and filename:
+                        try:
+                            resolved_unknown_path = Path(filename).resolve()
+                            if not str(resolved_unknown_path).startswith("/mnt/music/christmas"):
+                                logger.warning(
+                                    "Skipping unknown christmas track outside library",
+                                    filename=str(resolved_unknown_path),
+                                )
+                                continue
+                        except Exception as resolve_err:
+                            logger.warning(
+                                "Unable to resolve unknown christmas track path; skipping",
+                                filename=filename,
+                                error=str(resolve_err),
+                            )
+                            continue
                     year_int = None
                     if ls_meta.get("year") and str(ls_meta.get("year")).isdigit():
                         year_int = int(ls_meta.get("year"))
@@ -399,6 +456,23 @@ async def get_next_up(
         result = await db.execute(upcoming_query)
         next_track = result.scalar_one_or_none()
         if next_track:
+            if station_normalized == "christmas":
+                try:
+                    resolved_path = Path(next_track.file_path).resolve() if next_track.file_path else None
+                    if resolved_path and not str(resolved_path).startswith("/mnt/music/christmas"):
+                        logger.warning(
+                            "Skipping fallback christmas track outside library",
+                            track_id=next_track.id,
+                            filename=str(resolved_path),
+                        )
+                        return NextUpResponse(next_tracks=[], commentary_scheduled=False, estimated_start_time=estimated_start)
+                except Exception as resolve_err:
+                    logger.warning(
+                        "Unable to resolve fallback christmas track path; returning empty list",
+                        track_id=next_track.id,
+                        error=str(resolve_err),
+                    )
+                    return NextUpResponse(next_tracks=[], commentary_scheduled=False, estimated_start_time=estimated_start)
             next_tracks = [{
                 "track": {
                     "id": next_track.id,
