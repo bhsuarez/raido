@@ -9,6 +9,7 @@ class Play(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False, index=True)
+    station_id = Column(Integer, ForeignKey("stations.id"), nullable=False, index=True)
     station_identifier = Column(String(50), nullable=True, index=True)
     
     # Play session info
@@ -39,6 +40,7 @@ class Play(Base):
     
     # Relationships
     track = relationship("Track", back_populates="plays")
+    station = relationship("Station", back_populates="plays")
     commentaries = relationship("Commentary", back_populates="play")
     
     def __repr__(self):

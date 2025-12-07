@@ -28,3 +28,4 @@ class Station(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     tracks = relationship("Track", secondary=station_tracks, back_populates="stations")
+    plays = relationship("Play", back_populates="station")
