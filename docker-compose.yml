@@ -91,7 +91,11 @@ services:
       - DOWNLOAD_MODEL=true
     # Constrain CPU and memory to avoid host contention
     mem_limit: "3g"
-    cpus: "1.0"
+    cpus: "2.0"
+    # Use tmpfs for /tmp to prevent temp file accumulation on disk
+    # Files are stored in RAM and auto-cleaned on container restart
+    tmpfs:
+      - /tmp:size=512m,mode=1777
 
   # xtts-server:  # Temporarily disabled to reduce system load during Chatterbox testing
   #   image: synesthesiam/opentts:all
@@ -157,9 +161,9 @@ services:
     build: ./services/chatterbox-shim
     restart: unless-stopped
     environment:
-      # Route shim to external Chatterbox server (not the local container)
-      # Server has dual IPs: 192.168.1.170 (primary) and 192.168.1.160 (fallback)
-      - CH_SHIM_UPSTREAM=http://192.168.1.170:8000,http://192.168.1.160:8000
+      # Route shim to local kokoro-tts service
+      # Using kokoro-tts for text-to-speech generation
+      - CH_SHIM_UPSTREAM=http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
     ports:

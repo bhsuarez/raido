@@ -191,9 +191,10 @@ async def track_change_notification(
             started_at=datetime.now(timezone.utc),
             liquidsoap_id=request.metadata.get("liquidsoap_id"),
             source_type="playlist",
+            station_id=station_obj.id if station_obj else None,
             station_identifier=station_identifier
         )
-        # Store station in metadata for now (can add proper station_id FK later)
+        # Station ID is now properly set from station_obj lookup
         request.metadata["station"] = request.station
         db.add(new_play)
         
