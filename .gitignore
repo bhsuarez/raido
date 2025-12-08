@@ -1,5 +1,42 @@
 .env
+.env.local
+.env.*.local
 web/node_modules/
 
 # Logs
 logs/
+*.log
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+*.cover
+.hypothesis/
+.tox/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary
+*.tmp
+*.temp
+music/
