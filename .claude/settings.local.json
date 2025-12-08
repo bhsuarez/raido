@@ -85,7 +85,11 @@
       "Bash(telnet:*)",
       "Bash(nc:*)",
       "Bash(xxd:*)",
-      "Bash(echo \"Response code: $?\")"
+      "Bash(echo \"Response code: $?\")",
+      "Bash(npm run test:*)",
+      "Bash(ollama list:*)",
+      "Bash(sudo ls:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": [],

@@ -23,8 +23,13 @@ class TTSService:
             os.makedirs(settings.TTS_CACHE_DIR, exist_ok=True)
             logger.info("TTS cache directory ready", dir=settings.TTS_CACHE_DIR)
         except PermissionError as e:
-            logger.error("Cannot create TTS cache directory", dir=settings.TTS_CACHE_DIR, error=str(e))
-            raise
+            # Directory likely already exists with correct permissions from volume mount
+            # Check if we can at least read the directory
+            if os.path.exists(settings.TTS_CACHE_DIR) and os.access(settings.TTS_CACHE_DIR, os.W_OK):
+                logger.info("TTS cache directory accessible (pre-existing)", dir=settings.TTS_CACHE_DIR)
+            else:
+                logger.error("Cannot create or access TTS cache directory", dir=settings.TTS_CACHE_DIR, error=str(e))
+                raise
     
     @property
     def openai_client(self):

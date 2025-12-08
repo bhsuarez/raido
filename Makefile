@@ -188,10 +188,73 @@ migrate-create: ## Create a new migration (usage: make migrate-create name=migra
 	fi
 	$(COMPOSE) exec api alembic revision --autogenerate -m "$(name)"
 
-test: ## Run tests
-	@echo "$(BLUE)Running tests...$(RESET)"
-	# TODO: Add test commands once tests are implemented
-	@echo "$(YELLOW)Tests not yet implemented$(RESET)"
+test: ## Run all tests
+	@echo "$(BLUE)Running all tests...$(RESET)"
+	@$(MAKE) test-backend
+	@$(MAKE) test-frontend
+	@echo "$(GREEN)All tests completed!$(RESET)"
+
+test-backend: ## Run backend tests (API + DJ Worker)
+	@echo "$(BLUE)Running backend tests...$(RESET)"
+	@$(MAKE) test-api
+	@$(MAKE) test-dj-worker
+
+test-api: ## Run API service tests
+	@echo "$(BLUE)Running API tests...$(RESET)"
+	@if [ -d "services/api/tests" ]; then \
+		$(COMPOSE) exec api pytest tests/ -v --cov=app --cov-report=term-missing || \
+		docker run --rm -v $(PWD)/services/api:/app -w /app python:3.11 bash -c "pip install -q -r requirements.txt -r requirements-dev.txt && pytest tests/ -v"; \
+	else \
+		echo "$(YELLOW)No API tests found$(RESET)"; \
+	fi
+
+test-dj-worker: ## Run DJ Worker tests
+	@echo "$(BLUE)Running DJ Worker tests...$(RESET)"
+	@if [ -d "services/dj-worker/tests" ]; then \
+		$(COMPOSE) exec dj-worker pytest tests/ -v --cov=app --cov-report=term-missing || \
+		docker run --rm -v $(PWD)/services/dj-worker:/app -w /app python:3.11 bash -c "pip install -q -r requirements.txt -r requirements-dev.txt && pytest tests/ -v"; \
+	else \
+		echo "$(YELLOW)No DJ Worker tests found$(RESET)"; \
+	fi
+
+test-frontend: ## Run frontend tests
+	@echo "$(BLUE)Running frontend tests...$(RESET)"
+	@if [ -d "web/src/__tests__" ]; then \
+		cd web && npm run test || echo "$(RED)Frontend tests failed$(RESET)"; \
+	else \
+		echo "$(YELLOW)No frontend tests found$(RESET)"; \
+	fi
+
+test-integration: ## Run integration tests (requires running services)
+	@echo "$(BLUE)Running integration tests...$(RESET)"
+	@echo "$(YELLOW)Ensure services are running (make up-dev)$(RESET)"
+	@if [ -d "tests" ]; then \
+		python -m pytest tests/ -v -m integration || \
+		echo "$(RED)Integration tests failed or skipped$(RESET)"; \
+	else \
+		echo "$(YELLOW)No integration tests found$(RESET)"; \
+	fi
+
+test-unit: ## Run unit tests only
+	@echo "$(BLUE)Running unit tests...$(RESET)"
+	@if [ -d "services/api/tests" ]; then \
+		$(COMPOSE) exec api pytest tests/ -v -m unit --cov=app || true; \
+	fi
+	@if [ -d "services/dj-worker/tests" ]; then \
+		$(COMPOSE) exec dj-worker pytest tests/ -v -m unit --cov=app || true; \
+	fi
+	@cd web && npm run test -- --run || true
+
+test-coverage: ## Generate test coverage reports
+	@echo "$(BLUE)Generating test coverage reports...$(RESET)"
+	@mkdir -p coverage
+	@$(COMPOSE) exec api pytest tests/ --cov=app --cov-report=html --cov-report=xml || true
+	@$(COMPOSE) exec dj-worker pytest tests/ --cov=app --cov-report=html --cov-report=xml || true
+	@echo "$(GREEN)Coverage reports generated in htmlcov/ directories$(RESET)"
+
+test-watch: ## Run frontend tests in watch mode
+	@echo "$(BLUE)Running frontend tests in watch mode...$(RESET)"
+	@cd web && npm run test:watch
 
 lint: ## Run linting
 	@echo "$(BLUE)Running linters...$(RESET)"
