@@ -15,6 +15,8 @@ services:
       - "8080:8080"  # HTTP metadata endpoint
     environment:
       - LIQUIDSOAP_LOG_LEVEL=3
+    volumes:
+      - ./music:/mnt/music:ro  # Local music folder for development
 
   api:
     ports:
@@ -23,6 +25,8 @@ services:
       - RELOAD=true
     volumes:
       - ./services/api:/app:rw  # Live reload during development
+      - ./music:/mnt/music:ro  # Local music folder for development
+      - ./shared:/shared:rw  # Local shared folder for TTS cache and logs
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   dj-worker:
@@ -30,6 +34,7 @@ services:
       - RELOAD=true
     volumes:
       - ./services/dj-worker:/app:rw  # Live reload during development
+      - ./shared:/shared:rw  # Local shared folder for TTS cache and logs
 
   proxy:
     ports:

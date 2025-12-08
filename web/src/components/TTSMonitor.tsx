@@ -796,7 +796,7 @@ const TTSMonitor: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {effectiveChatterboxStatus && (
+      {effectiveChatterboxStatus && settings?.dj_voice_provider === 'chatterbox' && (
         <div className={`rounded-2xl border shadow-2xl px-4 py-4 sm:px-6 ${chatterboxTone.container}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -926,6 +926,40 @@ const TTSMonitor: React.FC = () => {
             />
           </div>
         )}
+      </div>
+
+      {/* Music Library Management */}
+      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          🎵 Music Library Management
+        </h2>
+
+        <div className="space-y-4">
+          <p className="text-sm text-gray-300 mb-4">
+            Scan your music directory to populate the database with track metadata. This is required for DJ commentary to work properly.
+          </p>
+
+          <button
+            onClick={async () => {
+              try {
+                toast.loading('Scanning music directory...', { id: 'music-scan' })
+                const response = await api.get('/metadata/scan_music_directory')
+                toast.success(response.data.message || 'Music scan started!', { id: 'music-scan' })
+              } catch (error: any) {
+                const errorMsg = error?.response?.data?.detail || 'Failed to start music scan'
+                toast.error(errorMsg, { id: 'music-scan' })
+              }
+            }}
+            className="px-6 py-3 bg-gradient-to-r from-pirate-600 to-pirate-700 text-white rounded-lg hover:from-pirate-500 hover:to-pirate-600 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 font-semibold"
+          >
+            <span>🔄</span>
+            <span>Scan Music Directory</span>
+          </button>
+
+          <div className="text-xs text-gray-400 mt-2">
+            <p>This will scan <code className="bg-gray-800 px-2 py-1 rounded">/mnt/music</code> for audio files and update the database.</p>
+          </div>
+        </div>
       </div>
 
       {/* Monitoring Header (collapsible) */}
