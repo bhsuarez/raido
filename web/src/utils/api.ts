@@ -79,13 +79,13 @@ ttsApi.interceptors.response.use(responseInterceptor, responseErrorInterceptor)
 // Helper functions for common API patterns
 export const apiHelpers = {
   // Stream-related endpoints
-  getNowPlaying: () => api.get('/now'),
-  getHistory: (limit = 20, offset = 0) => api.get(`/now/history?limit=${limit}&offset=${offset}`),
-  getNextUp: (limit = 1) => api.get(`/now/next?limit=${limit}`),
+  getNowPlaying: (station = 'main') => api.get('/now', { params: { station } }),
+  getHistory: (limit = 20, offset = 0, station = 'main') => api.get('/now/history', { params: { limit, offset, station } }),
+  getNextUp: (limit = 1, station = 'main') => api.get('/now/next', { params: { limit, station } }),
   
   // Admin endpoints
-  getSettings: () => api.get('/admin/settings'),
-  updateSettings: (settings: Record<string, any>) => api.post('/admin/settings', settings),
+  getSettings: (station = 'main') => api.get('/admin/settings', { params: { station } }),
+  updateSettings: (settings: Record<string, any>, station = 'main') => api.post('/admin/settings', settings, { params: { station } }),
   getStats: () => api.get('/admin/stats'),
   getVoices: () => api.get("/admin/voices"),
   
@@ -120,7 +120,7 @@ export const apiHelpers = {
 
   // Music library and stations
   getTracks: () => api.get('/tracks'),
-  getStations: () => api.get('/stations'),
+  getStations: () => api.get('/admin/stations'),
   createStation: (data: any) => api.post('/stations', data),
 }
 

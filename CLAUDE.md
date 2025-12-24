@@ -126,7 +126,7 @@ Raido is a containerized AI-powered radio station with the following core servic
 - **PostgreSQL** - Primary database for track history, settings, and user data
 
 ### External Integration Services
-- **Chatterbox TTS** - External TTS service (192.168.1.112:8000) accessed via chatterbox-shim proxy
+- **Chatterbox TTS** - External TTS service (192.168.1.170:8000) accessed via chatterbox-shim proxy
 - **Chatterbox Shim** - Local proxy service (port 18000) providing OpenAI-compatible API for Chatterbox TTS
 - **Kokoro TTS** - Neural text-to-speech service (runs on port 8091, internal 8880)
 - **Ollama** - Local LLM service for AI commentary generation (enabled)
@@ -355,7 +355,7 @@ make update        # Update and rebuild all services
   2. External Chatterbox TTS service connectivity via chatterbox-shim proxy
 - **Fix Applied**:
   1. Fixed API client HTTP client reference in DJ worker
-  2. Configured chatterbox-shim to proxy requests to external Chatterbox service (192.168.1.112:8000)
+  2. Configured chatterbox-shim to proxy requests to external Chatterbox service (192.168.1.170:8000)
   3. Updated environment configuration for proper TTS service integration
 - **Verification**: Manual TTS tests now generate proper 50KB+ MP3 files accessible via web interface
 
@@ -407,13 +407,13 @@ make update        # Update and rebuild all services
   Usage Examples:
 
   # Basic TTS
-  curl "http://192.168.1.112:8000/tts?text=Hello%20world" -o output.wav
+  curl "http://192.168.1.170:8000/tts?text=Hello%20world" -o output.wav
 
   # Voice cloning TTS
-  curl "http://192.168.1.112:8000/tts?text=Hello&audio_prompt_path=/path/to/voice.wav" -o cloned.wav
+  curl "http://192.168.1.170:8000/tts?text=Hello&audio_prompt_path=/path/to/voice.wav" -o cloned.wav
 
   # OpenAI-compatible
-  curl -X POST "http://192.168.1.112:8000/v1/audio/speech" \
+  curl -X POST "http://192.168.1.170:8000/v1/audio/speech" \
     -H "Content-Type: application/json" \
     -d '{"input": "Hello world", "voice": "brian"}' \
     -o speech.wav

@@ -20,33 +20,49 @@ class CommentaryGenerator:
         # Default prompt template (will be overridden by database settings)
         self.prompt_template = self._load_default_prompt_template()
     
-    def _load_default_prompt_template(self) -> Template:
+    def _load_default_prompt_template(self, christmas_mode: bool = False) -> Template:
         """Load the default DJ prompt template"""
-        # Enhanced template with upcoming track focus and fact-based commentary
-        template_text = """You're a pirate radio DJ introducing the NEXT song coming up. Create a brief 15-20 second intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}. 
+        if christmas_mode:
+            # Christmas-themed template
+            template_text = """You're a cheerful holiday radio DJ introducing the NEXT Christmas song coming up. Create a brief 15-20 second festive intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}.
+
+Share ONE interesting fact about this Christmas song, the artist, or the holiday recording. Be warm, festive, and build excitement for the holiday spirit. End with something like "Coming up next!" or "Here we go!" or "Let's celebrate!"
+
+Examples of good facts:
+- When/where the song was recorded
+- Chart performance during holiday seasons
+- Fun stories behind the recording
+- Cover versions by other artists
+- How it became a holiday classic
+- Holiday traditions associated with the song
+
+Keep it warm, festive, and exciting. No SSML tags needed.""".strip()
+        else:
+            # Enhanced template with upcoming track focus and fact-based commentary
+            template_text = """You're a pirate radio DJ introducing the NEXT song coming up. Create a brief 15-20 second intro for: "{{song_title}}" by {{artist}}{% if album %} from the album "{{album}}"{% endif %}{% if year %} ({{year}}){% endif %}.
 
 Share ONE interesting fact about the artist, song, or album. Be energetic, knowledgeable, and build excitement for what's coming up next. End with something like "Coming up next!" or "Here we go!" or "Let's dive in!"
 
 Examples of good facts:
 - Chart performance or awards
-- Recording stories or collaborations  
+- Recording stories or collaborations
 - Cultural impact or covers by other artists
 - Band member changes or solo careers
 - Genre innovations or influences
 
 Keep it conversational and exciting. No SSML tags needed.""".strip()
-        
+
         return Template(template_text)
 
-    def _load_prompt_template_from_settings(self, dj_settings: Dict[str, Any]) -> Template:
+    def _load_prompt_template_from_settings(self, dj_settings: Dict[str, Any], christmas_mode: bool = False) -> Template:
         """Load prompt template from settings or use default"""
         template_text = dj_settings.get('dj_prompt_template')
         if template_text and template_text.strip():
             logger.info("Using custom DJ prompt template", length=len(template_text))
             return Template(template_text)
         else:
-            logger.info("Using default DJ prompt template")
-            return self.prompt_template
+            logger.info("Using default DJ prompt template", christmas_mode=christmas_mode)
+            return self._load_default_prompt_template(christmas_mode=christmas_mode)
 
     def _sanitize_generated_text(self, text: str) -> str:
         """Remove stage directions, SSML and parenthetical asides.
@@ -123,9 +139,9 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             # If using Chatterbox TTS, modify settings for shorter output
             if self._is_using_chatterbox_tts(dj_settings):
                 dj_settings = dj_settings.copy()  # Don't modify original
-                # Reduce max seconds for Chatterbox to keep synthesis manageable
+                # Keep Chatterbox intros within a safer 30s window to balance latency and quality
                 current_max = dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS)
-                dj_settings['dj_max_seconds'] = min(current_max, 15)  # Cap at 15 seconds
+                dj_settings['dj_max_seconds'] = min(current_max, 30)
                 logger.info("Adjusted max_seconds for Chatterbox TTS", max_seconds=dj_settings['dj_max_seconds'])
             
             # Generate commentary based on provider
@@ -242,20 +258,24 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
     
     def _build_prompt_context(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """Build context for the prompt template"""
-        
+
         # Format recent history
         recent_history = context.get('recent_history', [])
         history_str = ', '.join(recent_history[:3]) if recent_history else "None"
-        
+
         # Format upcoming tracks
         up_next = context.get('up_next', [])
         up_next_str = ', '.join(up_next[:2]) if up_next else "None"
-        
+
         if dj_settings is None:
             dj_settings = {}
-            
+
+        # Prioritize station_name from context (worker env) over database settings
+        # This ensures Christmas station uses "christmas" identifier, not generic DB default
+        station_name = context.get('station_name') or dj_settings.get('station_name', settings.STATION_NAME)
+
         return {
-            'station_name': dj_settings.get('station_name', settings.STATION_NAME),
+            'station_name': station_name,
             'max_seconds': dj_settings.get('dj_max_seconds', settings.DJ_MAX_SECONDS),
             'song_title': track_info.get('title', 'Unknown Title'),
             'artist': track_info.get('artist', 'Unknown Artist'),
@@ -268,14 +288,16 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             'recent_history': history_str,
             'up_next': up_next_str,
             'tone': dj_settings.get('dj_tone', settings.DJ_TONE),
-            'profanity_filter': dj_settings.get('dj_profanity_filter', settings.DJ_PROFANITY_FILTER)
+            'profanity_filter': dj_settings.get('dj_profanity_filter', settings.DJ_PROFANITY_FILTER),
+            'christmas_mode': track_info.get('christmas_mode', False) or context.get('christmas_mode', False)
         }
     
     async def _generate_with_openai(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using OpenAI"""
         try:
-            # Get custom template if available
-            template = self._load_prompt_template_from_settings(dj_settings or {})
+            # Get custom template if available (with Christmas mode support)
+            christmas_mode = prompt_context.get('christmas_mode', False)
+            template = self._load_prompt_template_from_settings(dj_settings or {}, christmas_mode=christmas_mode)
             
             # Render the prompt
             prompt = template.render(**prompt_context)
@@ -317,8 +339,9 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
     async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using Ollama"""
         try:
-            # Get custom template if available
-            template = self._load_prompt_template_from_settings(dj_settings or {})
+            # Get custom template if available (with Christmas mode support)
+            christmas_mode = prompt_context.get('christmas_mode', False)
+            template = self._load_prompt_template_from_settings(dj_settings or {}, christmas_mode=christmas_mode)
             
             # Render the prompt
             prompt = template.render(**prompt_context)
@@ -362,11 +385,42 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
         """Generate commentary using pre-written templates (fast fallback)"""
         try:
             import random
-            
+
             # Check if we should use shorter templates for Chatterbox
             is_chatterbox = self._is_using_chatterbox_tts(dj_settings)
-            
-            if is_chatterbox:
+
+            # Check if we're in Christmas mode
+            christmas_mode = prompt_context.get('christmas_mode', False)
+
+            if christmas_mode:
+                # Christmas-themed templates
+                if is_chatterbox:
+                    # Shorter Christmas templates for Chatterbox
+                    templates = [
+                        "Happy holidays! Next up, {artist} with {song_title}!",
+                        "Season's greetings! Coming up: {song_title} by {artist}!",
+                        "Spreading holiday cheer with {artist} and {song_title}!",
+                        "Merry Christmas! Up next, {artist} performing {song_title}!",
+                        "Joyful tunes ahead: {song_title} by {artist}!",
+                        "{artist} with {song_title} - perfect for the holidays!",
+                        "Next: {song_title} from {artist}! Happy holidays!",
+                        "Here we go with some festive music from {artist}!"
+                    ]
+                else:
+                    # Full Christmas templates
+                    templates = [
+                        "Season's greetings! Coming up next, we've got {artist} with the holiday classic {song_title}. This one's perfect for the season!",
+                        "Happy holidays everyone! Next up is {artist} bringing you {song_title}. Get ready for some festive cheer!",
+                        "Spreading Christmas joy with {artist} and {song_title}. You're gonna love this holiday favorite!",
+                        "From our holiday playlist, here comes {artist} with {song_title}. Coming up next!",
+                        "Deck the halls! {artist}'s {song_title} is next on our Christmas celebration!",
+                        "Ho ho ho! Next up we've got {artist} with {song_title}. This one's pure holiday magic!",
+                        "Get ready for this festive beauty - {artist} performing {song_title}. Coming right up!",
+                        "Our gift to you: {song_title} by {artist}. Merry Christmas, everyone!",
+                        "The holiday spirit continues with {artist} and {song_title} coming up next. Happy holidays!",
+                        "Next up from our Christmas collection - {artist} with {song_title}. Stay cozy and enjoy!"
+                    ]
+            elif is_chatterbox:
                 # Shorter templates optimized for Chatterbox TTS
                 templates = [
                     "Next up, {artist} with {song_title}!",

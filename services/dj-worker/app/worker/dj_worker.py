@@ -132,7 +132,7 @@ class DJWorker:
         """Determine if commentary should be generated for next track"""
         try:
             # Load settings first to respect admin selections over env defaults
-            settings_response = await self.api_client.get_settings()
+            settings_response = await self.api_client.get_settings(station=settings.STATION_NAME)
             if not settings_response:
                 return False
 
@@ -298,25 +298,29 @@ class DJWorker:
             # Get recent history
             history = await self.api_client.get_history(limit=5)
             recent_tracks = []
-            
+
             if history and 'tracks' in history:
                 for item in history['tracks']:
                     track = item.get('track', {})
                     recent_tracks.append(f"{track.get('artist')} - {track.get('title')}")
-            
+
             # Get next up (if available)
             next_up = await self.api_client.get_next_up()
             upcoming = []
-            
+
             if next_up and 'next_tracks' in next_up:
                 for item in next_up['next_tracks'][:3]:
                     track = item.get('track', {})
                     upcoming.append(f"{track.get('artist')} - {track.get('title')}")
-            
+
+            # Determine if this is Christmas mode based on station name
+            is_christmas = settings.STATION_NAME.lower() == 'christmas'
+
             return {
                 'recent_history': recent_tracks,
                 'up_next': upcoming,
                 'station_name': settings.STATION_NAME,
+                'christmas_mode': is_christmas,
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
         
@@ -339,8 +343,8 @@ class DJWorker:
                 job.started_at = datetime.now(timezone.utc)
                 gen_started = datetime.now(timezone.utc)
 
-                # Get DJ settings from API
-                dj_settings = await self.api_client.get_settings()
+                # Get DJ settings from API for this station
+                dj_settings = await self.api_client.get_settings(station=settings.STATION_NAME)
                 # Determine current voice provider & voice for placeholder record
                 try:
                     vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER
@@ -499,7 +503,9 @@ class DJWorker:
                     tts_time_ms=tts_time_ms,
                     dj_settings=dj_settings,
                     provider_used=provider_used,
-                    existing_commentary_id=placeholder_id
+                    existing_commentary_id=placeholder_id,
+                    voice_provider_used=self.tts_service.last_voice_provider,
+                    voice_id_override=self.tts_service.last_voice_id
                 )
                 
                 # Inject into stream
@@ -540,26 +546,54 @@ class DJWorker:
         dj_settings: Optional[Dict[str, Any]] = None,
         provider_used: Optional[str] = None,
         existing_commentary_id: Optional[int] = None,
+        voice_provider_used: Optional[str] = None,
+        voice_id_override: Optional[str] = None,
     ):
         """Save commentary to database via API"""
         try:
-            # Determine voice_id based on provider selection
+            # Determine voice provider and voice_id based on actual usage
             try:
-                # Prefer dynamic admin setting when available
-                vp = (dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None) or settings.DJ_VOICE_PROVIDER
+                default_voice_provider = (
+                    dj_settings.get('dj_voice_provider') if isinstance(dj_settings, dict) else None
+                ) or settings.DJ_VOICE_PROVIDER
             except Exception:
-                vp = 'kokoro'
+                default_voice_provider = 'kokoro'
 
-            voice_id = None
-            if dj_settings and isinstance(dj_settings, dict):
+            vp = voice_provider_used or default_voice_provider
+
+            voice_id = voice_id_override
+            if voice_id is None and dj_settings and isinstance(dj_settings, dict):
                 if vp == 'chatterbox':
                     voice_id = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
                 elif vp == 'openai_tts':
                     voice_id = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
                 elif vp == 'kokoro':
-                    voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_kokoro_voice') or dj_settings.get('dj_voice_id')
+                    voice_id = (
+                        dj_settings.get('kokoro_voice')
+                        or dj_settings.get('dj_kokoro_voice')
+                        or dj_settings.get('dj_voice_id')
+                    )
                 else:
                     voice_id = dj_settings.get('dj_voice_id')
+
+            if voice_id is None:
+                if vp == 'chatterbox':
+                    voice_id = getattr(settings, 'CHATTERBOX_VOICE', None)
+                elif vp == 'openai_tts':
+                    voice_id = getattr(settings, 'OPENAI_TTS_VOICE', None)
+                elif vp == 'kokoro':
+                    voice_id = getattr(settings, 'KOKORO_VOICE', None)
+
+            if isinstance(voice_id, str):
+                trimmed_voice = voice_id.strip()
+                if len(trimmed_voice) > 100:
+                    logger.warning(
+                        "Voice identifier exceeds column size; truncating",
+                        original_length=len(trimmed_voice),
+                        provider=vp,
+                    )
+                    trimmed_voice = trimmed_voice[:100]
+                voice_id = trimmed_voice or None
 
             # Use the admin-selected provider when recording, falling back to env default
             provider_used = None
@@ -600,11 +634,13 @@ class DJWorker:
         try:
             if not job.audio_file:
                 return
-            
-            # Tell Liquidsoap to inject the commentary
-            await self.api_client.inject_commentary(job.audio_file)
-            
-            logger.info("Commentary injected into stream", audio_file=job.audio_file)
-            
+
+            # Tell Liquidsoap to inject the commentary for this station
+            await self.api_client.inject_commentary(job.audio_file, station=settings.STATION_NAME)
+
+            logger.info("Commentary injected into stream",
+                       audio_file=job.audio_file,
+                       station=settings.STATION_NAME)
+
         except Exception as e:
-            logger.error("Failed to inject commentary", error=str(e))
+            logger.error("Failed to inject commentary", error=str(e), station=settings.STATION_NAME)
