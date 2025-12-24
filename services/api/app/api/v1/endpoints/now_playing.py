@@ -334,7 +334,6 @@ async def get_next_up(
                             from app.api.v1.endpoints.artwork import _extract_artwork_from_file
                             artwork_data, mime_type = await _extract_artwork_from_file(track.file_path)
                             if artwork_data:
-                                from pathlib import Path
                                 artwork_dir = Path("/shared/artwork")
                                 artwork_dir.mkdir(exist_ok=True)
                                 file_extension = "jpg" if mime_type == "image/jpeg" else "png"
