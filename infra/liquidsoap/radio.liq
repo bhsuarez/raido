@@ -79,7 +79,7 @@ def track_change_handler(m)
     log("🏴‍☠️ AUTO-DJ: Requesting intro for upcoming track: " ^ title ^ " by " ^ artist)
     
     # Call our API to trigger both logging and DJ commentary using Liquidsoap's http.post
-    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '"}'
+    payload = '{"artist":"' ^ artist ^ '","title":"' ^ title ^ '","album":"' ^ album ^ '","station":"main"}'
     url = "http://api:8000/api/v1/liquidsoap/track_change"
     
     # Use thread to avoid blocking liquidsoap

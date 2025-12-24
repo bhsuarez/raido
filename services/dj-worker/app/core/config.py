@@ -43,8 +43,12 @@ class Settings(BaseSettings):
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"
     DJ_PROFANITY_FILTER: bool = True
-    STATION_NAME: str = "Raido Pirate Radio"
-    
+
+    # Station Configuration
+    STATION_NAME: str = "main"  # Station identifier (main, christmas, etc.)
+    LIQUIDSOAP_HOST: str = "liquidsoap"  # Liquidsoap hostname
+    LIQUIDSOAP_PORT: int = 1234  # Liquidsoap telnet port
+
     # File Paths
     SHARED_DIR: str = "/shared"
     TTS_CACHE_DIR: str = "/shared/tts"

@@ -14,11 +14,18 @@ class APIClient:
         self.base_url = base_url.rstrip('/')
         self.client = httpx.AsyncClient(timeout=10.0)
     
-    async def get_now_playing(self) -> Optional[Dict[str, Any]]:
+    async def get_now_playing(self, station: str = None) -> Optional[Dict[str, Any]]:
         """Get current playing track information"""
+        # Use station from settings if not provided
+        if station is None:
+            station = settings.STATION_NAME
+
         for attempt in range(3):
             try:
-                response = await self.client.get(f"{self.base_url}/api/v1/now/")
+                response = await self.client.get(
+                    f"{self.base_url}/api/v1/now/",
+                    params={"station": station}
+                )
                 if response.status_code == 200:
                     return response.json()
                 
@@ -39,12 +46,16 @@ class APIClient:
                     logger.error("Error getting now playing after retries", error=str(e))
                     return None
     
-    async def get_history(self, limit: int = 20) -> Optional[Dict[str, Any]]:
+    async def get_history(self, limit: int = 20, station: str = None) -> Optional[Dict[str, Any]]:
         """Get play history"""
+        # Use station from settings if not provided
+        if station is None:
+            station = settings.STATION_NAME
+
         try:
             response = await self.client.get(
                 f"{self.base_url}/api/v1/now/history",
-                params={"limit": limit}
+                params={"limit": limit, "station": station}
             )
             if response.status_code == 200:
                 return response.json()
@@ -56,10 +67,17 @@ class APIClient:
             logger.error("Error getting history", error=str(e))
             return None
     
-    async def get_next_up(self) -> Optional[Dict[str, Any]]:
+    async def get_next_up(self, station: str = None) -> Optional[Dict[str, Any]]:
         """Get upcoming tracks"""
+        # Use station from settings if not provided
+        if station is None:
+            station = settings.STATION_NAME
+
         try:
-            response = await self.client.get(f"{self.base_url}/api/v1/now/next")
+            response = await self.client.get(
+                f"{self.base_url}/api/v1/now/next",
+                params={"station": station}
+            )
             if response.status_code == 200:
                 return response.json()
             
@@ -70,18 +88,21 @@ class APIClient:
             logger.error("Error getting next up", error=str(e))
             return None
     
-    async def get_settings(self) -> Optional[Dict[str, Any]]:
-        """Get application settings"""
+    async def get_settings(self, station: str = "main") -> Optional[Dict[str, Any]]:
+        """Get application settings for a specific station"""
         try:
-            response = await self.client.get(f"{self.base_url}/api/v1/admin/settings")
+            response = await self.client.get(
+                f"{self.base_url}/api/v1/admin/settings",
+                params={"station": station}
+            )
             if response.status_code == 200:
                 return response.json()
-            
-            logger.debug("Settings not available", status=response.status_code)
+
+            logger.debug("Settings not available", status=response.status_code, station=station)
             return {}
-        
+
         except Exception as e:
-            logger.error("Error getting settings", error=str(e))
+            logger.error("Error getting settings", error=str(e), station=station)
             return {}
     
     async def create_commentary(self, commentary_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -127,24 +148,24 @@ class APIClient:
             logger.error("Error updating commentary", error=str(e))
             return False
     
-    async def inject_commentary(self, audio_filename: str) -> bool:
+    async def inject_commentary(self, audio_filename: str, station: str = "main") -> bool:
         """Tell Liquidsoap to inject commentary"""
         try:
             response = await self.client.post(
                 f"{self.base_url}/api/v1/liquidsoap/inject_commentary",
-                params={"filename": audio_filename}
+                params={"filename": audio_filename, "station": station}
             )
-            
+
             if response.status_code == 200:
-                logger.info("Commentary injection requested", filename=audio_filename)
+                logger.info("Commentary injection requested", filename=audio_filename, station=station)
                 return True
-            
-            logger.error("Failed to request commentary injection", 
-                        status=response.status_code)
+
+            logger.error("Failed to request commentary injection",
+                        status=response.status_code, station=station)
             return False
-        
+
         except Exception as e:
-            logger.error("Error injecting commentary", error=str(e))
+            logger.error("Error injecting commentary", error=str(e), station=station)
             return False
     
     async def close(self):

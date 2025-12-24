@@ -40,6 +40,17 @@ services:
     command: ["liquidsoap","/radio.liq"]
     ports: ["1234:1234","8080:8080"]
 
+  christmas-liquidsoap:
+    image: savonet/liquidsoap:v2.2.5
+    restart: unless-stopped
+    depends_on: [icecast]
+    volumes:
+      - /mnt/music:/mnt/music:ro
+      - ./infra/liquidsoap/christmas.liq:/christmas.liq:ro
+      - shared:/shared
+    command: ["liquidsoap","/christmas.liq"]
+    ports: ["1235:1235"]
+
   api:
     build: ./services/api
     restart: unless-stopped
@@ -80,7 +91,12 @@ services:
       - DOWNLOAD_MODEL=true
     # Constrain CPU and memory to avoid host contention
     mem_limit: "3g"
-    cpus: "1.0"
+    cpus: "2.0"
+    # Use tmpfs for /tmp to prevent temp file accumulation on disk
+    # Files are stored in RAM and auto-cleaned on container restart
+    # Use 'exec' to allow loading shared libraries (espeak-ng.so)
+    tmpfs:
+      - /tmp:size=512m,mode=1777,exec
 
   # xtts-server:  # Temporarily disabled to reduce system load during Chatterbox testing
   #   image: synesthesiam/opentts:all
@@ -108,6 +124,31 @@ services:
       api:
         condition: service_healthy
     volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=main
+      - LIQUIDSOAP_HOST=liquidsoap
+      - LIQUIDSOAP_PORT=1234
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://api:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: "1g"
+    cpus: "0.50"
+
+  christmas-dj-worker:
+    build: ./services/dj-worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=christmas
+      - LIQUIDSOAP_HOST=christmas-liquidsoap
+      - LIQUIDSOAP_PORT=1235
     healthcheck:
       test: ["CMD", "curl", "-f", "http://api:8000/health"]
       interval: 30s
@@ -121,8 +162,9 @@ services:
     build: ./services/chatterbox-shim
     restart: unless-stopped
     environment:
-      # Route shim to external Chatterbox server (not the local container)
-      - CH_SHIM_UPSTREAM=http://192.168.1.112:8000
+      # Route shim to local kokoro-tts service
+      # Using kokoro-tts for text-to-speech generation
+      - CH_SHIM_UPSTREAM=http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
     ports:
@@ -137,7 +179,7 @@ services:
   proxy:
     image: caddy:2
     restart: unless-stopped
-    ports: ["80:80","443:443"]
+    ports: ["80:80","443:443","8888:8888"]
     volumes:
       - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy:/data
@@ -148,6 +190,12 @@ services:
     build: ./web
     restart: unless-stopped
     depends_on: [api]
+
+  christmas-web:
+    build: ./web-christmas
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["9000:80"]
 
   monitor:
     image: curlimages/curl:8.8.0

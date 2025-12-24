@@ -260,10 +260,22 @@ const VoiceProviderSection: React.FC<{
         return voices.length ? voices : []
       default: // kokoro
         return voices.length ? voices : [
-          'af_bella', 'af_sarah', 'af_sky', 'am_onyx', 'am_michael', 'am_ryan', 
+          'af_bella', 'af_sarah', 'af_sky', 'am_onyx', 'am_michael', 'am_ryan',
           'bf_ava', 'bf_sophie', 'bm_george', 'bm_james'
         ]
     }
+  }
+
+  const formatVoiceName = (voiceId: string) => {
+    // Format voice IDs for display in dropdown
+    if (provider === 'chatterbox') {
+      // Remove "custom-" prefix and capitalize
+      const cleaned = voiceId.replace(/^custom-/, '')
+      return cleaned.split('-').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }
+    return voiceId
   }
 
   const getVoiceFieldName = () => {
@@ -317,7 +329,7 @@ const VoiceProviderSection: React.FC<{
             }}
           >
             {getVoiceOptions().map(voice => (
-              <option key={voice} value={voice}>{voice}</option>
+              <option key={voice} value={voice}>{formatVoiceName(voice)}</option>
             ))}
           </select>
         </div>
@@ -392,7 +404,7 @@ const VoiceProviderSection: React.FC<{
               <label className="block text-sm text-gray-300 mb-1">Chatterbox Voices API URL</label>
               <input
                 type="text"
-                placeholder="http://192.168.1.112:8080/api/voices"
+                placeholder="http://192.168.1.170:8080/api/voices"
                 value={settings.chatterbox_voices_url || ''}
                 onChange={(e) => setSettings({ ...settings, chatterbox_voices_url: e.target.value })}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
@@ -477,7 +489,11 @@ const VoiceProviderSection: React.FC<{
   )
 }
 
-const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }> = ({ settings, setSettings }) => {
+const AIModelSection: React.FC<{
+  settings: any,
+  setSettings: (s: any) => void,
+  ollamaModels: string[]
+}> = ({ settings, setSettings, ollamaModels }) => {
   const currentProvider = settings?.dj_provider || 'templates'
   const currentModel = settings?.dj_model || settings?.ollama_model || 'llama3.2:1b'
 
@@ -486,7 +502,7 @@ const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }>
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
         🤖 AI Model Settings
       </h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
@@ -499,16 +515,13 @@ const AIModelSection: React.FC<{ settings: any, setSettings: (s: any) => void }>
               ollama_model: e.target.value,
             })}
           >
-            <optgroup label="🚀 Fast Models">
-              <option value="llama3.2:1b">Llama 3.2 1B (Fastest)</option>
-              <option value="llama3.2:3b">Llama 3.2 3B (Good Quality)</option>
-              <option value="qwen2.5:3b">Qwen2.5 3B (Creative)</option>
-            </optgroup>
-            <optgroup label="⚡ Balanced Models">
-              <option value="llama3.1:8b">Llama 3.1 8B</option>
-              <option value="qwen2.5:7b">Qwen2.5 7B</option>
-              <option value="mistral:7b">Mistral 7B</option>
-            </optgroup>
+            {ollamaModels.length > 0 ? (
+              ollamaModels.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))
+            ) : (
+              <option value={currentModel}>{currentModel} (server offline)</option>
+            )}
           </select>
         </div>
         
@@ -562,6 +575,7 @@ const TTSMonitor: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
   const [chatterboxVoices, setChatterboxVoices] = useState<string[]>([])
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
   const [testText, setTestText] = useState("Welcome to Raido FM! This voice sounds crisp and clear for our pirate radio commentary.")
 
   // Admin settings state
@@ -635,6 +649,19 @@ const TTSMonitor: React.FC = () => {
     load()
   }, [settings?.dj_voice_provider, settings?.chatterbox_voices_url])
 
+  // Fetch Ollama models
+  useEffect(() => {
+    const loadOllamaModels = async () => {
+      try {
+        const res = await api.get('/admin/ollama-models')
+        setOllamaModels(res.data?.models || [])
+      } catch {
+        setOllamaModels([])
+      }
+    }
+    loadOllamaModels()
+  }, [settings?.dj_provider]) // Reload when provider changes
+
   const hasUnsavedChanges = Boolean(
     settings && originalSettings && JSON.stringify(settings) !== JSON.stringify(originalSettings)
   )
@@ -672,8 +699,15 @@ const TTSMonitor: React.FC = () => {
   const itemsPerPage = 20
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus', currentPage],
-    queryFn: () => api.get(`/admin/tts-status?window_hours=24&limit=${itemsPerPage}&offset=${currentPage * itemsPerPage}`).then(res => res.data),
+    queryKey: ['ttsStatus', 'main', currentPage],
+    queryFn: () => api.get('/admin/tts-status', {
+      params: {
+        station: 'main',
+        window_hours: 24,
+        limit: itemsPerPage,
+        offset: currentPage * itemsPerPage,
+      }
+    }).then(res => res.data),
     refetchInterval: AUTO_REFRESH_INTERVAL_MS,
     staleTime: 10000,
     keepPreviousData: true,
@@ -915,7 +949,11 @@ const TTSMonitor: React.FC = () => {
             
             {/* AI Model Settings - only show if using Ollama */}
             {settings.dj_provider === 'ollama' && (
-              <AIModelSection settings={settings} setSettings={setSettings} />
+              <AIModelSection
+                settings={settings}
+                setSettings={setSettings}
+                ollamaModels={ollamaModels}
+              />
             )}
             
             {/* Voice Testing */}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import structlog
@@ -8,7 +8,7 @@ import httpx
 from datetime import datetime, timezone
 
 from app.core.database import get_db
-from app.models import Track, Play
+from app.models import Track, Play, Station
 from app.core.websocket_manager import WebSocketManager
 from app.services.metadata_extractor import MetadataExtractor
 
@@ -26,6 +26,7 @@ class TrackChangeRequest(BaseModel):
     duration: Optional[float] = None
     year: Optional[str] = None
     genre: Optional[str] = None
+    station: Optional[str] = "main"  # Station identifier (main, christmas, etc.)
     metadata: Dict[str, Any] = {}
 
 @router.post("/track_change")
@@ -35,7 +36,9 @@ async def track_change_notification(
 ):
     """Handle track change notifications from Liquidsoap"""
     try:
-        logger.info("Received track change notification", track_data=request.dict())
+        logger.info("Received track change notification",
+                   station=request.station,
+                   track_data=request.dict())
         
         # Find or create track record
         track = None
@@ -123,10 +126,58 @@ async def track_change_notification(
                 if artwork_url:
                     track.artwork_url = artwork_url
                     updated = True
-        
+
+        # Ensure the track is associated with the station that reported it
+        station_identifier = (request.station or "main").lower()
+        station_obj = None
+        try:
+            station_result = await db.execute(
+                select(Station).where(func.lower(Station.identifier) == station_identifier)
+            )
+            station_obj = station_result.scalar_one_or_none()
+
+            if not station_obj:
+                # Create a lightweight station record if it doesn't exist yet
+                station_obj = Station(
+                    identifier=station_identifier,
+                    name=station_identifier.capitalize(),
+                    genre=request.genre,
+                )
+                db.add(station_obj)
+                await db.flush()
+
+            await db.refresh(track)
+            if station_obj not in track.stations:
+                track.stations.append(station_obj)
+
+            # Maintain station tags on the track for quick filtering
+            if track.tags is None:
+                track.tags = {"stations": [station_identifier]}
+            elif isinstance(track.tags, dict):
+                stations = track.tags.get("stations")
+                if isinstance(stations, list):
+                    if station_identifier not in stations:
+                        stations.append(station_identifier)
+                        track.tags["stations"] = stations
+                else:
+                    track.tags["stations"] = [station_identifier]
+            else:
+                track.tags = {"stations": [station_identifier]}
+        except Exception as assoc_err:
+            logger.warning(
+                "Failed to associate track with station",
+                track_id=getattr(track, "id", None),
+                station=station_identifier,
+                error=str(assoc_err),
+            )
+
         # End any current playing track
         current_play_result = await db.execute(
-            select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
+            select(Play)
+            .where(Play.ended_at.is_(None))
+            .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_identifier)
+            .order_by(Play.started_at.desc())
+            .limit(1)
         )
         current_play = current_play_result.scalar_one_or_none()
         
@@ -134,13 +185,17 @@ async def track_change_notification(
             current_play.ended_at = datetime.now(timezone.utc)
             current_play.elapsed_ms = int((current_play.ended_at - current_play.started_at).total_seconds() * 1000)
         
-        # Create new play record
+        # Create new play record with station information
         new_play = Play(
             track_id=track.id,
             started_at=datetime.now(timezone.utc),
             liquidsoap_id=request.metadata.get("liquidsoap_id"),
-            source_type="playlist"
+            source_type="playlist",
+            station_id=station_obj.id if station_obj else None,
+            station_identifier=station_identifier
         )
+        # Station ID is now properly set from station_obj lookup
+        request.metadata["station"] = request.station
         db.add(new_play)
         
         # Update track statistics
@@ -164,7 +219,8 @@ async def track_change_notification(
                     "id": new_play.id,
                     "started_at": new_play.started_at.isoformat(),
                     "liquidsoap_id": new_play.liquidsoap_id
-                }
+                },
+                "station": request.station
             })
         
         # Commentary generation is handled by the DJ worker service
@@ -200,29 +256,37 @@ async def liquidsoap_status():
         raise HTTPException(status_code=500, detail="Failed to get stream status")
 
 @router.post("/skip")
-async def skip_current_track(db: AsyncSession = Depends(get_db)):
+async def skip_current_track(station: str = "main", db: AsyncSession = Depends(get_db)):
     """Skip the currently playing track"""
     try:
-        logger.info("Track skip requested")
-        
+        logger.info("Track skip requested", station=station)
+
         # Mark current play as skipped in database
         current_play_result = await db.execute(
             select(Play).where(Play.ended_at.is_(None)).order_by(Play.started_at.desc()).limit(1)
         )
         current_play = current_play_result.scalar_one_or_none()
-        
+
         if current_play:
             current_play.was_skipped = True
             await db.commit()
-        
+
+        # Determine Liquidsoap host and port based on station
+        if station == "christmas":
+            liquidsoap_host = "christmas-liquidsoap"
+            liquidsoap_port = 1235
+        else:
+            liquidsoap_host = "liquidsoap"
+            liquidsoap_port = 1234
+
         # Connect to Liquidsoap telnet and skip track
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5.0)
-        
+
         try:
             # Connect to Liquidsoap telnet interface
-            sock.connect(("liquidsoap", 1234))
+            sock.connect((liquidsoap_host, liquidsoap_port))
             
             # Send skip command; matches LiquidsoapClient implementation
             command = "music.skip\n"
@@ -244,23 +308,34 @@ async def skip_current_track(db: AsyncSession = Depends(get_db)):
 @router.post("/inject_commentary")
 async def inject_commentary_file(
     filename: str,
+    station: str = "main",
     db: AsyncSession = Depends(get_db)
 ):
     """Inject a commentary file into the stream"""
     try:
-        logger.info("Commentary injection requested", filename=filename)
-        
+        logger.info("Commentary injection requested", filename=filename, station=station)
+
+        # Determine Liquidsoap host, port, and queue name based on station
+        if station == "christmas":
+            liquidsoap_host = "christmas-liquidsoap"
+            liquidsoap_port = 1235
+            queue_name = "tts_christmas"
+        else:
+            liquidsoap_host = "liquidsoap"
+            liquidsoap_port = 1234
+            queue_name = "tts"
+
         # Connect to Liquidsoap telnet and inject TTS audio
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5.0)
-        
+
         try:
             # Connect to Liquidsoap telnet interface
-            sock.connect(("liquidsoap", 1234))
-            
+            sock.connect((liquidsoap_host, liquidsoap_port))
+
             # Push the commentary file to TTS queue
-            command = f"tts.push /shared/tts/{filename}\n"
+            command = f"{queue_name}.push /shared/tts/{filename}\n"
             sock.send(command.encode())
             
             # Read response

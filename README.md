@@ -402,7 +402,7 @@ OPENAI_API_KEY=your-key-here  # Required if using openai
 DJ_VOICE_PROVIDER=chatterbox
 
 # Chatterbox TTS Configuration (external service via shim)
-CHATTERBOX_BASE_URL=http://192.168.1.112:8000  # Your external Chatterbox service
+CHATTERBOX_BASE_URL=http://192.168.1.170:8000  # Your external Chatterbox service
 
 # Commentary frequency (1 = after every song)
 DJ_COMMENTARY_INTERVAL=1
@@ -424,7 +424,7 @@ For production TTS using external Chatterbox service via shim proxy:
 DJ_VOICE_PROVIDER=chatterbox
 
 # External Chatterbox service configuration
-CHATTERBOX_BASE_URL=http://192.168.1.112:8000  # Your external Chatterbox server
+CHATTERBOX_BASE_URL=http://192.168.1.170:8000  # Your external Chatterbox server
 CHATTERBOX_VOICE=default
 CHATTERBOX_EXAGGERATION=1.0
 CHATTERBOX_CFG_WEIGHT=0.5

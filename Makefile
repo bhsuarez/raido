@@ -270,3 +270,46 @@ production-setup: ## Production deployment setup
 	$(MAKE) up
 	$(MAKE) migrate
 	@echo "$(GREEN)Production setup complete!$(RESET)"
+
+##@ Station Management
+
+.PHONY: stations-generate
+stations-generate: ## Generate docker-compose.stations.yml from stations.yml
+	@echo "$(BLUE)🎵 Generating station services...$(RESET)"
+	@python3 scripts/generate-station-services.py
+
+.PHONY: stations-sync
+stations-sync: ## Sync stations from stations.yml to database
+	@echo "$(BLUE)🔄 Syncing stations to database...$(RESET)"
+	@docker compose exec api python /app/../scripts/sync-stations-db.py || python3 scripts/sync-stations-db.py
+
+.PHONY: stations-up
+stations-up: stations-generate ## Start all stations (generates config first)
+	@echo "$(BLUE)🚀 Starting all stations...$(RESET)"
+	@docker compose -f docker-compose.yml -f docker-compose.stations.yml up -d
+
+.PHONY: stations-restart
+stations-restart: stations-generate ## Restart all stations with new config
+	@echo "$(BLUE)🔄 Restarting all stations...$(RESET)"
+	@docker compose -f docker-compose.yml -f docker-compose.stations.yml down
+	@docker compose -f docker-compose.yml -f docker-compose.stations.yml up -d
+
+.PHONY: stations-list
+stations-list: ## List all configured stations
+	@echo "$(BLUE)📻 Configured Stations:$(RESET)"
+	@python3 -c "import yaml; [print(f'  - {k}: {v[\"display_name\"]}') for k,v in yaml.safe_load(open('stations.yml'))['stations'].items()]"
+
+.PHONY: station-logs
+station-logs: ## Show logs for a station (usage: make station-logs STATION=main)
+	@if [ -z "$(STATION)" ]; then echo "$(RED)❌ Error: STATION not specified. Usage: make station-logs STATION=main$(RESET)"; exit 1; fi
+	@echo "$(BLUE)📋 Logs for $(STATION) station:$(RESET)"
+	@docker compose logs -f $(STATION)-dj-worker $(STATION)-liquidsoap 2>/dev/null || echo "$(RED)❌ Station not found$(RESET)"
+
+.PHONY: station-status
+station-status: ## Check status of a station (usage: make station-status STATION=main)
+	@if [ -z "$(STATION)" ]; then echo "$(RED)❌ Error: STATION not specified. Usage: make station-status STATION=main$(RESET)"; exit 1; fi
+	@echo "$(BLUE)📊 Status for $(STATION) station:$(RESET)"
+	@docker compose ps | grep "$(STATION)-"
+	@echo ""
+	@echo "$(YELLOW)🎵 Now Playing:$(RESET)"
+	@curl -s "http://localhost:8001/api/v1/now/?station=$(STATION)" | jq -r '.track | "\(.artist) - \(.title)"' 2>/dev/null || echo "$(RED)❌ API not responding$(RESET)"
