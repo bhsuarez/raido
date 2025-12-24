@@ -1,8 +1,9 @@
 import React from 'react'
-import { Pause, Play, Loader2 } from 'lucide-react'
+import { Pause, Play, Loader2, SkipForward } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { shallow } from 'zustand/shallow'
 import { useRadioStore } from '../store/radioStore'
+import { apiHelpers } from '../utils/api'
 
 const fallbackStreamPath = '/stream/christmas.mp3'
 const configuredStream = ((import.meta as any)?.env?.VITE_STREAM_URL as string | undefined)?.trim()
@@ -20,6 +21,7 @@ const RadioPlayer: React.FC = () => {
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [isBuffering, setIsBuffering] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [isSkipping, setIsSkipping] = React.useState(false)
 
   const { nowPlaying } = useRadioStore(
     (state) => ({
@@ -116,6 +118,19 @@ const RadioPlayer: React.FC = () => {
     }
   }, [isPlaying, pausePlayback, startPlayback])
 
+  const handleSkipTrack = React.useCallback(async () => {
+    setIsSkipping(true)
+    try {
+      await apiHelpers.skipTrack()
+      toast.success('⏭️ Track skipped!')
+    } catch (error) {
+      console.error('Failed to skip track:', error)
+      toast.error('Failed to skip track')
+    } finally {
+      setIsSkipping(false)
+    }
+  }, [])
+
   const trackTitle = nowPlaying?.track?.title
   const trackArtist = nowPlaying?.track?.artist
 
@@ -161,7 +176,20 @@ const RadioPlayer: React.FC = () => {
             )}
           </div>
 
-          <div className="h-12 w-12" aria-hidden />
+          <button
+            type="button"
+            onClick={handleSkipTrack}
+            disabled={isSkipping}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Skip to next track"
+            title="Skip to next track"
+          >
+            {isSkipping ? (
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+            ) : (
+              <SkipForward className="h-6 w-6" aria-hidden />
+            )}
+          </button>
         </div>
         <audio ref={audioRef} src={streamSource} preload="none" className="hidden" />
       </div>

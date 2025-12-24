@@ -25,6 +25,12 @@ function App() {
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
                   <NowPlaying />
                 </ErrorBoundary>
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
+                  <ComingUp />
+                </ErrorBoundary>
+                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Play History.</div>}>
+                  <PlayHistory />
+                </ErrorBoundary>
               </div>
             } 
           />

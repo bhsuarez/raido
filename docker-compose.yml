@@ -94,8 +94,9 @@ services:
     cpus: "2.0"
     # Use tmpfs for /tmp to prevent temp file accumulation on disk
     # Files are stored in RAM and auto-cleaned on container restart
+    # Use 'exec' to allow loading shared libraries (espeak-ng.so)
     tmpfs:
-      - /tmp:size=512m,mode=1777
+      - /tmp:size=512m,mode=1777,exec
 
   # xtts-server:  # Temporarily disabled to reduce system load during Chatterbox testing
   #   image: synesthesiam/opentts:all

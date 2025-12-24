@@ -18,7 +18,9 @@ settings.server.telnet.port := 1235
 # ---------- Sources ----------
 # Queue for DJ/TTS lines - this will play intros with timeout
 # Use a more aggressive timeout and make it interactive
-tts_q = request.queue(id="tts_christmas", timeout=30.0, interactive=true)
+tts_q_raw = request.queue(id="tts_christmas", timeout=30.0, interactive=true)
+# Amplify TTS to make it louder than music (3x volume)
+tts_q = amplify(3.0, tts_q_raw)
 
 # Helpers (defined first so they can be used by other functions)
 def meta_get(m, k, d)
