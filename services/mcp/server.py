@@ -153,8 +153,8 @@ async def get_dj_voices(station: str = "main") -> str:
     voices = voices_data.get("voices", [])
     current = settings_data.get("kokoro_voice", "unknown")
 
-    lines = [f"Current DJ voice: {current}", f"Available voices ({len(voices)}):"]
-    lines.extend(f"  - {v}" for v in voices)
+    lines = [f"Current DJ voice: **{current}**", f"Available voices ({len(voices)}):", ""]
+    lines.extend(f"- {v}" for v in voices)
     return "\n".join(lines)
 
 
