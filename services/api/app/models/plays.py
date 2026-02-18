@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -16,7 +16,7 @@ class Play(Base):
     liquidsoap_id = Column(String(100), nullable=True, index=True)  # Liquidsoap track ID
     started_at = Column(DateTime(timezone=True), nullable=False, index=True)
     ended_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    elapsed_ms = Column(Integer, nullable=True)  # How much was actually played
+    elapsed_ms = Column(BigInteger, nullable=True)  # How much was actually played
     
     # Play context
     play_position = Column(Integer, nullable=True)  # Position in playlist/queue
