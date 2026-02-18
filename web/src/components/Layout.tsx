@@ -76,18 +76,6 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Status and Controls */}
             <div className="ml-auto flex items-center space-x-4">
-              {/* Christmas Station Button */}
-              <a
-                href="/christmas/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                title="Visit Christmas Station"
-              >
-                <span>🎄</span>
-                <span className="hidden sm:inline">Christmas Radio</span>
-              </a>
-
               {/* Connection Status */}
               <div
                 className={`flex items-center space-x-2 text-xs ${
@@ -130,16 +118,6 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               )
             })}
-            {/* Christmas Station Link (Mobile) */}
-            <a
-              href="/christmas/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            >
-              <span>🎄</span>
-              <span>Christmas Radio</span>
-            </a>
             {songLabel ? (
               <div className="mt-2 px-3 py-2 rounded-md text-sm font-medium text-gray-100 bg-gray-700/40">
                 {songLabel}

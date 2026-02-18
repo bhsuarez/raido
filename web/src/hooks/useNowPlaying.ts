@@ -27,7 +27,7 @@ export function usePlayHistory(limit = 20, offset = 0) {
 export function useNextUp() {
   return useQuery({
     queryKey: ['nextUp'],
-    queryFn: () => api.get('/now/next?limit=1').then(res => res.data),
+    queryFn: () => api.get('/now/next?limit=5').then(res => res.data),
     refetchInterval: 30000, // Every 30 seconds
     staleTime: 15000,
     retry: 2,

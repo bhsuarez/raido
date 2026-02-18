@@ -274,15 +274,18 @@ async def get_next_up(
                 elapsed = (base_now - cur_play.started_at).total_seconds()
                 base_remaining = max(0.0, float(cur_track.duration_sec) - elapsed)
 
-        # Inspect Liquidsoap request queue and build next N items
+        # Inspect Liquidsoap request queue and build next N items.
+        # Use metadata-aware current/next detection so we don't skip the
+        # actual next track by blindly assuming the lowest RID is current.
         rids = client.list_request_ids()
+        current_rid, _ = client.get_current_and_next_ready_rid(rids)
         sorted_rids = sorted(rids)
-        # Fast path: avoid per-RID telnet metadata calls; use ordering semantics
-        base_current = sorted_rids[0] if sorted_rids else None
-        # Choose the next sequential RIDs after the current one (matches observed telnet behavior)
         next_rids: list[int] = []
-        if base_current is not None:
-            next_rids = [rid for rid in sorted_rids if rid > base_current]
+        if current_rid is not None:
+            next_rids = [rid for rid in sorted_rids if rid > current_rid]
+        elif sorted_rids:
+            # No playing track found in metadata; treat all queued RIDs as upcoming
+            next_rids = sorted_rids
 
         next_rids = next_rids[: max(0, min(limit, 10))]  # cap to 10
 
@@ -432,14 +435,16 @@ async def get_next_up(
                 estimated_start_time=next_tracks[0]["estimated_start_time"] if next_tracks else None,
             )
 
-        # Fallback: random pick excluding recent plays
+        # Fallback: random pick excluding recent plays.
+        # Use a large exclusion window so we never surface an already-played
+        # track in "coming up next" — exclude the last 50 played tracks.
         from datetime import timedelta
         estimated_start = (base_now + timedelta(seconds=base_remaining)) if base_now else None
         recent_plays_result = await db.execute(
             select(Play.track_id)
             .where(func.lower(func.coalesce(Play.station_identifier, "main")) == station_normalized)
             .order_by(Play.started_at.desc())
-            .limit(10)
+            .limit(50)
         )
         recent_track_ids = [row[0] for row in recent_plays_result.fetchall()]
         upcoming_query = select(Track).where(

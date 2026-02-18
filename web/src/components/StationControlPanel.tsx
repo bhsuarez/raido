@@ -214,66 +214,126 @@ const StationControlPanel: React.FC = () => {
           })}
         </div>
 
-        {/* Selected Station Details */}
-        {selectedStation && stationStatuses[selectedStation] && (
-          <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              {stations.find(s => s.identifier === selectedStation)?.name} - Details
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-750 rounded p-4">
-                <div className="text-gray-400 text-sm mb-1">Status</div>
-                <div className="text-white font-medium">
-                  {stationStatuses[selectedStation].is_playing ? (
-                    <span className="text-green-400">● Online</span>
+        {/* Selected Station — Main Deck */}
+        {selectedStation && stationStatuses[selectedStation] && (() => {
+          const status = stationStatuses[selectedStation]
+          const stationInfo = stations.find(s => s.identifier === selectedStation)
+          const np = status.now_playing
+          return (
+            <div className="bg-gray-800 rounded-xl shadow-xl overflow-hidden">
+              {/* Deck header */}
+              <div className="bg-gradient-to-r from-pirate-900 to-gray-800 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-white">
+                    {stationInfo?.name ?? selectedStation} — Main Deck
+                  </h2>
+                  {status.is_playing ? (
+                    <span className="flex items-center gap-1.5 bg-green-900/50 border border-green-500/40 text-green-400 text-xs font-semibold px-3 py-1 rounded-full">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                      LIVE
+                    </span>
                   ) : (
-                    <span className="text-red-400">● Offline</span>
+                    <span className="bg-red-900/50 border border-red-500/40 text-red-400 text-xs font-semibold px-3 py-1 rounded-full">OFFLINE</span>
                   )}
                 </div>
+                {/* Listen button */}
+                <a
+                  href={status.stream_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-pirate-500 hover:bg-pirate-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  🎧 Listen Live
+                </a>
               </div>
 
-              <div className="bg-gray-750 rounded p-4">
-                <div className="text-gray-400 text-sm mb-1">Stream URL</div>
-                <div className="text-white font-mono text-sm truncate">
-                  {stationStatuses[selectedStation].stream_url}
+              <div className="p-6">
+                {/* Now Playing — large artwork + info */}
+                {np ? (
+                  <div className="flex gap-6 mb-6">
+                    <div className="flex-shrink-0">
+                      {np.artwork_url ? (
+                        <img
+                          src={np.artwork_url}
+                          alt="Album artwork"
+                          className="w-32 h-32 rounded-xl object-cover shadow-lg ring-2 ring-pirate-500/30"
+                        />
+                      ) : (
+                        <div className="w-32 h-32 rounded-xl bg-gray-700 flex items-center justify-center shadow-lg">
+                          <span className="text-5xl">🎵</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="text-xs text-pirate-400 font-semibold uppercase tracking-widest mb-1">Now Playing</div>
+                      <h3 className="text-2xl font-bold text-white truncate mb-1">{np.title}</h3>
+                      <p className="text-pirate-300 font-medium text-lg truncate">{np.artist}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 mb-6 text-gray-500">
+                    <div className="w-32 h-32 rounded-xl bg-gray-700 flex items-center justify-center">
+                      <span className="text-5xl">🔇</span>
+                    </div>
+                    <p className="text-lg">No track currently playing</p>
+                  </div>
+                )}
+
+                {/* Info grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                  <div className="bg-gray-750 rounded-lg p-4">
+                    <div className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1">Status</div>
+                    <div className="text-white font-medium">
+                      {status.is_playing ? (
+                        <span className="text-green-400">● Online</span>
+                      ) : (
+                        <span className="text-red-400">● Offline</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-gray-750 rounded-lg p-4">
+                    <div className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1">Stream URL</div>
+                    <div className="text-white font-mono text-sm truncate">{status.stream_url}</div>
+                  </div>
+                  <div className="bg-gray-750 rounded-lg p-4">
+                    <div className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1">Station ID</div>
+                    <div className="text-white font-mono text-sm">{selectedStation}</div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="bg-gray-750 rounded p-4">
-                <div className="text-gray-400 text-sm mb-1">Station ID</div>
-                <div className="text-white font-mono text-sm">
-                  {selectedStation}
+                {/* Quick Actions */}
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={status.admin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-pirate-700 hover:bg-pirate-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    ⚙️ DJ Admin
+                  </a>
+                  <button
+                    onClick={() => window.open(`/api/v1/now/?station=${selectedStation}`, '_blank')}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    📊 View API
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(status.stream_url)
+                      toast.success('Stream URL copied!')
+                    }}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    📋 Copy Stream URL
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => window.open(`/api/v1/now/?station=${selectedStation}`, '_blank')}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-              >
-                📊 View API
-              </button>
-              <button
-                onClick={() => window.open(`/api/v1/admin/settings?station=${selectedStation}`, '_blank')}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-              >
-                ⚙️ View Settings
-              </button>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(stationStatuses[selectedStation].stream_url)
-                  toast.success('Stream URL copied!')
-                }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-              >
-                📋 Copy Stream URL
-              </button>
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
     </div>

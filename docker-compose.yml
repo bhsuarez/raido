@@ -162,9 +162,9 @@ services:
     build: ./services/chatterbox-shim
     restart: unless-stopped
     environment:
-      # Route shim to local kokoro-tts service
-      # Using kokoro-tts for text-to-speech generation
-      - CH_SHIM_UPSTREAM=http://kokoro-tts:8880
+      # Primary: MacBook chatterbox via Tailscale, Fallback: local Kokoro
+      # MacBook at 100.75.98.84:8150, Kokoro as fallback
+      - CH_SHIM_UPSTREAM=http://100.75.98.84:8150,http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
     ports:
@@ -213,5 +213,16 @@ services:
       - shared:/shared
       - ./scripts/cleanup-tts.sh:/cleanup-tts.sh:ro
     command: ["sh", "-c", "while true; do sleep 86400; /cleanup-tts.sh; done"]
+
+  mcp:
+    build: ./services/mcp
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8811:8811"
+    environment:
+      - RAIDO_API_URL=http://api:8000
 
 volumes: { db: {}, caddy: {}, shared: {}, kokoro_models: {} }
