@@ -140,5 +140,51 @@ async def get_stream_status() -> str:
     return "\n".join(lines)
 
 
+@mcp.tool()
+async def get_dj_voices(station: str = "main") -> str:
+    """List available Kokoro TTS voices for the Raido DJ, and show the currently active voice.
+
+    Args:
+        station: Station identifier (e.g. "main" or "christmas")
+    """
+    voices_data = await _api_get("/api/v1/admin/voices")
+    settings_data = await _api_get("/api/v1/admin/settings", params={"station": station})
+
+    voices = voices_data.get("voices", [])
+    current = settings_data.get("kokoro_voice", "unknown")
+
+    lines = [f"Current DJ voice: {current}", f"Available voices ({len(voices)}):"]
+    lines.extend(f"  - {v}" for v in voices)
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def set_dj_voice(voice: str, station: str = "main") -> str:
+    """Change the Kokoro TTS voice used by the Raido DJ.
+
+    Args:
+        voice: Voice identifier (e.g. "af_bella", "am_michael", "bm_george").
+               Use get_dj_voices to see all options.
+        station: Station identifier (e.g. "main" or "christmas")
+    """
+    voices_data = await _api_get("/api/v1/admin/voices")
+    available = voices_data.get("voices", [])
+
+    if voice not in available:
+        close = [v for v in available if voice.lower() in v.lower()]
+        suggestion = f" Did you mean: {', '.join(close[:3])}?" if close else ""
+        return f"Voice '{voice}' not found.{suggestion} Use get_dj_voices to see all options."
+
+    async with httpx.AsyncClient(base_url=RAIDO_API_URL, timeout=10) as client:
+        r = await client.post(
+            "/api/v1/admin/settings",
+            params={"station": station},
+            json={"kokoro_voice": voice},
+        )
+        r.raise_for_status()
+
+    return f"DJ voice changed to '{voice}' on the {station} station."
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
