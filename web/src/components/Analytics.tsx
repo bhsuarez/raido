@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { BarChart2Icon, CloudIcon, ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
 import api from '../utils/api'
-import LoadingSpinner from './LoadingSpinner'
 
 interface GenreStats {
   genre: string
@@ -20,214 +20,191 @@ interface AnalyticsData {
   genre_breakdown: GenreStats[]
   total_tracks: number
   word_cloud_data: WordFrequency[]
-  date_range: {
-    start: string
-    end: string
-  }
+  date_range: { start: string; end: string }
 }
 
+const TIME_RANGES = [
+  { value: '1d', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: 'all', label: 'All' },
+]
+
 const Analytics: React.FC = () => {
-  const [timeRange, setTimeRange] = useState('7d') // 1d, 7d, 30d, all
+  const [timeRange, setTimeRange] = useState('7d')
   const [genreCollapsed, setGenreCollapsed] = useState(false)
   const [showAllGenres, setShowAllGenres] = useState(false)
 
   const { data: analytics, isLoading, error, refetch } = useQuery<AnalyticsData>({
     queryKey: ['analytics', timeRange],
-    queryFn: () => api.get(`/admin/analytics?range=${timeRange}`).then(res => res.data),
-    staleTime: 30000, // 30 seconds
+    queryFn: () => api.get(`/admin/analytics?range=${timeRange}`).then(r => r.data),
+    staleTime: 30000,
   })
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <LoadingSpinner message="Loading analytics data..." />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-red-400">
-              <p className="text-xl mb-2">⚠️ Error Loading Analytics</p>
-              <p>Unable to fetch analytics data</p>
-              <button 
-                onClick={() => refetch()}
-                className="mt-4 px-4 py-2 bg-pirate-600 hover:bg-pirate-700 text-white rounded-lg transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const maxGenreCount = Math.max(...(analytics?.genre_breakdown || []).map(g => g.count))
-  
-  // Determine which genres to show
-  const genresToShow = analytics?.genre_breakdown ? 
-    (showAllGenres ? analytics.genre_breakdown : analytics.genre_breakdown.slice(0, 25)) : 
-    []
+  const maxGenreCount = Math.max(...(analytics?.genre_breakdown || []).map(g => g.count), 1)
+  const genresToShow = analytics?.genre_breakdown
+    ? (showAllGenres ? analytics.genre_breakdown : analytics.genre_breakdown.slice(0, 25))
+    : []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-pirate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Header */}
-        <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                📊 Raido Analytics
-              </h1>
-              <p className="text-gray-300 mt-2">
-                Track insights and content analysis for your AI radio station
-              </p>
-            </div>
-            
-            {/* Time Range Selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-300">Time Range:</label>
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-              >
-                <option value="1d">Last 24 Hours</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="all">All Time</option>
-              </select>
-            </div>
-          </div>
-          
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white">Analytics</h1>
           {analytics?.date_range && (
-            <div className="text-sm text-gray-400">
-              Data from {new Date(analytics.date_range.start).toLocaleDateString()} to {new Date(analytics.date_range.end).toLocaleDateString()}
-              {analytics.total_tracks && (
-                <span className="ml-4">• {analytics.total_tracks} tracks analyzed</span>
-              )}
-            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {new Date(analytics.date_range.start).toLocaleDateString()} –{' '}
+              {new Date(analytics.date_range.end).toLocaleDateString()}
+              {analytics.total_tracks > 0 && ` · ${analytics.total_tracks} tracks`}
+            </p>
           )}
         </div>
 
-        {/* Genre Breakdown */}
-        <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
-          <div className="flex items-center justify-between mb-6">
+        {/* Time range pills */}
+        <div className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-xl p-1">
+          {TIME_RANGES.map(r => (
             <button
-              onClick={() => setGenreCollapsed(!genreCollapsed)}
-              className="flex items-center gap-2 text-2xl font-bold text-white hover:text-pirate-400 transition-colors"
+              key={r.value}
+              onClick={() => setTimeRange(r.value)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                timeRange === r.value
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
             >
-              <span className={`transform transition-transform ${genreCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
-              <span>🎵 Genre Breakdown</span>
-              <span className="text-sm font-normal text-gray-400">
-                ({analytics?.genre_breakdown?.length || 0} genres total)
-              </span>
+              {r.label}
             </button>
-            
-            {!genreCollapsed && analytics?.genre_breakdown && analytics.genre_breakdown.length > 25 && (
-              <button
-                onClick={() => setShowAllGenres(!showAllGenres)}
-                className="px-3 py-1 text-sm bg-pirate-600 hover:bg-pirate-700 text-white rounded-lg transition-colors"
-              >
-                {showAllGenres ? 'Show Top 25' : `Show All ${analytics.genre_breakdown.length}`}
-              </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Genre Breakdown */}
+      <div className="card overflow-hidden">
+        <button
+          onClick={() => setGenreCollapsed(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 border-b border-gray-800 hover:bg-gray-800/30 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <BarChart2Icon className="w-4 h-4 text-gray-500" />
+            <span className="section-header">Genre Breakdown</span>
+            {analytics?.genre_breakdown && (
+              <span className="text-xs text-gray-600">({analytics.genre_breakdown.length})</span>
             )}
           </div>
-          
-          {!genreCollapsed && (
-            analytics?.genre_breakdown && analytics.genre_breakdown.length > 0 ? (
-              <div className="space-y-4">
-                {genresToShow.map((genre, index) => (
-                <div key={genre.genre} className="relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-semibold text-white">
-                        #{index + 1}
-                      </span>
-                      <span className="text-white font-medium">
-                        {genre.genre || 'Unknown'}
-                      </span>
+          {genreCollapsed ? (
+            <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronDownIcon className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
+
+        {!genreCollapsed && (
+          <div className="p-5">
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="animate-pulse space-y-1.5">
+                    <div className="flex justify-between">
+                      <div className="h-3 bg-gray-800 rounded w-1/4" />
+                      <div className="h-3 bg-gray-800 rounded w-16" />
                     </div>
-                    <div className="text-right text-sm text-gray-300">
-                      <div>{genre.count} tracks ({genre.percentage.toFixed(1)}%)</div>
-                      {genre.avg_duration && (
-                        <div className="text-xs">
-                          Avg: {Math.round(genre.avg_duration / 60)}m {Math.round(genre.avg_duration % 60)}s
-                        </div>
-                      )}
+                    <div className="h-1.5 bg-gray-800 rounded-full w-full" />
+                  </div>
+                ))}
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 space-y-3">
+                <p className="text-gray-400">Failed to load analytics</p>
+                <button onClick={() => refetch()} className="btn-secondary text-sm">
+                  Retry
+                </button>
+              </div>
+            ) : genresToShow.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <BarChart2Icon className="w-8 h-8 mx-auto mb-2 text-gray-700" />
+                <p className="text-sm">No genre data yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {genresToShow.map((genre, i) => (
+                  <div key={genre.genre}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm text-gray-200 font-medium truncate">
+                          {genre.genre || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 flex-shrink-0 ml-3">
+                        {genre.count} · {genre.percentage.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary-500 rounded-full transition-all duration-500"
+                        style={{ width: `${(genre.count / maxGenreCount) * 100}%` }}
+                      />
                     </div>
                   </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-pirate-500 to-pirate-400 transition-all duration-500"
-                      style={{ width: `${(genre.count / maxGenreCount) * 100}%` }}
-                    />
-                  </div>
+                ))}
+
+                {analytics?.genre_breakdown && analytics.genre_breakdown.length > 25 && (
+                  <button
+                    onClick={() => setShowAllGenres(v => !v)}
+                    className="text-sm text-primary-400 hover:text-primary-300 transition-colors mt-2"
+                  >
+                    {showAllGenres
+                      ? 'Show top 25'
+                      : `Show all ${analytics.genre_breakdown.length} genres`}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Word Cloud */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+          <CloudIcon className="w-4 h-4 text-gray-500" />
+          <span className="section-header">Commentary Word Frequency</span>
+        </div>
+
+        <div className="p-5">
+          {isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-10 bg-gray-800 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : analytics?.word_cloud_data && analytics.word_cloud_data.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {analytics.word_cloud_data.slice(0, 20).map((w) => (
+                <div
+                  key={w.word}
+                  className="flex items-center justify-between px-3 py-2 bg-gray-800 rounded-xl border border-gray-700/50"
+                >
+                  <span
+                    className="font-medium text-gray-200 truncate"
+                    style={{ fontSize: `${Math.max(0.75, Math.min(1.1, w.count / 10))}rem` }}
+                  >
+                    {w.word}
+                  </span>
+                  <span className="text-xs text-gray-600 ml-2 flex-shrink-0">{w.count}</span>
                 </div>
               ))}
             </div>
-            ) : (
-              <div className="text-center py-12 text-gray-400">
-                <p className="text-xl mb-2">📭 No Genre Data Available</p>
-                <p>Start playing some music to see genre analytics!</p>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Word Cloud Placeholder */}
-        <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            ☁️ TTS Commentary Word Cloud
-          </h2>
-          
-          {analytics?.word_cloud_data && analytics.word_cloud_data.length > 0 ? (
-            <div className="min-h-[400px] flex items-center justify-center bg-gray-800/50 rounded-lg border border-gray-700">
-              {/* Simple word frequency list for now */}
-              <div className="w-full p-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {analytics.word_cloud_data.slice(0, 20).map((word, index) => (
-                    <div
-                      key={word.word}
-                      className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg border border-gray-600/50"
-                    >
-                      <span 
-                        className="font-medium text-white"
-                        style={{ 
-                          fontSize: `${Math.max(0.8, Math.min(1.5, word.count / 10))}rem` 
-                        }}
-                      >
-                        {word.word}
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        {word.count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           ) : (
-            <div className="min-h-[400px] flex items-center justify-center bg-gray-800/50 rounded-lg border border-gray-700">
-              <div className="text-center text-gray-400">
-                <p className="text-xl mb-2">💬 No Commentary Data</p>
-                <p>TTS commentary word analysis will appear here</p>
-              </div>
+            <div className="text-center py-8 text-gray-500">
+              <CloudIcon className="w-8 h-8 mx-auto mb-2 text-gray-700" />
+              <p className="text-sm">No commentary data yet</p>
             </div>
           )}
         </div>
-
       </div>
     </div>
   )

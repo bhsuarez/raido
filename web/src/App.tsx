@@ -54,20 +54,15 @@ function App() {
             element={<StationControlPanel />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
-          <Route 
-            path="*" 
+          <Route
+            path="*"
             element={
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    🏴‍☠️ Page Not Found
-                  </h2>
-                  <p className="text-gray-400">
-                    Ye've sailed into uncharted waters, matey!
-                  </p>
-                </div>
+              <div className="card p-12 flex flex-col items-center gap-2 text-center">
+                <p className="text-4xl font-bold text-gray-700">404</p>
+                <p className="text-gray-400 font-medium mt-1">Page not found</p>
+                <p className="text-gray-600 text-sm">The page you're looking for doesn't exist.</p>
               </div>
-            } 
+            }
           />
         </Routes>
         </ErrorBoundary>

@@ -6,54 +6,76 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
-  
+
   body {
-    @apply antialiased;
-  }
-  
-  .font-pirate {
-    font-family: 'Cinzel', serif;
+    @apply antialiased bg-gray-950 text-gray-100;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-gray-800 hover:bg-gray-700 active:bg-gray-900 text-gray-100 font-medium px-4 py-2.5 rounded-xl transition-colors border border-gray-700;
   }
-  
+
   .card {
-    @apply bg-gray-800 rounded-lg shadow-lg border border-gray-700;
+    @apply bg-gray-900 rounded-2xl border border-gray-800 shadow-xl;
   }
-  
+
+  .card-elevated {
+    @apply bg-gray-800 rounded-2xl border border-gray-700 shadow-xl;
+  }
+
   .input {
-    @apply bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-colors;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center gap-1 px-4 py-2 text-xs font-medium rounded-xl transition-colors;
+  }
+
+  .nav-item-active {
+    @apply text-primary-400;
+  }
+
+  .nav-item-inactive {
+    @apply text-gray-400 hover:text-gray-200;
+  }
+
+  .live-dot {
+    @apply w-2 h-2 bg-green-400 rounded-full animate-pulse;
+  }
+
+  .section-header {
+    @apply text-sm font-semibold text-gray-400 uppercase tracking-wider;
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+  @apply bg-gray-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply bg-gray-600;
 }
 
 /* Audio visualizer bars */
 .audio-bar {
-  @apply bg-gradient-to-t from-primary-600 to-primary-400;
+  @apply bg-gradient-to-t from-primary-600 to-primary-400 rounded-full;
   animation: audioBar 1.5s ease-in-out infinite alternate;
 }
 
@@ -69,10 +91,10 @@
 
 /* Loading spinner */
 .spinner {
-  border: 3px solid #374151;
-  border-top: 3px solid #f59e0b;
+  border: 2px solid #1f2937;
+  border-top: 2px solid #ec7711;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -80,129 +102,24 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Shimmer effect for skeletons */
+/* Shimmer for skeleton loading */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
-/* Glitch effect for pirate theme */
-.glitch {
-  position: relative;
-  display: inline-block;
+.skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #2d3748 50%, #1f2937 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
-.glitch::before,
-.glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.8;
+/* Progress bar smooth fill */
+.progress-fill {
+  transition: width 1s linear;
 }
 
-.glitch::before {
-  animation: glitch-1 0.5s infinite;
-  color: #ff0000;
-  z-index: -1;
-}
-
-.glitch::after {
-  animation: glitch-2 0.5s infinite;
-  color: #00ffff;
-  z-index: -2;
-}
-
-@keyframes glitch-1 {
-  0%, 14%, 15%, 49%, 50%, 99%, 100% {
-    transform: translate3d(0, 0, 0);
-  }
-  1%, 13% {
-    transform: translate3d(-1px, 0, 0);
-  }
-  16%, 48% {
-    transform: translate3d(1px, 0, 0);
-  }
-}
-
-@keyframes glitch-2 {
-  0%, 20%, 21%, 62%, 63%, 99%, 100% {
-    transform: translate3d(0, 0, 0);
-  }
-  1%, 19% {
-    transform: translate3d(1px, 0, 0);
-  }
-  22%, 61% {
-    transform: translate3d(-1px, 0, 0);
-  }
-}
-
-/* Winter Theme - Snowfall Animation */
-.snowflake {
-  position: fixed;
-  top: -10px;
-  z-index: 9999;
-  user-select: none;
-  cursor: default;
-  animation-name: snowfall;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1em;
-  pointer-events: none;
-}
-
-@keyframes snowfall {
-  0% {
-    transform: translateY(0vh) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100vh) rotate(360deg);
-    opacity: 0.5;
-  }
-}
-
-/* Winter theme frost effect */
-.frost-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(173, 216, 230, 0.02) 0%, transparent 50%);
-  z-index: 1;
-}
-
-/* Winter color scheme overrides */
-.winter-theme {
-  background: linear-gradient(135deg,
-    #0f172a 0%,
-    #1e3a5f 25%,
-    #2c5282 50%,
-    #1e3a5f 75%,
-    #0f172a 100%
-  ) !important;
-}
-
-.winter-card {
-  background: rgba(30, 58, 95, 0.6) !important;
-  border: 1px solid rgba(173, 216, 230, 0.3) !important;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-}
-
-/* Ice crystal sparkle effect */
-@keyframes sparkle {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-.sparkle {
-  animation: sparkle 2s ease-in-out infinite;
+/* Mobile safe area padding */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

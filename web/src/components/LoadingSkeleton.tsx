@@ -54,50 +54,26 @@ const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
 
 // Specific skeleton components for common use cases
 export const NowPlayingSkeleton: React.FC = () => (
-  <div className="bg-gradient-to-br from-pirate-900 via-pirate-800 to-gray-800 rounded-2xl p-8 shadow-2xl border border-pirate-600/30">
-    {/* Header Skeleton */}
-    <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center gap-3">
-        <LoadingSkeleton variant="circular" width="w-3" height="h-3" />
-        <LoadingSkeleton width="w-64" height="h-8" />
-      </div>
-      <LoadingSkeleton width="w-24" height="h-6" />
-    </div>
-
-    {/* Main Content Skeleton */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-      {/* Album Art Skeleton */}
-      <div className="lg:col-span-1">
-        <LoadingSkeleton 
-          variant="rectangular" 
-          className="w-full max-w-sm mx-auto lg:max-w-none aspect-square" 
-        />
-      </div>
-
-      {/* Track Info Skeleton */}
-      <div className="lg:col-span-2 space-y-6">
-        <div className="space-y-4">
-          <LoadingSkeleton width="w-full" height="h-8" />
-          <LoadingSkeleton width="w-3/4" height="h-6" />
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <LoadingSkeleton width="w-20" height="h-6" />
-            <LoadingSkeleton width="w-32" height="h-4" />
-          </div>
+  <div className="card overflow-hidden animate-pulse">
+    <div className="flex flex-col lg:flex-row">
+      {/* Art skeleton */}
+      <div className="lg:w-72 lg:flex-shrink-0 aspect-square lg:h-72 bg-gray-800" />
+      {/* Info skeleton */}
+      <div className="flex-1 p-5 lg:p-7 space-y-5">
+        <div className="space-y-2">
+          <div className="h-3 bg-gray-800 rounded w-20" />
+          <div className="h-7 bg-gray-800 rounded w-3/4 mt-2" />
+          <div className="h-5 bg-gray-800 rounded w-1/2" />
+          <div className="h-5 bg-gray-800 rounded w-24 rounded-full" />
         </div>
-
-        {/* Progress Bar Skeleton */}
-        <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="h-1.5 bg-gray-800 rounded-full w-full" />
           <div className="flex justify-between">
-            <LoadingSkeleton width="w-12" height="h-4" />
-            <LoadingSkeleton width="w-12" height="h-4" />
+            <div className="h-3 bg-gray-800 rounded w-8" />
+            <div className="h-3 bg-gray-800 rounded w-8" />
           </div>
-          <LoadingSkeleton width="w-full" height="h-3" />
         </div>
-
-        {/* Button Skeleton */}
-        <div className="flex justify-center pt-4">
-          <LoadingSkeleton width="w-32" height="h-12" />
-        </div>
+        <div className="h-10 bg-gray-800 rounded-xl w-32" />
       </div>
     </div>
   </div>
