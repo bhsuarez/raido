@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import Any, Dict, List, Optional, Set
 from datetime import datetime, timezone, timedelta
@@ -1278,7 +1278,11 @@ async def get_analytics(
             start_date = datetime.min.replace(tzinfo=timezone.utc)
             
         # Get song data with genre breakdown (eager load tracks to avoid async issues)
-        play_query = select(Play).options(selectinload(Play.track)).where(Play.started_at >= start_date)
+        # Filter to main station only — exclude christmas and other secondary stations
+        play_query = select(Play).options(selectinload(Play.track)).where(
+            Play.started_at >= start_date,
+            Play.station_identifier == 'main'
+        )
         play_result = await db.execute(play_query)
         plays = play_result.scalars().all()
         
@@ -1319,10 +1323,15 @@ async def get_analytics(
                 "avg_duration": round(avg_duration, 2)
             })
         
-        # Get TTS commentary data for word cloud
+        # Get TTS commentary data for word cloud (main station only)
         commentary_query = select(Commentary).where(
             Commentary.created_at >= start_date,
-            Commentary.transcript.isnot(None)
+            Commentary.transcript.isnot(None),
+            func.lower(func.coalesce(
+                Commentary.context_data.op('->>')('station'),
+                Commentary.context_data.op('->>')('station_name'),
+                'main'
+            )) == 'main'
         )
         commentary_result = await db.execute(commentary_query)
         commentaries = commentary_result.scalars().all()
