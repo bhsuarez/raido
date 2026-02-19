@@ -90,8 +90,7 @@ const NowPlaying: React.FC = () => {
         <div className="flex-1 p-5 lg:p-7 flex flex-col justify-between gap-5">
           {/* Track metadata */}
           <div className="space-y-1">
-            <p className="section-header">Now Playing</p>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
               {track.title}
             </h2>
             <p className="text-lg text-gray-300 font-medium">{track.artist}</p>

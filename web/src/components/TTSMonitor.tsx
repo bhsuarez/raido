@@ -258,11 +258,15 @@ const VoiceProviderSection: React.FC<{
       }
       case 'xtts':
         return voices.length ? voices : []
-      default: // kokoro
-        return voices.length ? voices : [
+      default: { // kokoro
+        const base = voices.length ? voices : [
           'af_bella', 'af_sarah', 'af_sky', 'am_onyx', 'am_michael', 'am_ryan',
           'bf_ava', 'bf_sophie', 'bm_george', 'bm_james'
         ]
+        const cur = settings?.kokoro_voice
+        // Ensure currently selected voice stays visible even if voices haven't loaded yet
+        return cur && !base.includes(cur) ? [cur, ...base] : base
+      }
     }
   }
 
