@@ -117,11 +117,11 @@ output.icecast(
   user="source",
   password="hackme",
   mount="/raido.mp3",
-  name="🏴‍☠️ Raido - AI Pirate Radio",
+  name="Raido",
   url="https://raido.local",
-  genre="Pirate Radio",
-  description="24/7 AI-powered pirate radio with live DJ commentary",
+  genre="AI Radio",
+  description="24/7 AI-powered radio with live DJ commentary",
   radio
 )
 
-log("🏴‍☠️ Raido - AI Pirate Radio streaming started!")
+log("Raido streaming started!")
