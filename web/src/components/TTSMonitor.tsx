@@ -280,7 +280,7 @@ const VoiceProviderSection: React.FC<{
             }}
           >
             {getVoiceOptions().map(voice => (
-              <option key={voice} value={voice}>{formatVoiceName(voice)}</option>
+              <option key={voice} value={voice}>{voice}</option>
             ))}
           </select>
         </div>
