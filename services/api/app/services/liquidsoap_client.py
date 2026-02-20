@@ -154,6 +154,20 @@ class LiquidsoapClient:
             logger.error("Failed to get queue info", error=str(e))
             return {}
     
+    def get_tts_queue_length(self) -> int:
+        """Return the number of items currently queued in tts_q"""
+        try:
+            resp = self._send_command("tts.queue", use_cache=False)
+            # Response is space-separated RIDs, or empty
+            resp = resp.strip()
+            if not resp or resp == "":
+                return 0
+            rids = [r for r in resp.split() if r.isdigit()]
+            return len(rids)
+        except Exception as e:
+            logger.warning("Failed to get tts queue length", error=str(e))
+            return 0
+
     def get_uptime(self) -> Optional[float]:
         """Get Liquidsoap uptime"""
         try:

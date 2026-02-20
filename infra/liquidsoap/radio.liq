@@ -27,8 +27,21 @@ backup_music = playlist(
   "/mnt/music"
 )
 
+
+# Skip Christmas tracks on the main station
+def skip_christmas(m)
+  filename = list.assoc(default="", "filename", m)
+  title = list.assoc(default="", "title", m)
+  is_christmas = string.contains(substring="Now That's What I Call Christmas", filename)
+    or string.contains(substring="Christmas! (Disc", filename)
+  if is_christmas then
+    log("Skipping Christmas track: " ^ title)
+    backup_music.skip()
+  end
+end
+
 # Main music source
-all_music = backup_music
+all_music = source.on_track(backup_music, skip_christmas)
 
 # Helpers
 def meta_get(m, k, d)
@@ -62,6 +75,9 @@ end
 # Normalize metadata
 music = metadata.map(update_metadata, all_music)
 
+# Wrap with insert_metadata so we can inject per-track StreamUrl (for artwork in players like Triode)
+music_inj = insert_metadata(music)
+
 # Combined callback function that handles both commentary generation and logging
 def track_change_handler(m)
   artist = meta_get(m, "artist", "Unknown artist")
@@ -86,14 +102,26 @@ def track_change_handler(m)
     def make_api_call()
       response = http.post(url, data=payload, headers=[("Content-Type", "application/json")])
       log("✅ API call response: " ^ response)
+      # Extract artwork_url from response and inject as StreamUrl for players like Triode
+      abs_matches = string.extract(pattern='"artwork_url":"(https?://[^"]+)"', response)
+      abs_url = list.assoc(default="", 1, abs_matches)
+      rel_matches = string.extract(pattern='"artwork_url":"(/[^"]+)"', response)
+      rel_url = list.assoc(default="", 1, rel_matches)
+      artwork_url = if abs_url != "" then abs_url
+        elsif rel_url != "" then "http://192.168.1.41" ^ rel_url
+        else "" end
+      if artwork_url != "" then
+        music_inj.insert_metadata([("url", artwork_url)])
+        log("🎨 Set StreamUrl to: " ^ artwork_url)
+      end
     end
     
     thread.run(make_api_call)
   end
 end
 
-# Attach the combined callback to the music source
-music = source.on_metadata(music, track_change_handler)
+# Attach the combined callback to the music source (using music_inj for StreamUrl injection)
+music = source.on_metadata(music_inj, track_change_handler)
 
 # Try a simpler approach: rotate between TTS and music using add weights
 # This creates a round-robin style approach where TTS plays before tracks

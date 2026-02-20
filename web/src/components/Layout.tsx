@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { HomeIcon, ClockIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, BarChart2Icon } from 'lucide-react'
+import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, BarChart2Icon, LibraryIcon } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Logo from './Logo'
@@ -19,10 +19,10 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Now Playing', href: '/now-playing', icon: HomeIcon },
-    { name: 'History', href: '/history', icon: ClockIcon },
     { name: 'DJ Admin', href: '/raido/admin', icon: SettingsIcon },
     { name: 'Analytics', href: '/analytics', icon: BarChart2Icon },
     { name: 'Stations', href: '/stations', icon: RadioIcon },
+    { name: 'Media', href: '/media', icon: LibraryIcon },
   ]
 
   const trackTitle = nowPlaying?.track?.title?.trim()

@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -81,6 +81,20 @@ app.mount("/static/artwork", StaticFiles(directory=artwork_dir), name="artwork_f
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "raido-api"}
+
+@app.post("/internal/ws/broadcast")
+async def internal_ws_broadcast(request: Request):
+    """Internal endpoint for dj-worker to push messages to WebSocket clients.
+    Accepts { "type": "...", "data": { ... } } and broadcasts to all connected clients.
+    Not exposed externally (behind Caddy proxy).
+    """
+    try:
+        body = await request.json()
+        await websocket_manager.broadcast(body)
+        return {"status": "ok", "clients": len(websocket_manager.active_connections)}
+    except Exception as e:
+        logger.error("Internal WS broadcast failed", error=str(e))
+        return JSONResponse(status_code=500, content={"detail": str(e)})
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

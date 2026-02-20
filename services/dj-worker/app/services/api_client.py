@@ -168,6 +168,19 @@ class APIClient:
             logger.error("Error injecting commentary", error=str(e), station=station)
             return False
     
+    async def broadcast_ws(self, message_type: str, data: Dict[str, Any]) -> bool:
+        """Push a message to all WebSocket clients via the internal broadcast endpoint."""
+        try:
+            response = await self.client.post(
+                f"{self.base_url}/internal/ws/broadcast",
+                json={"type": message_type, "data": data},
+                timeout=3.0,
+            )
+            return response.status_code == 200
+        except Exception as e:
+            logger.debug("WS broadcast failed (non-critical)", error=str(e))
+            return False
+
     async def close(self):
         """Close the HTTP client"""
         await self.client.aclose()

@@ -45,21 +45,28 @@ export interface RadioState {
   // Connection state
   isConnected: boolean
   setIsConnected: (connected: boolean) => void
-  
+
   // Now playing
   nowPlaying?: NowPlaying
   updateNowPlaying: (data: NowPlaying) => void
-  
+
+  // Commentary streaming
+  commentaryText: string
+  isGeneratingCommentary: boolean
+  appendCommentaryToken: (token: string) => void
+  setCommentaryReady: (transcript: string) => void
+  clearCommentary: () => void
+
   // UI state
   isDarkMode: boolean
   toggleDarkMode: () => void
-  
+
   // Audio player state
   volume: number
   setVolume: (volume: number) => void
   isMuted: boolean
   toggleMute: () => void
-  
+
   // Admin state
   isAdmin: boolean
   setIsAdmin: (isAdmin: boolean) => void
@@ -75,6 +82,19 @@ export const useRadioStore = create<RadioState>()(
       // Now playing
       nowPlaying: undefined,
       updateNowPlaying: (data) => set({ nowPlaying: data }),
+
+      // Commentary streaming
+      commentaryText: '',
+      isGeneratingCommentary: false,
+      appendCommentaryToken: (token) =>
+        set((state) => ({
+          commentaryText: state.commentaryText + token,
+          isGeneratingCommentary: true,
+        })),
+      setCommentaryReady: (transcript) =>
+        set({ commentaryText: transcript, isGeneratingCommentary: false }),
+      clearCommentary: () =>
+        set({ commentaryText: '', isGeneratingCommentary: false }),
       
       // UI state
       isDarkMode: true,

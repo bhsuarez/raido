@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, Callable, Awaitable
 import structlog
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -69,11 +69,12 @@ class OllamaClient:
         wait=wait_exponential(multiplier=1, min=4, max=10)
     )
     async def generate_commentary(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         max_tokens: int = 200,
         temperature: float = 0.8,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        token_callback: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> Optional[str]:
         """Generate DJ commentary text using Ollama"""
         try:
@@ -136,6 +137,11 @@ class OllamaClient:
                                 piece = data.get("response")
                                 if isinstance(piece, str) and piece:
                                     content_parts.append(piece)
+                                    if token_callback:
+                                        try:
+                                            await token_callback(piece)
+                                        except Exception as cb_err:
+                                            logger.debug("Token callback error (non-critical)", error=str(cb_err))
                                 if data.get("done") is True:
                                     break
                             # We got streamed content

@@ -75,6 +75,7 @@ raido.zorro.network {
 		Access-Control-Allow-Origin "*"
 		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "Content-Type, Authorization"
+		Access-Control-Expose-Headers "X-Total-Count"
 	}
 	
 	# CORS for static files
@@ -125,6 +126,7 @@ christmas.raido.zorro.network, raido.zorro.network:8888, :8888 {
 		Access-Control-Allow-Origin "*"
 		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "Content-Type, Authorization"
+		Access-Control-Expose-Headers "X-Total-Count"
 	}
 
 	# Handle preflight requests
@@ -214,6 +216,7 @@ christmas.raido.zorro.network, raido.zorro.network:8888, :8888 {
 		Access-Control-Allow-Origin "*"
 		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "Content-Type, Authorization"
+		Access-Control-Expose-Headers "X-Total-Count"
 	}
 	
 	# CORS for static files

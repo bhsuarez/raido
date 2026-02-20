@@ -98,9 +98,42 @@ class DJWorker:
             logger.info(f"Waiting for {len(self.current_jobs)} jobs to complete...")
             await asyncio.sleep(5)  # Give jobs time to finish
     
+    async def _cleanup_stale_placeholders(self):
+        """Mark running commentaries as failed if they've been stuck for > 3 minutes."""
+        import time as _time
+        stale_cutoff = 180  # seconds
+        now = _time.time()
+        stale_ids = [
+            tid for tid, cid in list(self._placeholders.items())
+            # We don't have a per-placeholder start time, so use _recent_intros as proxy;
+            # if the track_id is NOT in _recent_intros (i.e. never finished), check via API
+        ]
+        # Clean up any in-memory placeholder for tracks that were registered > 3 min ago
+        # We use a separate _placeholder_times dict for this
+        if not hasattr(self, '_placeholder_times'):
+            self._placeholder_times: dict = {}
+        for tid in list(self._placeholders.keys()):
+            started = self._placeholder_times.get(tid, now)
+            if now - started > stale_cutoff:
+                cid = self._placeholders.pop(tid, None)
+                self._placeholder_times.pop(tid, None)
+                if cid:
+                    try:
+                        await self.api_client.update_commentary(cid, {
+                            'status': 'failed',
+                            'error_message': 'Timed out after 3 minutes',
+                        })
+                        logger.warning("Marked stale placeholder as failed", commentary_id=cid, track_id=tid)
+                    except Exception as e:
+                        logger.warning("Could not mark stale placeholder as failed", error=str(e))
+
+
     async def _process_pending_jobs(self):
         """Check for and process pending commentary jobs"""
         try:
+            # Clean up any placeholder commentaries stuck in 'running' longer than 3 minutes
+            await self._cleanup_stale_placeholders()
+
             logger.info("📊 Checking if commentary should be generated...")
             # Check if we need to generate commentary based on current track timing
             should_generate = await self._should_generate_commentary()
@@ -396,6 +429,10 @@ class DJWorker:
                             placeholder_id = placeholder.get('commentary_id')
                             if track_id and placeholder_id:
                                 self._placeholders[track_id] = int(placeholder_id)
+                                if not hasattr(self, '_placeholder_times'):
+                                    self._placeholder_times = {}
+                                import time as _t
+                                self._placeholder_times[track_id] = _t.time()
                 except Exception:
                     placeholder_id = None
 
@@ -411,11 +448,15 @@ class DJWorker:
                 except Exception:
                     pass
                 
-                # Generate commentary text
+                # Generate commentary text, streaming tokens to WebSocket clients as they arrive
+                async def _ws_token_callback(token: str) -> None:
+                    await self.api_client.broadcast_ws("commentary_token", {"token": token})
+
                 commentary_payload = await self.commentary_generator.generate(
                     track_info=job.track_info,
                     context=job.context,
-                    dj_settings=dj_settings
+                    dj_settings=dj_settings,
+                    token_callback=_ws_token_callback,
                 )
                 gen_finished = datetime.now(timezone.utc)
                 generation_time_ms = int((gen_finished - gen_started).total_seconds() * 1000)
@@ -508,6 +549,17 @@ class DJWorker:
                     voice_id_override=self.tts_service.last_voice_id
                 )
                 
+                # Broadcast commentary_ready so the frontend can show the final transcript
+                try:
+                    await self.api_client.broadcast_ws("commentary_ready", {
+                        "transcript": transcript_full or "",
+                        "audio_url": job.audio_file,
+                        "track": job.track_info.get("title"),
+                        "artist": job.track_info.get("artist"),
+                    })
+                except Exception as bcast_err:
+                    logger.debug("commentary_ready broadcast failed (non-critical)", error=str(bcast_err))
+
                 # Inject into stream
                 await self._inject_commentary(job)
 
@@ -634,6 +686,38 @@ class DJWorker:
         try:
             if not job.audio_file:
                 return
+
+            # Before injecting, verify the target track is still "next up".
+            # If it's already playing (or gone), injecting would pair this
+            # commentary with the WRONG song.
+            target_id = job.track_info.get('id')
+            if target_id:
+                try:
+                    now_playing = await self.api_client.get_now_playing()
+                    current_id = (now_playing or {}).get('track', {}).get('id')
+                    if current_id and int(current_id) == int(target_id):
+                        logger.warning(
+                            "Commentary target is already playing — discarding to avoid wrong pairing",
+                            track=job.track_info.get('title'),
+                            track_id=target_id,
+                        )
+                        return
+                    next_up = await self.api_client.get_next_up()
+                    next_ids = [
+                        t.get('track', {}).get('id')
+                        for t in (next_up or {}).get('next_tracks', [])
+                        if t.get('track', {}).get('id')
+                    ]
+                    if next_ids and int(target_id) not in [int(n) for n in next_ids]:
+                        logger.warning(
+                            "Commentary target no longer queued — discarding stale intro",
+                            track=job.track_info.get('title'),
+                            track_id=target_id,
+                            actual_next=next_ids[:1],
+                        )
+                        return
+                except Exception as check_err:
+                    logger.warning("Could not verify next track before inject; proceeding anyway", error=str(check_err))
 
             # Tell Liquidsoap to inject the commentary for this station
             await self.api_client.inject_commentary(job.audio_file, station=settings.STATION_NAME)

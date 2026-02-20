@@ -6,7 +6,7 @@ import { useRadioStore } from '../store/radioStore'
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const queryClient = useQueryClient()
-  const { setIsConnected, updateNowPlaying } = useRadioStore()
+  const { setIsConnected, updateNowPlaying, appendCommentaryToken, setCommentaryReady, clearCommentary } = useRadioStore()
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
   const reconnectAttempts = useRef(0)
   const maxReconnectAttempts = 5
@@ -36,19 +36,28 @@ export function useWebSocket() {
             case 'now_playing':
             case 'track_change':
               updateNowPlaying(message.data)
+              clearCommentary()
               queryClient.invalidateQueries({ queryKey: ['nowPlaying'] })
               queryClient.invalidateQueries({ queryKey: ['nextUp'] })
               queryClient.invalidateQueries({ queryKey: ['history'] })
               break
-              
-            case 'commentary':
-              toast('🗣️ New DJ commentary!', {
-                icon: '🎙️',
-                duration: 3000
-              })
+
+            case 'commentary_token':
+              if (message.data?.token) {
+                appendCommentaryToken(message.data.token)
+              }
+              break
+
+            case 'commentary_ready':
+              setCommentaryReady(message.data?.transcript ?? '')
               queryClient.invalidateQueries({ queryKey: ['history'] })
               break
-              
+
+            case 'commentary':
+              // Legacy event: treat as ready with no transcript
+              queryClient.invalidateQueries({ queryKey: ['history'] })
+              break
+
             default:
               console.log('Unknown WebSocket message type:', message.type)
           }

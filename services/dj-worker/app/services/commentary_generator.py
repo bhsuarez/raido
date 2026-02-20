@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, Awaitable
 import structlog
 from jinja2 import Template
 from datetime import datetime
@@ -114,7 +114,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             return False
         return settings.DJ_VOICE_PROVIDER == "chatterbox"
 
-    async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
+    async def generate(self, track_info: Dict[str, Any], context: Dict[str, Any], dj_settings: Dict[str, Any] = None, token_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Optional[Dict[str, str]]:
         """Generate DJ commentary for a track"""
         try:
             # Use provided settings or fall back to defaults
@@ -151,7 +151,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                     res["provider_used"] = "openai"
                 return res
             elif provider == "ollama":
-                result = await self._generate_with_ollama(prompt_context, dj_settings)
+                result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
                 if result:
                     # Mark that Ollama was used
                     if isinstance(result, dict):
@@ -336,7 +336,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             logger.error("OpenAI commentary generation failed", error=str(e))
             return None
     
-    async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
+    async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None, token_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using Ollama"""
         try:
             # Get custom template if available (with Christmas mode support)
@@ -359,7 +359,8 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 prompt=prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                model=model
+                model=model,
+                token_callback=token_callback,
             )
             
             if response:

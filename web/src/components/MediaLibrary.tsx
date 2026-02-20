@@ -1,0 +1,304 @@
+import React, { useState, useCallback } from 'react'
+import { SearchIcon, FilterIcon } from 'lucide-react'
+import { useTracks, useTrackFacets, Track, TrackFilters, TracksResult } from '../hooks/useMediaLibrary'
+import TrackMetadataPanel from './TrackMetadataPanel'
+import { apiHelpers } from '../utils/api'
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = React.useState(value)
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+function formatDuration(sec: number | null): string {
+  if (!sec) return ''
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+export default function MediaLibrary() {
+  const [search, setSearch] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState<string>('')
+  const [selectedArtist, setSelectedArtist] = useState<string>('')
+  const [sort, setSort] = useState<TrackFilters['sort']>('artist')
+  const [page, setPage] = useState(1)
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
+  const [noArtwork, setNoArtwork] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+
+  const debouncedSearch = useDebounce(search, 300)
+
+  const filters: TrackFilters = {
+    search: debouncedSearch || undefined,
+    genre: selectedGenre || undefined,
+    artist: selectedArtist || undefined,
+    sort,
+    page,
+    per_page: 100,
+    no_artwork: noArtwork || undefined,
+  }
+
+  const { data: tracksResult, isLoading, isError } = useTracks(filters)
+  const tracks = tracksResult?.tracks
+  const total = tracksResult?.total ?? 0
+  const { data: facets } = useTrackFacets()
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value)
+    setPage(1)
+  }, [])
+
+  const handleGenreChange = useCallback((genre: string) => {
+    setSelectedGenre(prev => prev === genre ? '' : genre)
+    setPage(1)
+  }, [])
+
+  const handleArtistChange = useCallback((artist: string) => {
+    setSelectedArtist(prev => prev === artist ? '' : artist)
+    setPage(1)
+  }, [])
+
+  const resolveArtwork = (url: string | null) => apiHelpers.resolveStaticUrl(url)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-white">Media Library</h1>
+        <button
+          className="md:hidden btn-secondary flex items-center gap-2 text-sm py-2 px-3"
+          onClick={() => setShowFilters(f => !f)}
+        >
+          <FilterIcon className="h-4 w-4" />
+          Filters
+        </button>
+      </div>
+
+      <div className="flex gap-4 items-start">
+        {/* Sidebar */}
+        <aside className={`w-56 flex-shrink-0 space-y-4 ${showFilters ? 'block' : 'hidden'} md:block`}>
+          {/* Search */}
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search tracks…"
+              value={search}
+              onChange={handleSearchChange}
+              className="input w-full pl-9 text-sm"
+            />
+          </div>
+
+          {/* Sort */}
+          <div>
+            <p className="section-header mb-2">Sort</p>
+            <select
+              value={sort}
+              onChange={e => { setSort(e.target.value as TrackFilters['sort']); setPage(1) }}
+              className="input w-full text-sm"
+            >
+              <option value="artist">Artist</option>
+              <option value="album">Album</option>
+              <option value="title">Title</option>
+              <option value="play_count">Most Played</option>
+            </select>
+          </div>
+
+          {/* No artwork filter */}
+          <button
+            onClick={() => { setNoArtwork(f => !f); setPage(1) }}
+            className={`w-full text-left text-sm px-3 py-2 rounded-xl border transition-colors flex items-center gap-2 ${
+              noArtwork
+                ? 'bg-primary-500/20 border-primary-500/40 text-primary-400'
+                : 'border-gray-700 text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+            }`}
+          >
+            <span className="text-base leading-none">🖼</span>
+            Missing artwork
+          </button>
+
+          {/* Genre filter */}
+          {facets && facets.genres.length > 0 && (
+            <div>
+              <p className="section-header mb-2">Genre</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {facets.genres.map(genre => (
+                  <button
+                    key={genre}
+                    onClick={() => handleGenreChange(genre)}
+                    className={`w-full text-left text-sm px-2 py-1 rounded-lg transition-colors ${
+                      selectedGenre === genre
+                        ? 'bg-primary-500/20 text-primary-400'
+                        : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+                    }`}
+                  >
+                    {genre}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Artist filter */}
+          {facets && facets.artists.length > 0 && (
+            <div>
+              <p className="section-header mb-2">Artist</p>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {facets.artists.map(artist => (
+                  <button
+                    key={artist}
+                    onClick={() => handleArtistChange(artist)}
+                    className={`w-full text-left text-sm px-2 py-1 rounded-lg truncate transition-colors ${
+                      selectedArtist === artist
+                        ? 'bg-primary-500/20 text-primary-400'
+                        : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+                    }`}
+                    title={artist}
+                  >
+                    {artist}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Clear filters */}
+          {(selectedGenre || selectedArtist || search || noArtwork) && (
+            <button
+              className="btn-secondary w-full text-sm py-2"
+              onClick={() => {
+                setSearch('')
+                setSelectedGenre('')
+                setSelectedArtist('')
+                setNoArtwork(false)
+                setPage(1)
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </aside>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          {/* Track count */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-400">
+              {isLoading ? 'Loading…' : (
+                <>
+                  <span className="font-medium text-white">{total.toLocaleString()}</span>
+                  <span> tracks</span>
+                  {(tracks?.length ?? 0) < total && (
+                    <span className="text-gray-500"> &middot; page {page}</span>
+                  )}
+                </>
+              )}
+            </p>
+            {/* Pagination */}
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-secondary text-xs py-1.5 px-3"
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                ← Prev
+              </button>
+              <span className="text-xs text-gray-500">Page {page}</span>
+              <button
+                className="btn-secondary text-xs py-1.5 px-3"
+                disabled={!tracks || (page * 100) >= total}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          {/* Track list */}
+          {isError && (
+            <div className="card p-6 text-red-400 text-sm">Failed to load tracks.</div>
+          )}
+
+          {isLoading && (
+            <div className="space-y-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="h-14 bg-gray-800/50 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {!isLoading && tracks && (
+            <div className="space-y-1">
+              {tracks.length === 0 && (
+                <div className="card p-8 text-center text-gray-500 text-sm">
+                  No tracks match your filters.
+                </div>
+              )}
+              {tracks.map(track => (
+                <button
+                  key={track.id}
+                  onClick={() => setSelectedTrack(track)}
+                  className="w-full card hover:bg-gray-800 transition-colors p-3 flex items-center gap-3 text-left"
+                >
+                  {/* Artwork */}
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-800">
+                    {track.artwork_url ? (
+                      <img
+                        src={resolveArtwork(track.artwork_url) ?? ''}
+                        alt={track.album ?? track.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                        <span className="text-gray-500 text-xs">♪</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Track info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{track.title}</p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {track.artist}
+                      {track.album && <span className="text-gray-500"> · {track.album}</span>}
+                      {track.year && <span className="text-gray-600"> · {track.year}</span>}
+                    </p>
+                  </div>
+
+                  {/* Genre badge */}
+                  {track.genre && (
+                    <span className="hidden sm:inline-block flex-shrink-0 text-xs bg-gray-800 border border-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
+                      {track.genre}
+                    </span>
+                  )}
+
+                  {/* Duration + play count */}
+                  <div className="flex-shrink-0 text-right hidden sm:block">
+                    {track.duration_sec && (
+                      <p className="text-xs text-gray-500">{formatDuration(track.duration_sec)}</p>
+                    )}
+                    <p className="text-xs text-gray-600">{track.play_count} plays</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Track metadata panel */}
+      {selectedTrack && (
+        <TrackMetadataPanel
+          track={selectedTrack}
+          onClose={() => setSelectedTrack(null)}
+          onTrackUpdated={(updated) => setSelectedTrack(updated)}
+        />
+      )}
+    </div>
+  )
+}

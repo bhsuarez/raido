@@ -202,6 +202,9 @@ async def track_change_notification(
         track.play_count += 1
         track.last_played_at = new_play.started_at
         
+        # Capture artwork_url before commit (async SQLAlchemy expires objects after commit)
+        artwork_url_response = track.artwork_url or ""
+
         await db.commit()
         
         # Broadcast to WebSocket clients
@@ -226,7 +229,8 @@ async def track_change_notification(
         # Commentary generation is handled by the DJ worker service
         # which monitors track changes and generates commentary based on settings
         
-        return {"status": "success", "track_id": track.id, "play_id": new_play.id}
+        # Return artwork_url so Liquidsoap can inject it as StreamUrl in the ICY metadata
+        return {"status": "success", "track_id": track.id, "play_id": new_play.id, "artwork_url": artwork_url_response}
         
     except Exception as e:
         logger.error("Failed to handle track change", error=str(e))
@@ -327,6 +331,34 @@ async def inject_commentary_file(
 
         # Connect to Liquidsoap telnet and inject TTS audio
         import socket
+
+        def ls_cmd(host, port, cmd, timeout=5.0):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(timeout)
+            try:
+                s.connect((host, port))
+                s.send(f"{cmd}\n".encode())
+                resp = s.recv(4096).decode(errors="ignore").strip()
+                return resp
+            finally:
+                s.close()
+
+        # Guard: only inject if the TTS queue is currently empty to avoid
+        # back-to-back commentaries causing wrong track pairings.
+        try:
+            queued_resp = ls_cmd(liquidsoap_host, liquidsoap_port, f"{queue_name}.queue")
+            # Response is space-separated RIDs or empty
+            queued_rids = [r for r in queued_resp.split() if r.isdigit()]
+            if queued_rids:
+                logger.warning(
+                    "TTS queue already occupied — skipping injection to prevent double commentary",
+                    queue=queue_name,
+                    queued_rids=queued_rids,
+                )
+                return {"status": "skipped", "message": "TTS queue already has a pending commentary", "queued_rids": queued_rids}
+        except Exception as qcheck_err:
+            logger.warning("Could not check TTS queue before injection; proceeding anyway", error=str(qcheck_err))
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5.0)
 

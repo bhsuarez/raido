@@ -119,7 +119,11 @@ export const apiHelpers = {
   skipTrack: () => api.post('/liquidsoap/skip'),
 
   // Music library and stations
-  getTracks: () => api.get('/tracks'),
+  getTracks: (params?: Record<string, any>) => api.get('/tracks', { params }),
+  getTrackFacets: () => api.get('/tracks/facets'),
+  searchMusicBrainz: (trackId: number) => api.get(`/tracks/${trackId}/musicbrainz`),
+  updateTrack: (trackId: number, data: Record<string, any>) => api.patch(`/tracks/${trackId}`, data),
+  lookupMBRelease: (trackId: number, releaseMbid: string) => api.get(`/tracks/${trackId}/musicbrainz/release/${releaseMbid}`),
   getStations: () => api.get('/admin/stations'),
   createStation: (data: any) => api.post('/stations', data),
 }

@@ -5,11 +5,13 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import NowPlaying from './components/NowPlaying'
+import CommentaryTranscript from './components/CommentaryTranscript'
 import ComingUp from './components/ComingUp'
 import PlayHistory from './components/PlayHistory'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
 import StationControlPanel from './components/StationControlPanel'
+import MediaLibrary from './components/MediaLibrary'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -27,6 +29,7 @@ function App() {
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
                   <NowPlaying />
                 </ErrorBoundary>
+                <CommentaryTranscript />
                 <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
                   <ComingUp />
                 </ErrorBoundary>
@@ -52,6 +55,10 @@ function App() {
           <Route
             path="/stations"
             element={<StationControlPanel />}
+          />
+          <Route
+            path="/media"
+            element={<MediaLibrary />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route
