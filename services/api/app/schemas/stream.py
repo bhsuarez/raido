@@ -5,7 +5,7 @@ from datetime import datetime
 class TrackInfo(BaseModel):
     id: int
     title: str
-    artist: str
+    artist: Optional[str] = None
     album: Optional[str] = None
     year: Optional[int] = None
     genre: Optional[str] = None
