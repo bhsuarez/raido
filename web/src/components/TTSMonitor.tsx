@@ -31,7 +31,6 @@ interface SystemStatus {
   tts_service: string
   dj_worker: string
   kokoro_tts: string
-  chatterbox_tts?: string
 }
 
 interface TTSStatusResponse {
@@ -45,11 +44,6 @@ interface TTSStatusResponse {
     has_more: boolean
   }
   system_status: SystemStatus
-  chatterbox_health?: {
-    status: string
-    detail?: string | null
-    endpoint?: string | null
-  }
 }
 
 // Voice Testing Component
@@ -79,20 +73,13 @@ const VoiceTestSection: React.FC<{
           payload.voice = settings.openai_tts_voice || 'onyx'
           payload.model = settings.openai_tts_model || 'tts-1'
           break
-          
-        case 'chatterbox':
-          endpoint = '/admin/tts-test-chatterbox'
-          payload.voice = settings.chatterbox_voice || 'default'
-          payload.exaggeration = settings.chatterbox_exaggeration
-          payload.cfg_weight = settings.chatterbox_cfg_weight
-          break
-          
+
         case 'xtts':
           endpoint = '/admin/tts-test-xtts'
           payload.voice = settings.xtts_voice || 'coqui-tts:en_ljspeech'
           payload.speaker = settings.xtts_speaker
           break
-          
+
         default: // kokoro
           payload.voice = settings.kokoro_voice || 'af_bella'
           payload.speed = settings.kokoro_speed
@@ -118,7 +105,6 @@ const VoiceTestSection: React.FC<{
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
       case 'openai_tts': return settings?.openai_tts_voice || 'onyx'
-      case 'chatterbox': return settings?.chatterbox_voice || 'default'
       case 'xtts': return settings?.xtts_voice || 'coqui-tts:en_ljspeech'
       default: return settings?.kokoro_voice || 'af_bella'
     }
@@ -128,18 +114,15 @@ const VoiceTestSection: React.FC<{
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
       case 'openai_tts': return 'OpenAI TTS'
-      case 'chatterbox': return 'Chatterbox'
       case 'xtts': return 'XTTS'
       default: return 'Kokoro'
     }
   }
 
   return (
-    <div className="bg-gradient-to-br from-pirate-800/30 to-pirate-900/30 rounded-xl p-6 border border-pirate-600/20">
-      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        🎤 Voice Testing
-      </h3>
-      
+    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+      <p className="section-header mb-4">Voice Testing</p>
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm text-gray-300 mb-2">Test Text</label>
@@ -147,37 +130,28 @@ const VoiceTestSection: React.FC<{
             type="text"
             value={testText}
             onChange={(e) => setTestText(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+            className="input w-full text-sm"
             placeholder="Enter text to test the voice..."
           />
         </div>
-        
+
         <div className="flex items-center gap-3">
           <button
             onClick={testVoice}
             disabled={testing || !settings}
-            className={`px-4 py-2 rounded-lg text-white font-medium ${
-              testing ? 'bg-gray-700' : 'bg-pirate-600 hover:bg-pirate-700'
-            } transition-colors`}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {testing ? (
-              <>
-                <span className="animate-spin inline-block mr-2">⏳</span>
-                Testing...
-              </>
-            ) : (
-              `Test ${getProviderDisplayName()} Voice`
-            )}
+            {testing ? 'Testing...' : `Test ${getProviderDisplayName()} Voice`}
           </button>
-          
+
           <div className="text-sm text-gray-400">
             Voice: <span className="text-white">{getVoiceName()}</span>
           </div>
         </div>
-        
+
         {testUrl && (
-          <div className="bg-gray-800/50 rounded-lg p-3">
-            <div className="text-sm text-gray-300 mb-2">Generated Audio:</div>
+          <div className="bg-gray-800 rounded-xl p-3">
+            <div className="text-sm text-gray-400 mb-2">Generated Audio</div>
             <audio controls className="w-full h-8">
               <source src={testUrl} type="audio/mpeg" />
               Your browser does not support audio playback.
@@ -192,15 +166,13 @@ const VoiceTestSection: React.FC<{
 // Settings Section Components
 const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) => void }> = ({ settings, setSettings }) => (
   <div className="space-y-4">
-    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-      ⚙️ General Settings
-    </h3>
-    
+    <p className="section-header mb-4">General Settings</p>
+
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label className="block text-sm text-gray-300 mb-1">Commentary Provider</label>
         <select
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+          className="input w-full"
           value={settings.dj_provider || 'templates'}
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
@@ -230,7 +202,7 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
             step={1}
             value={Number(settings.dj_max_seconds ?? 30)}
             onChange={(e) => setSettings({...settings, dj_max_seconds: parseInt(e.target.value || '0', 10)})}
-            className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+            className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-2 py-1.5 text-white"
           />
         </div>
       </div>
@@ -238,24 +210,17 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
   </div>
 )
 
-const VoiceProviderSection: React.FC<{ 
-  settings: any, 
+const VoiceProviderSection: React.FC<{
+  settings: any,
   setSettings: (s: any) => void,
   voices: string[],
-  chatterboxVoices: string[]
-}> = ({ settings, setSettings, voices, chatterboxVoices }) => {
+}> = ({ settings, setSettings, voices }) => {
   const provider = settings?.dj_voice_provider || 'kokoro'
-  
+
   const getVoiceOptions = () => {
     switch (provider) {
       case 'openai_tts':
         return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-      case 'chatterbox': {
-        const base = chatterboxVoices.length ? chatterboxVoices : ['default']
-        const cur = settings?.chatterbox_voice
-        // Ensure currently selected voice stays visible even if not in the fetched list
-        return cur && !base.includes(cur) ? [cur, ...base] : base
-      }
       case 'xtts':
         return voices.length ? voices : []
       default: { // kokoro
@@ -264,28 +229,14 @@ const VoiceProviderSection: React.FC<{
           'bf_ava', 'bf_sophie', 'bm_george', 'bm_james'
         ]
         const cur = settings?.kokoro_voice
-        // Ensure currently selected voice stays visible even if voices haven't loaded yet
         return cur && !base.includes(cur) ? [cur, ...base] : base
       }
     }
   }
 
-  const formatVoiceName = (voiceId: string) => {
-    // Format voice IDs for display in dropdown
-    if (provider === 'chatterbox') {
-      // Remove "custom-" prefix and capitalize
-      const cleaned = voiceId.replace(/^custom-/, '')
-      return cleaned.split('-').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ')
-    }
-    return voiceId
-  }
-
   const getVoiceFieldName = () => {
     switch (provider) {
       case 'openai_tts': return 'openai_tts_voice'
-      case 'chatterbox': return 'chatterbox_voice'
       case 'xtts': return 'xtts_voice'
       default: return 'kokoro_voice'
     }
@@ -298,34 +249,30 @@ const VoiceProviderSection: React.FC<{
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        🔊 Voice & TTS Settings
-      </h3>
-      
+      <p className="section-header mb-4">Voice & TTS Settings</p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-300 mb-1">Voice Provider</label>
           <select
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+            className="input w-full"
             value={provider}
             onChange={(e) => setSettings({...settings, dj_voice_provider: e.target.value})}
           >
             <option value="kokoro">Kokoro TTS</option>
             <option value="openai_tts">OpenAI TTS</option>
-            <option value="chatterbox">Chatterbox</option>
             <option value="xtts">XTTS</option>
             <option value="liquidsoap">Liquidsoap</option>
           </select>
         </div>
-        
+
         <div>
           <label className="block text-sm text-gray-300 mb-1">
-            {provider === 'openai_tts' ? 'OpenAI Voice' : 
-             provider === 'chatterbox' ? 'Chatterbox Voice' :
+            {provider === 'openai_tts' ? 'OpenAI Voice' :
              provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
           </label>
           <select
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+            className="input w-full"
             value={getCurrentVoice()}
             onChange={(e) => {
               const fieldName = getVoiceFieldName()
@@ -333,7 +280,7 @@ const VoiceProviderSection: React.FC<{
             }}
           >
             {getVoiceOptions().map(voice => (
-              <option key={voice} value={voice}>{formatVoiceName(voice)}</option>
+              <option key={voice} value={voice}>{voice}</option>
             ))}
           </select>
         </div>
@@ -360,7 +307,7 @@ const VoiceProviderSection: React.FC<{
                   step={0.05}
                   value={Number(settings.kokoro_speed ?? 1.0)}
                   onChange={(e) => setSettings({...settings, kokoro_speed: parseFloat(e.target.value)})}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+                  className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-2 py-1.5 text-white"
                 />
               </div>
             </div>
@@ -384,110 +331,13 @@ const VoiceProviderSection: React.FC<{
                   step={0.1}
                   value={Number(settings.dj_tts_volume ?? 1.0)}
                   onChange={(e) => setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+                  className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-2 py-1.5 text-white"
                 />
               </div>
             </div>
           </>
         )}
 
-        {provider === 'chatterbox' && (
-          <>
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">Custom Voice (optional)</label>
-              <input
-                type="text"
-                placeholder="e.g., brian"
-                value={settings.chatterbox_voice || ''}
-                onChange={(e) => setSettings({ ...settings, chatterbox_voice: e.target.value })}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-              />
-              <p className="text-xs text-gray-400 mt-1">If your Chatterbox server supports named voices, enter it here.</p>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">Chatterbox Voices API URL</label>
-              <input
-                type="text"
-                placeholder="http://192.168.1.170:8080/api/voices"
-                value={settings.chatterbox_voices_url || ''}
-                onChange={(e) => setSettings({ ...settings, chatterbox_voices_url: e.target.value })}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-              />
-              <p className="text-xs text-gray-400 mt-1">Used for listing voices only. TTS generation uses the configured Chatterbox base URL.</p>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">TTS Volume</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0.5}
-                  max={2.0}
-                  step={0.1}
-                  value={Number(settings.dj_tts_volume ?? 1.0)}
-                  onChange={(e) => setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={0.5}
-                  max={2.0}
-                  step={0.1}
-                  value={Number(settings.dj_tts_volume ?? 1.0)}
-                  onChange={(e) => setSettings({...settings, dj_tts_volume: parseFloat(e.target.value)})}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">Exaggeration</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0.25}
-                  max={2.0}
-                  step={0.05}
-                  value={Number(settings.chatterbox_exaggeration ?? 1.0)}
-                  onChange={(e) => setSettings({...settings, chatterbox_exaggeration: parseFloat(e.target.value)})}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={0.25}
-                  max={2.0}
-                  step={0.05}
-                  value={Number(settings.chatterbox_exaggeration ?? 1.0)}
-                  onChange={(e) => setSettings({...settings, chatterbox_exaggeration: parseFloat(e.target.value)})}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">CFG Weight</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0.0}
-                  max={1.0}
-                  step={0.05}
-                  value={Number(settings.chatterbox_cfg_weight ?? 0.5)}
-                  onChange={(e) => setSettings({...settings, chatterbox_cfg_weight: parseFloat(e.target.value)})}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={0.0}
-                  max={1.0}
-                  step={0.05}
-                  value={Number(settings.chatterbox_cfg_weight ?? 0.5)}
-                  onChange={(e) => setSettings({...settings, chatterbox_cfg_weight: parseFloat(e.target.value)})}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
-                />
-              </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   )
@@ -503,15 +353,13 @@ const AIModelSection: React.FC<{
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        🤖 AI Model Settings
-      </h3>
+      <p className="section-header mb-4">AI Model Settings</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
           <select
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+            className="input w-full"
             value={currentModel}
             onChange={(e) => setSettings({
               ...settings,
@@ -548,7 +396,7 @@ const AIModelSection: React.FC<{
               step={0.1}
               value={Number(settings.dj_temperature ?? 0.8)}
               onChange={(e) => setSettings({...settings, dj_temperature: parseFloat(e.target.value)})}
-              className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+              className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-2 py-1.5 text-white"
             />
           </div>
         </div>
@@ -558,7 +406,7 @@ const AIModelSection: React.FC<{
         <div>
           <label className="block text-sm text-gray-300 mb-1">Commentary Prompt Template (Ollama/OpenAI)</label>
           <textarea
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm min-h-[160px]"
+            className="input w-full text-sm min-h-[160px]"
             placeholder={
               "You're a pirate radio DJ introducing the NEXT song... Use {{song_title}}, {{artist}}, {{album}}, {{year}}."
             }
@@ -578,7 +426,6 @@ const TTSMonitor: React.FC = () => {
   const AUTO_REFRESH_INTERVAL_MS = 30000
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
-  const [chatterboxVoices, setChatterboxVoices] = useState<string[]>([])
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
   const [testText, setTestText] = useState("Welcome to Raido FM! This voice sounds crisp and clear for our pirate radio commentary.")
 
@@ -638,20 +485,16 @@ const TTSMonitor: React.FC = () => {
         if (provider === 'xtts') {
           const res = await api.get('/admin/voices-xtts')
           setVoices(res.data?.voices || [])
-        } else if (provider === 'chatterbox') {
-          const res = await api.get('/admin/voices-chatterbox')
-          setChatterboxVoices(res.data?.voices || [])
         } else {
           const res = await api.get('/admin/voices')
           setVoices(res.data?.voices || [])
         }
       } catch {
         setVoices([])
-        setChatterboxVoices([])
       }
     }
     load()
-  }, [settings?.dj_voice_provider, settings?.chatterbox_voices_url])
+  }, [settings?.dj_voice_provider])
 
   // Fetch Ollama models
   useEffect(() => {
@@ -753,34 +596,9 @@ const TTSMonitor: React.FC = () => {
     }
   }
 
-  const getStatusToneClasses = (status?: string) => {
-    switch (status) {
-      case 'running':
-        return {
-          container: 'border-green-600/30 bg-green-900/20 text-green-200',
-          badge: 'border-green-500/40 bg-green-500/10 text-green-200',
-        }
-      case 'warning':
-        return {
-          container: 'border-yellow-600/30 bg-yellow-900/20 text-yellow-200',
-          badge: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-200',
-        }
-      case 'stopped':
-        return {
-          container: 'border-red-600/30 bg-red-900/20 text-red-200',
-          badge: 'border-red-500/40 bg-red-500/10 text-red-200',
-        }
-      default:
-        return {
-          container: 'border-gray-600/30 bg-gray-800/30 text-gray-200',
-          badge: 'border-gray-500/40 bg-gray-700/40 text-gray-200',
-        }
-    }
-  }
-
   if (isLoading) {
     return (
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+      <div className="card p-6">
         <div className="flex items-center justify-center h-64">
           <LoadingSpinner message="Loading TTS monitoring data..." />
         </div>
@@ -790,14 +608,14 @@ const TTSMonitor: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+      <div className="card p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center text-red-400">
-            <p className="text-xl mb-2">⚠️ Error Loading TTS Status</p>
-            <p>Unable to fetch TTS monitoring data</p>
-            <button 
+            <p className="text-lg font-semibold mb-2">Error loading TTS status</p>
+            <p className="text-gray-400 text-sm">Unable to fetch TTS monitoring data</p>
+            <button
               onClick={() => refetch()}
-              className="mt-4 px-4 py-2 bg-pirate-600 hover:bg-pirate-700 text-white rounded-lg transition-colors"
+              className="btn-primary mt-4"
             >
               Retry
             </button>
@@ -810,93 +628,33 @@ const TTSMonitor: React.FC = () => {
   const stats = ttsStatus?.statistics
   const activity = ttsStatus?.recent_activity || []
   const systemStatus = ttsStatus?.system_status
-  const chatterboxHealth = ttsStatus?.chatterbox_health
-  const rawChatterboxStatus = chatterboxHealth?.status || systemStatus?.chatterbox_tts
-  const effectiveChatterboxStatus = rawChatterboxStatus || (chatterboxHealth?.detail ? 'unknown' : undefined)
-  const chatterboxTone = getStatusToneClasses(effectiveChatterboxStatus)
-  const chatterboxMessage = (() => {
-    if (!effectiveChatterboxStatus) return ''
-    const detail = chatterboxHealth?.detail?.trim()
-    if (detail) {
-      return detail
-    }
-    switch (effectiveChatterboxStatus) {
-      case 'running':
-        return 'Chatterbox TTS is responding normally.'
-      case 'warning':
-        return 'Chatterbox TTS responded but indicated an issue.'
-      case 'stopped':
-        return 'Unable to reach Chatterbox TTS. Check the shim container and network.'
-      default:
-        return 'Chatterbox TTS status is unknown.'
-    }
-  })()
 
   return (
     <div className="space-y-6">
-      {effectiveChatterboxStatus && (
-        <div className={`rounded-2xl border shadow-2xl px-4 py-4 sm:px-6 ${chatterboxTone.container}`}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl" aria-hidden>🗣️</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold uppercase tracking-wide text-gray-300">
-                    Chatterbox Service
-                  </span>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border ${chatterboxTone.badge}`}>
-                    <span>{getServiceStatusIcon(effectiveChatterboxStatus)}</span>
-                    <span className="capitalize">{effectiveChatterboxStatus}</span>
-                  </span>
-                </div>
-                {chatterboxMessage && (
-                  <p className="mt-1 text-sm text-gray-100">
-                    {chatterboxMessage}
-                  </p>
-                )}
-                {chatterboxHealth?.endpoint && (
-                  <p className="mt-1 text-xs text-gray-300">
-                    Endpoint: <span className="text-gray-100">{chatterboxHealth.endpoint}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-300">
-              <span>Tip:</span>
-              {chatterboxHealth?.endpoint ? (
-                <span className="text-gray-100">
-                  Run <code className="bg-gray-800 px-1.5 py-0.5 rounded">curl {chatterboxHealth.endpoint}/health</code> from the host.
-                </span>
-              ) : (
-                <span className="text-gray-100">
-                  Set the Chatterbox base URL under Voice &amp; TTS settings.
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Page header */}
+      <div>
+        <h1 className="text-xl font-bold text-white">DJ Admin</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Manage DJ settings and monitor TTS activity</p>
+      </div>
 
       {/* Settings Panel */}
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-6 shadow-2xl border border-gray-700/50">
+      <div className="card p-6">
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => setSettingsCollapsed(!settingsCollapsed)}
-            className="flex items-center gap-3 text-2xl font-bold text-white hover:text-pirate-400 transition-colors"
+            className="flex items-center gap-3 font-semibold text-white hover:text-primary-400 transition-colors"
           >
-            <span className={`transform transition-transform ${settingsCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
-            <span>🎛️ DJ Settings</span>
+            <span className={`transform transition-transform text-xs text-gray-500 ${settingsCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
+            <span className="text-base">DJ Settings</span>
           </button>
           <div className="flex items-center gap-3">
             {hasUnsavedChanges && (
-              <span className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">Unsaved changes</span>
+              <span className="text-xs px-2 py-1 rounded-lg bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">Unsaved changes</span>
             )}
             <button
               onClick={saveSettings}
               disabled={!settings || saving || !hasUnsavedChanges}
-              className={`px-4 py-2 rounded-lg text-white font-medium ${
-                saving || !hasUnsavedChanges ? 'bg-gray-700 cursor-not-allowed' : 'bg-pirate-600 hover:bg-pirate-700'
-              } transition-colors`}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving…' : 'Save Settings'}
             </button>
@@ -944,11 +702,10 @@ const TTSMonitor: React.FC = () => {
             <GeneralSettingsSection settings={settings} setSettings={setSettings} />
             
             {/* Voice Provider Settings */}
-            <VoiceProviderSection 
-              settings={settings} 
+            <VoiceProviderSection
+              settings={settings}
               setSettings={setSettings}
               voices={voices}
-              chatterboxVoices={chatterboxVoices}
             />
             
             {/* AI Model Settings - only show if using Ollama */}
@@ -971,78 +728,44 @@ const TTSMonitor: React.FC = () => {
       </div>
 
       {/* Monitoring Header (collapsible) */}
-      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl p-4 shadow-2xl border border-gray-700/50">
+      <div className="card p-4">
         <div className="flex items-center justify-between">
           <button
             onClick={() => setMonitoringCollapsed(!monitoringCollapsed)}
-            className="flex items-center gap-3 text-xl font-bold text-white hover:text-pirate-400 transition-colors"
+            className="flex items-center gap-3 font-semibold text-white hover:text-primary-400 transition-colors"
             aria-expanded={!monitoringCollapsed}
           >
-            <span className={`transform transition-transform ${monitoringCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
-            <span>🎙️ TTS Monitoring Dashboard</span>
+            <span className={`transform transition-transform text-xs text-gray-500 ${monitoringCollapsed ? 'rotate-0' : 'rotate-90'}`}>▶</span>
+            <span className="text-base">TTS Monitoring</span>
           </button>
         </div>
       </div>
 
       {/* Statistics Cards */}
       {!monitoringCollapsed && (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className={`bg-gradient-to-br from-green-900/40 to-green-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-green-600/20`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-green-600 flex items-center justify-center`}>
-              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>✅</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-green-300">Success Rate</h3>
-              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>{stats?.success_rate || 0}%</p>
-            </div>
-          </div>
-          <p className="text-sm text-green-400">
-            {stats?.success_24h || 0} of {stats?.total_24h || 0} in 24h
-          </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-gray-800 rounded-xl p-3.5">
+          <p className="section-header mb-1.5">Success Rate</p>
+          <p className="text-xl font-bold text-white">{stats?.success_rate || 0}%</p>
+          <p className="text-xs text-gray-500 mt-0.5">{stats?.success_24h || 0} of {stats?.total_24h || 0} in 24h</p>
         </div>
 
-        <div className={`bg-gradient-to-br from-blue-900/40 to-blue-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-blue-600/20`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-blue-600 flex items-center justify-center`}>
-              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>🎵</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-300">Total Generated</h3>
-              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>{stats?.total_24h || 0}</p>
-            </div>
-          </div>
-          <p className="text-sm text-blue-400">Last 24 hours</p>
+        <div className="bg-gray-800 rounded-xl p-3.5">
+          <p className="section-header mb-1.5">Total Generated</p>
+          <p className="text-xl font-bold text-white">{stats?.total_24h || 0}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Last 24 hours</p>
         </div>
 
-        <div className={`bg-gradient-to-br from-purple-900/40 to-purple-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-purple-600/20`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-purple-600 flex items-center justify-center`}>
-              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>⚡</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-purple-300">Avg Gen Time</h3>
-              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
-                {formatDuration(stats?.avg_generation_time_ms || null)}
-              </p>
-            </div>
-          </div>
-          <p className="text-sm text-purple-400">Generation speed</p>
+        <div className="bg-gray-800 rounded-xl p-3.5">
+          <p className="section-header mb-1.5">Avg Gen Time</p>
+          <p className="text-xl font-bold text-white">{formatDuration(stats?.avg_generation_time_ms || null)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Generation speed</p>
         </div>
 
-        <div className={`bg-gradient-to-br from-orange-900/40 to-orange-800/40 rounded-xl ${compact ? 'p-3' : 'p-6'} border border-orange-600/20`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-orange-600 flex items-center justify-center`}>
-              <span className={`${compact ? 'text-lg' : 'text-xl'}`}>🔊</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-orange-300">Avg TTS Time</h3>
-              <p className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-white`}>
-                {formatDuration(stats?.avg_tts_time_ms || null)}
-              </p>
-            </div>
-          </div>
-          <p className="text-sm text-orange-400">Voice synthesis</p>
+        <div className="bg-gray-800 rounded-xl p-3.5">
+          <p className="section-header mb-1.5">Avg TTS Time</p>
+          <p className="text-xl font-bold text-white">{formatDuration(stats?.avg_tts_time_ms || null)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Voice synthesis</p>
         </div>
       </div>
       )}
@@ -1080,26 +803,14 @@ const TTSMonitor: React.FC = () => {
               </span>
             </div>
 
-            {systemStatus.chatterbox_tts && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full text-xs">
-                <span className="text-base">{getServiceStatusIcon(systemStatus.chatterbox_tts)}</span>
-                <span className="text-gray-200">Chatterbox</span>
-                <span className={`font-semibold capitalize ${getStatusColor(systemStatus.chatterbox_tts)}`}>
-                  {systemStatus.chatterbox_tts}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       )}
 
       {/* Recent Activity */}
       {!monitoringCollapsed && (
-      <div className={`bg-gradient-to-br from-gray-800 via-gray-900 to-pirate-900 rounded-2xl ${compact ? 'p-4' : 'p-6'} shadow-2xl border border-gray-700/50`}>
-        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <span>📋</span>
-          Recent TTS Activity
-        </h3>
+      <div className="card p-4">
+        <p className="section-header mb-4">Recent TTS Activity</p>
 
         {activity.length === 0 ? (
           <div className="text-center text-gray-400 py-8">
@@ -1182,7 +893,7 @@ const TTSMonitor: React.FC = () => {
                           <a
                             href={audioSrc}
                             download={downloadFileName}
-                            className="inline-flex items-center gap-1 text-sm text-pirate-300 hover:text-pirate-200"
+                            className="inline-flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300"
                           >
                             <span aria-hidden="true">⬇️</span>
                             <span>Download</span>
@@ -1206,19 +917,19 @@ const TTSMonitor: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                     disabled={currentPage === 0}
-                    className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
 
-                  <span className="px-3 py-1 text-gray-300">
+                  <span className="px-3 py-1 text-sm text-gray-400">
                     Page {currentPage + 1} of {Math.ceil(ttsStatus.pagination.total / itemsPerPage)}
                   </span>
 
                   <button
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={!ttsStatus.pagination.has_more}
-                    className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

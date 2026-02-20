@@ -19,9 +19,9 @@ raido.zorro.network {
 	redir @legacy_tts /raido/admin 301
 	redir @legacy_tts_sub /raido/admin 301
 
-	# Redirect homepage to stations directory
+	# Redirect homepage to now playing
 	@root path /
-	redir @root /stations 301
+	redir @root /now-playing 301
 
 	# API endpoints (specific routes first)
 	handle /api/* {

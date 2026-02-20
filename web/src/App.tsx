@@ -19,7 +19,7 @@ function App() {
       <Layout>
         <ErrorBoundary>
         <Routes>
-          <Route path="/" element={<Navigate to="/stations" replace />} />
+          <Route path="/" element={<Navigate to="/now-playing" replace />} />
           <Route 
             path="/now-playing" 
             element={
