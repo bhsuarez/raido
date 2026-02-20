@@ -107,7 +107,7 @@ async def get_now_playing(station: str = Query("main", description="Station iden
                             payload = {
                                 "id": 0,
                                 "title": ls_meta.get("title") or "Unknown",
-                                "artist": ls_meta.get("artist") or "Unknown Artist",
+                                "artist": ls_meta.get("artist") or None,
                                 "album": ls_meta.get("album"),
                                 "year": year_int,
                                 "genre": ls_meta.get("genre"),
@@ -404,7 +404,7 @@ async def get_next_up(
                     payload = {
                         "id": 0,
                         "title": ls_meta.get("title") or "Unknown",
-                        "artist": ls_meta.get("artist") or "Unknown Artist",
+                        "artist": ls_meta.get("artist") or None,
                         "album": ls_meta.get("album"),
                         "year": year_int,
                         "genre": ls_meta.get("genre"),
