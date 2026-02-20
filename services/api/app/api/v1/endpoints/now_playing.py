@@ -398,12 +398,15 @@ async def get_next_up(
                                 error=str(resolve_err),
                             )
                             continue
+                    # Skip queue entries with no usable metadata
+                    if not ls_meta.get("title"):
+                        continue
                     year_int = None
                     if ls_meta.get("year") and str(ls_meta.get("year")).isdigit():
                         year_int = int(ls_meta.get("year"))
                     payload = {
                         "id": 0,
-                        "title": ls_meta.get("title") or "Unknown",
+                        "title": ls_meta.get("title"),
                         "artist": ls_meta.get("artist") or None,
                         "album": ls_meta.get("album"),
                         "year": year_int,
