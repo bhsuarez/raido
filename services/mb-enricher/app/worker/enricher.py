@@ -121,6 +121,8 @@ def _mb_get_release(release_mbid: str) -> dict:
 # Release type preference: lower = better
 _RELEASE_TYPE_RANK = {"Album": 0, "Single": 1, "EP": 2, "Broadcast": 3, "Other": 4}
 _RELEASE_STATUS_RANK = {"Official": 0, "Promotion": 1, "Bootleg": 2, "Pseudo-Release": 3}
+# Secondary types that should be deprioritised (live, compilations, etc.)
+_SECONDARY_TYPE_PENALTY = {"Live", "Compilation", "Soundtrack", "Remix", "DJ-mix", "Mixtape/Street"}
 
 
 def _best_release(releases: list) -> dict:
@@ -132,11 +134,14 @@ def _best_release(releases: list) -> dict:
         rg = r.get("release-group", {})
         type_rank = _RELEASE_TYPE_RANK.get(rg.get("type", ""), 5)
         status_rank = _RELEASE_STATUS_RANK.get(r.get("status", ""), 5)
+        # Penalise live albums, compilations, soundtracks, etc.
+        secondary_types = {t for t in (rg.get("secondary-type-list") or []) if isinstance(t, str)}
+        secondary_penalty = 1 if secondary_types & _SECONDARY_TYPE_PENALTY else 0
         # Prefer releases with a date and country; prefer older (original) releases
         date = r.get("date", "9999")
         year = int(date[:4]) if date and len(date) >= 4 and date[:4].isdigit() else 9999
         has_country = 0 if r.get("country") else 1
-        return (type_rank, status_rank, has_country, year)
+        return (secondary_penalty, type_rank, status_rank, has_country, year)
 
     return min(releases, key=_rank)
 
