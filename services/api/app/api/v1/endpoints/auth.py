@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import structlog
@@ -13,6 +13,8 @@ from app.models.users import User
 
 router = APIRouter()
 logger = structlog.get_logger()
+
+_BCRYPT_MAX_BYTES = 72
 
 
 class LoginRequest(BaseModel):
@@ -32,6 +34,13 @@ class SetupRequest(BaseModel):
     email: str
     password: str
     full_name: str = "Admin"
+
+    @field_validator("password")
+    @classmethod
+    def password_not_too_long(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > _BCRYPT_MAX_BYTES:
+            raise ValueError(f"Password must be {_BCRYPT_MAX_BYTES} bytes or fewer")
+        return v
 
 
 @router.post("/login", response_model=LoginResponse)
