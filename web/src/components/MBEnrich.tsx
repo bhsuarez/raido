@@ -9,7 +9,7 @@
  */
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, X, SkipForward, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, X, SkipForward, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 const API = '/api/v1'
@@ -160,6 +160,9 @@ export default function MBEnrich() {
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  const [lookupUrl, setLookupUrl] = useState('')
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated()) navigate('/login')
@@ -255,6 +258,31 @@ export default function MBEnrich() {
     }
   }
 
+  const handleLookup = async (trackId: number) => {
+    if (!lookupUrl.trim() || lookupLoading) return
+    setLookupLoading(true)
+    setLookupError(null)
+    try {
+      const res = await authFetch(`${API}/enrichment/track/${trackId}/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mb_url: lookupUrl.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setLookupError(data.detail || 'Lookup failed'); return }
+      // Reload track to show the new candidate at the top
+      const updated = await authFetch(`${API}/enrichment/track/${trackId}`)
+      const updatedData: TrackWithCandidates = await updated.json()
+      setTracks(prev => prev.map(t => t.id === trackId ? updatedData : t))
+      setLookupUrl('')
+      showToast('Candidate added!')
+    } catch {
+      setLookupError('Network error')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
   // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -277,6 +305,16 @@ export default function MBEnrich() {
       const nextPage = page + 1
       setPage(nextPage)
       loadQueue(nextPage, true)
+    }
+  }, [selectedIdx])
+
+  // Reset lookup state when switching tracks
+  const prevSelectedIdx = useRef(selectedIdx)
+  useEffect(() => {
+    if (prevSelectedIdx.current !== selectedIdx) {
+      setLookupUrl('')
+      setLookupError(null)
+      prevSelectedIdx.current = selectedIdx
     }
   }, [selectedIdx])
 
@@ -395,6 +433,30 @@ export default function MBEnrich() {
                     Skip
                   </button>
                 </div>
+              </div>
+
+              {/* Manual MB lookup */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Manual lookup</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={lookupUrl}
+                    onChange={e => { setLookupUrl(e.target.value); setLookupError(null) }}
+                    onKeyDown={e => e.key === 'Enter' && handleLookup(selectedTrack.id)}
+                    placeholder="Paste MusicBrainz URL or recording ID…"
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary-500"
+                  />
+                  <button
+                    onClick={() => handleLookup(selectedTrack.id)}
+                    disabled={!lookupUrl.trim() || lookupLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary-700 hover:bg-primary-600 text-white text-sm disabled:opacity-40 transition-colors flex-shrink-0"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    {lookupLoading ? 'Looking up…' : 'Lookup'}
+                  </button>
+                </div>
+                {lookupError && <p className="text-xs text-red-400">{lookupError}</p>}
               </div>
 
               {/* Candidates */}
