@@ -97,11 +97,20 @@ def _top_genre(tags: list) -> Optional[str]:
     return top["name"].title()
 
 
-def _mb_search(artist: str, title: str) -> dict:
-    """Synchronous MusicBrainz recording search (run in executor)."""
+def _mb_search_releases(artist: str, title: str) -> dict:
+    """Search for releases containing this track (run in executor)."""
     musicbrainzngs.set_useragent("Raido", "1.0", settings.MB_USER_AGENT)
-    return musicbrainzngs.search_recordings(
-        artist=artist, recording=title, limit=settings.MB_SEARCH_LIMIT
+    # Lucene query: find releases that contain a track with this title by this artist
+    query = f'track:"{title}" AND artist:"{artist}"'
+    return musicbrainzngs.search_releases(query=query, limit=settings.MB_SEARCH_LIMIT)
+
+
+def _mb_get_release(release_mbid: str) -> dict:
+    """Fetch a release with full track listing (run in executor)."""
+    musicbrainzngs.set_useragent("Raido", "1.0", settings.MB_USER_AGENT)
+    return musicbrainzngs.get_release_by_id(
+        release_mbid,
+        includes=["artists", "recordings", "labels", "tags"],
     )
 
 
@@ -119,79 +128,58 @@ async def _fetch_artwork_url(release_mbid: str) -> Optional[str]:
     return None
 
 
-async def _fetch_genre(release_mbid: str) -> Optional[str]:
-    """Fetch release tags from MB REST API to derive genre."""
-    import httpx
-    try:
-        async with httpx.AsyncClient(
-            timeout=5.0,
-            headers={"User-Agent": settings.MB_USER_AGENT},
-        ) as client:
-            resp = await client.get(
-                f"https://musicbrainz.org/ws/2/release/{release_mbid}",
-                params={"inc": "tags release-groups", "fmt": "json"},
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                all_tags = data.get("tags", []) + data.get("release-group", {}).get("tags", [])
-                return _top_genre(all_tags)
-    except Exception:
-        pass
-    return None
-
-
 async def process_track(track_id: int, title: str, artist: str, db: AsyncSession) -> int:
     """
-    Search MusicBrainz for a track, insert candidates, return number inserted.
+    Search MusicBrainz releases for a track, insert candidates, return number inserted.
     Respects rate limit via caller's sleep.
     """
     loop = asyncio.get_event_loop()
     try:
-        mb_result = await loop.run_in_executor(
-            None, functools.partial(_mb_search, artist, title)
+        search_result = await loop.run_in_executor(
+            None, functools.partial(_mb_search_releases, artist, title)
         )
     except Exception as e:
-        logger.warning("MB search failed", track_id=track_id, error=str(e))
+        logger.warning("MB release search failed", track_id=track_id, error=str(e))
         return 0
 
-    recordings = mb_result.get("recording-list", []) or []
-    if not recordings:
-        logger.debug("No MB results", track_id=track_id, title=title, artist=artist)
+    releases = search_result.get("release-list", []) or []
+    if not releases:
+        logger.debug("No MB release results", track_id=track_id, title=title, artist=artist)
         return 0
 
     inserted = 0
-    seen_mbids: set[str] = set()
+    seen_release_mbids: set[str] = set()
+    title_lower = title.lower().strip()
 
-    # Fetch genre from first release (one extra request, counted against rate limit)
-    first_release_mbid = None
-    for rec in recordings:
-        releases = rec.get("release-list", []) or []
-        if releases and releases[0].get("id"):
-            first_release_mbid = releases[0]["id"]
-            break
-
-    genre: Optional[str] = None
-    if first_release_mbid:
-        await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
-        genre = await _fetch_genre(first_release_mbid)
-
-    for rec in recordings:
-        recording_mbid = rec.get("id")
-        if not recording_mbid or recording_mbid in seen_mbids:
+    for rel_stub in releases:
+        release_mbid = rel_stub.get("id")
+        if not release_mbid or release_mbid in seen_release_mbids:
             continue
-        seen_mbids.add(recording_mbid)
+        seen_release_mbids.add(release_mbid)
 
-        rec_title = rec.get("title", title)
-        rec_artist = (rec.get("artist-credit-phrase") or "").strip() or artist
+        score = None
+        try:
+            score = float(rel_stub.get("ext:score", 0))
+        except (ValueError, TypeError):
+            pass
 
-        releases = rec.get("release-list", []) or []
-        release = releases[0] if releases else {}
-        release_mbid = release.get("id")
-        album = release.get("title")
-        country = release.get("country")
+        # Fetch full release with track listing
+        await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
+        try:
+            rel_result = await loop.run_in_executor(
+                None, functools.partial(_mb_get_release, release_mbid)
+            )
+        except Exception as e:
+            logger.warning("MB get_release failed", release_mbid=release_mbid, error=str(e))
+            continue
+
+        rel = rel_result.get("release", {})
+        album = rel.get("title")
+        country = rel.get("country")
+        rel_artist = (rel.get("artist-credit-phrase") or "").strip() or artist
 
         year = None
-        date_str = release.get("date", "")
+        date_str = rel.get("date", "")
         if date_str and len(date_str) >= 4:
             try:
                 year = int(date_str[:4])
@@ -199,24 +187,37 @@ async def process_track(track_id: int, title: str, artist: str, db: AsyncSession
                 pass
 
         label = None
-        label_info = release.get("label-info-list", [])
-        if label_info and isinstance(label_info, list) and label_info[0]:
-            label_entry = label_info[0].get("label", {})
-            if label_entry:
-                label = label_entry.get("name")
+        for li in rel.get("label-info-list") or []:
+            label_entry = li.get("label") if isinstance(li, dict) else None
+            if label_entry and label_entry.get("name"):
+                label = label_entry["name"]
+                break
 
-        # Score: MB provides a "ext:score" attribute on recordings
-        score = None
-        try:
-            score = float(rec.get("ext:score", 0))
-        except (ValueError, TypeError):
-            pass
+        genre = None
+        tags = rel.get("tag-list") or []
+        filtered = [t for t in tags if t.get("name", "").lower() not in _NON_GENRE_TAGS]
+        if filtered:
+            top = max(filtered, key=lambda t: int(t.get("count", 0)))
+            genre = top["name"].title()
 
-        # Artwork (rate-limit-aware, one request per candidate)
-        artwork_url = None
-        if release_mbid:
-            await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
-            artwork_url = await _fetch_artwork_url(release_mbid)
+        # Find the recording in the release whose title matches
+        recording_mbid = None
+        rec_title = title
+        rec_artist = rel_artist
+        for medium in rel.get("medium-list") or []:
+            for tr in medium.get("track-list") or []:
+                rec = tr.get("recording") or {}
+                if rec.get("title", "").lower().strip() == title_lower:
+                    recording_mbid = rec.get("id")
+                    rec_title = rec.get("title") or title
+                    rec_artist = (rec.get("artist-credit-phrase") or "").strip() or rel_artist
+                    break
+            if recording_mbid:
+                break
+
+        # Artwork
+        await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
+        artwork_url = await _fetch_artwork_url(release_mbid)
 
         candidate = _MBCandidate(
             track_id=track_id,
@@ -232,7 +233,7 @@ async def process_track(track_id: int, title: str, artist: str, db: AsyncSession
             proposed_country=country,
             proposed_label=label,
             proposed_artwork_url=artwork_url,
-            mb_raw_response=rec,
+            mb_raw_response=rel,
         )
         db.add(candidate)
         inserted += 1
