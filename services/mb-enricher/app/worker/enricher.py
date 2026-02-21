@@ -55,7 +55,9 @@ class _MBCandidate(sa.orm.MappedAsDataclass, _Base):
     __table_args__ = {"extend_existing": True}
     id: sa.orm.Mapped[int] = sa.orm.mapped_column(primary_key=True, init=False)
     track_id: sa.orm.Mapped[int]
-    status: sa.orm.Mapped[str]
+    status: sa.orm.Mapped[_CandidateStatus] = sa.orm.mapped_column(
+        sa.Enum(_CandidateStatus, name="candidatestatus", create_type=False)
+    )
     score: sa.orm.Mapped[Optional[float]] = sa.orm.mapped_column(default=None)
     mb_recording_id: sa.orm.Mapped[Optional[str]] = sa.orm.mapped_column(default=None)
     mb_release_id: sa.orm.Mapped[Optional[str]] = sa.orm.mapped_column(default=None)
@@ -218,7 +220,7 @@ async def process_track(track_id: int, title: str, artist: str, db: AsyncSession
 
         candidate = _MBCandidate(
             track_id=track_id,
-            status=_CandidateStatus.pending.value,
+            status=_CandidateStatus.pending,
             score=score,
             mb_recording_id=recording_mbid,
             mb_release_id=release_mbid,
