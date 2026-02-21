@@ -1,7 +1,6 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, BarChart2Icon, LibraryIcon } from 'lucide-react'
-import { Sparkles, LogOut } from 'lucide-react'
+import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, BarChart2Icon, LibraryIcon, Sparkles, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
@@ -99,7 +98,7 @@ export default function Layout({ children }: LayoutProps) {
                 )}
                 <span className="hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
               </div>
-              {isAuthenticated() && (
+              {isAuthenticated() ? (
                 <button
                   onClick={handleLogout}
                   title="Sign out"
@@ -107,6 +106,14 @@ export default function Layout({ children }: LayoutProps) {
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
+              ) : (
+                <Link
+                  to="/login"
+                  title="Sign in"
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                </Link>
               )}
             </div>
           </div>
