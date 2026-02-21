@@ -308,11 +308,13 @@ class MBEnricher:
         """Process one batch of tracks. Returns count processed."""
         async with get_db_session() as db:
             # Tracks that have no recording_mbid and no existing candidate of any status
+            # Exclude synthetic liquidsoap:// tracks (no real file backing)
             existing_track_ids_q = select(_MBCandidate.track_id).distinct()
             q = (
                 select(_Track.id, _Track.title, _Track.artist)
                 .where(_Track.recording_mbid.is_(None))
                 .where(_Track.id.notin_(existing_track_ids_q))
+                .where(~_Track.file_path.like("liquidsoap://%"))
                 .order_by(_Track.id)
                 .limit(settings.MB_BATCH_SIZE)
             )
