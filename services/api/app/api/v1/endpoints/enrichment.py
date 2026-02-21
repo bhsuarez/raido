@@ -1,18 +1,19 @@
 """MusicBrainz enrichment review queue API."""
 import asyncio
+import difflib
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
 import httpx
 import musicbrainzngs
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update
 import structlog
 
-from app.core.database import get_db
+from app.core.database import get_db, get_db_session
 from app.core.deps import require_admin
 from app.models import Track
 from app.models.mb_candidate import MBCandidate, CandidateStatus
@@ -86,6 +87,141 @@ _NON_GENRE_TAGS = {
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _normalize_title(t: str) -> str:
+    t = t.lower().strip()
+    t = re.sub(r'[^\w\s]', ' ', t)
+    return ' '.join(t.split())
+
+
+async def _propagate_release(release_mbid: str, library_artist: str, library_album: Optional[str]) -> None:
+    """
+    After approving a candidate, look up all recordings in the same MB release
+    and create high-confidence candidates for other library tracks from that album.
+    """
+    loop = asyncio.get_event_loop()
+
+    try:
+        def _fetch():
+            musicbrainzngs.set_useragent("Raido", "1.0", "raido@local")
+            return musicbrainzngs.get_release_by_id(
+                release_mbid, includes=["artists", "recordings", "labels"]
+            )
+        result = await loop.run_in_executor(None, _fetch)
+    except Exception as e:
+        logger.warning("Album propagation: MB fetch failed", release_mbid=release_mbid, error=str(e))
+        return
+
+    rel = result.get("release", {})
+    rel_artist = (rel.get("artist-credit-phrase") or "").strip() or library_artist
+    album_title = rel.get("title")
+    country = rel.get("country")
+
+    year = None
+    date_str = rel.get("date", "")
+    if date_str and len(date_str) >= 4:
+        try:
+            year = int(date_str[:4])
+        except ValueError:
+            pass
+
+    label = None
+    for li in rel.get("label-info-list") or []:
+        label_entry = li.get("label") if isinstance(li, dict) else None
+        if label_entry and label_entry.get("name"):
+            label = label_entry["name"]
+            break
+
+    # Build normalized recording list from the release
+    recordings = []
+    for medium in rel.get("medium-list") or []:
+        for tr in medium.get("track-list") or []:
+            rec = tr.get("recording") or {}
+            if rec.get("id") and rec.get("title"):
+                recordings.append({
+                    "recording_mbid": rec["id"],
+                    "title": rec["title"],
+                    "normalized": _normalize_title(rec["title"]),
+                    "artist": (rec.get("artist-credit-phrase") or "").strip() or rel_artist,
+                })
+
+    if not recordings:
+        return
+
+    # Artwork
+    artwork_url = None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"https://coverartarchive.org/release/{release_mbid}/front-500",
+                follow_redirects=True,
+            )
+            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                artwork_url = str(resp.url)
+    except Exception:
+        pass
+
+    async with get_db_session() as db:
+        # Find unenriched library tracks from the same artist+album
+        q = select(Track).where(
+            Track.recording_mbid.is_(None),
+            func.lower(Track.artist) == library_artist.lower(),
+        )
+        if library_album:
+            q = q.where(func.lower(Track.album) == library_album.lower())
+        lib_tracks = (await db.execute(q)).scalars().all()
+
+        if not lib_tracks:
+            return
+
+        # Existing candidates for these tracks (avoid duplicates)
+        lib_ids = [t.id for t in lib_tracks]
+        existing = (await db.execute(
+            select(MBCandidate.track_id, MBCandidate.mb_recording_id)
+            .where(MBCandidate.track_id.in_(lib_ids))
+        )).all()
+        existing_pairs = {(r.track_id, r.mb_recording_id) for r in existing}
+
+        inserted = 0
+        for track in lib_tracks:
+            norm_track = _normalize_title(track.title)
+            best_score = 0.0
+            best_rec = None
+
+            for rec in recordings:
+                if norm_track == rec["normalized"]:
+                    best_score = 100.0
+                    best_rec = rec
+                    break
+                ratio = difflib.SequenceMatcher(None, norm_track, rec["normalized"]).ratio()
+                if ratio >= 0.85 and ratio * 100 > best_score:
+                    best_score = round(ratio * 100, 1)
+                    best_rec = rec
+
+            if not best_rec or (track.id, best_rec["recording_mbid"]) in existing_pairs:
+                continue
+
+            db.add(MBCandidate(
+                track_id=track.id,
+                status=CandidateStatus.pending,
+                score=best_score,
+                mb_recording_id=best_rec["recording_mbid"],
+                mb_release_id=release_mbid,
+                proposed_title=best_rec["title"],
+                proposed_artist=best_rec["artist"],
+                proposed_album=album_title,
+                proposed_year=year,
+                proposed_country=country,
+                proposed_label=label,
+                proposed_artwork_url=artwork_url,
+            ))
+            existing_pairs.add((track.id, best_rec["recording_mbid"]))
+            inserted += 1
+
+        await db.commit()
+        logger.info("Album propagation complete", release_mbid=release_mbid, artist=library_artist,
+                    album=library_album, inserted=inserted)
+
 
 async def _apply_candidate_to_track(track: Track, candidate: MBCandidate) -> None:
     """Write candidate proposed values onto the track model (does not commit)."""
@@ -246,6 +382,7 @@ async def get_track_candidates(
 @router.post("/candidate/{candidate_id}/approve")
 async def approve_candidate(
     candidate_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_admin),
 ):
@@ -282,6 +419,16 @@ async def approve_candidate(
 
     await db.commit()
     logger.info("Candidate approved", candidate_id=candidate_id, track_id=track.id)
+
+    # Propagate to other tracks from the same album in the background
+    if candidate.mb_release_id and track.album:
+        background_tasks.add_task(
+            _propagate_release,
+            candidate.mb_release_id,
+            candidate.proposed_artist or track.artist,
+            track.album,
+        )
+
     return {"status": "approved", "track_id": track.id}
 
 
