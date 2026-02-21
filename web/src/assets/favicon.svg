@@ -1,62 +1,16 @@
-<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FF8C00;stop-opacity:1" />
-    </linearGradient>
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#2a2a2a;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1a1a1a;stop-opacity:1" />
-    </radialGradient>
-  </defs>
+<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="18" cy="18" r="18" fill="#111827"/>
 
-  <!-- Background circle with gradient -->
-  <circle cx="32" cy="32" r="32" fill="url(#bgGrad)"/>
-
-  <!-- Skull base - larger and more centered -->
-  <ellipse cx="32" cy="30" rx="15" ry="17" fill="#F8F8FF" stroke="#333" stroke-width="2"/>
-
-  <!-- Eye sockets - bigger for visibility -->
-  <ellipse cx="26" cy="26" rx="4" ry="5" fill="#000"/>
-  <ellipse cx="38" cy="26" rx="4" ry="5" fill="#000"/>
-
-  <!-- Eye patch - bold and clear -->
-  <ellipse cx="38" cy="26" rx="7.5" ry="6.5" fill="#000"/>
-  <path d="M 30 19 Q 45 13 51 26" stroke="#333" stroke-width="3" fill="none"/>
-
-  <!-- Nose - triangle -->
-  <path d="M 32 32 L 29 36 L 35 36 Z" fill="#333"/>
-
-  <!-- Mouth/Jaw - bolder smile -->
-  <path d="M 24 40 Q 32 46 40 40" stroke="#333" stroke-width="3" fill="none"/>
-  <line x1="24" y1="42" x2="26" y2="40" stroke="#333" stroke-width="2"/>
-  <line x1="40" y1="42" x2="38" y2="40" stroke="#333" stroke-width="2"/>
-
-  <!-- Crossbones - simplified and bolder -->
-  <g transform="translate(32,52) rotate(45)">
-    <rect x="-11" y="-2" width="22" height="4" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-    <circle cx="-11" cy="0" r="3" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-    <circle cx="11" cy="0" r="3" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-  </g>
-  <g transform="translate(32,52) rotate(-45)">
-    <rect x="-11" y="-2" width="22" height="4" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-    <circle cx="-11" cy="0" r="3" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-    <circle cx="11" cy="0" r="3" fill="#F8F8FF" stroke="#333" stroke-width="1.5"/>
-  </g>
-
-  <!-- Pirate hat - bold red -->
-  <path d="M 16 22 Q 32 10 48 22 Q 43 14 32 14 Q 21 14 16 22" fill="#DC143C"/>
-  <ellipse cx="32" cy="22" rx="17" ry="4" fill="#8B0000"/>
-
-  <!-- Hat skull symbol -->
-  <circle cx="32" cy="21" r="2.5" fill="url(#goldGrad)"/>
-
-  <!-- Hat feather - more prominent -->
-  <path d="M 45 17 Q 52 10 51 22 Q 47 15 45 17" fill="#32CD32" stroke="#228B22" stroke-width="1"/>
-
-  <!-- Radio waves - bold and golden -->
-  <g stroke="url(#goldGrad)" stroke-width="2.5" fill="none" opacity="0.9" stroke-linecap="round">
-    <path d="M 50 30 Q 54 28 56 30"/>
-    <path d="M 52 30 Q 58 26 62 30"/>
-  </g>
+  <!-- Outer wave -->
+  <path d="M6 18 Q6 8 18 8 Q30 8 30 18" stroke="#ec7711" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <!-- Middle wave -->
+  <path d="M10 18 Q10 12 18 12 Q26 12 26 18" stroke="#ec7711" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+  <!-- Inner wave -->
+  <path d="M14 18 Q14 15 18 15 Q22 15 22 18" stroke="#ec7711" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Center dot -->
+  <circle cx="18" cy="20" r="2.5" fill="#ec7711"/>
+  <!-- Stand -->
+  <line x1="18" y1="22" x2="18" y2="28" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+  <line x1="13" y1="28" x2="23" y2="28" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
 </svg>
