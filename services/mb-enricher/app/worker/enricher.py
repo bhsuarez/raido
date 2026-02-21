@@ -161,15 +161,18 @@ async def _fetch_genre(release_mbid: str) -> Optional[str]:
     return None
 
 
-async def _fetch_artwork_url(release_mbid: str) -> Optional[str]:
-    """Check Cover Art Archive for front artwork."""
+async def _fetch_artwork_url(release_mbid: str, release_group_mbid: Optional[str] = None) -> Optional[str]:
+    """Check Cover Art Archive for front artwork. Falls back to release group if release has no art."""
     import httpx
-    url = f"https://coverartarchive.org/release/{release_mbid}/front-500"
+    urls_to_try = [f"https://coverartarchive.org/release/{release_mbid}/front-500"]
+    if release_group_mbid:
+        urls_to_try.append(f"https://coverartarchive.org/release-group/{release_group_mbid}/front-500")
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url, follow_redirects=True)
-            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
-                return str(resp.url)
+            for url in urls_to_try:
+                resp = await client.get(url, follow_redirects=True)
+                if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                    return str(resp.url)
     except Exception:
         pass
     return None
@@ -223,6 +226,7 @@ async def process_track(track_id: int, title: str, artist: str, db: AsyncSession
         releases = rec.get("release-list") or []
         release = _best_release(releases)
         release_mbid = release.get("id")
+        release_group_mbid = release.get("release-group", {}).get("id")
         album = release.get("title")
         country = release.get("country")
 
@@ -250,7 +254,7 @@ async def process_track(track_id: int, title: str, artist: str, db: AsyncSession
         artwork_url = None
         if release_mbid:
             await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
-            artwork_url = await _fetch_artwork_url(release_mbid)
+            artwork_url = await _fetch_artwork_url(release_mbid, release_group_mbid)
 
         candidate = _MBCandidate(
             track_id=track_id,
