@@ -379,7 +379,7 @@ async def lookup_mb_recording(
             musicbrainzngs.set_useragent("Raido", "1.0", "raido@local")
             return musicbrainzngs.get_recording_by_id(
                 recording_mbid,
-                includes=["artists", "releases", "release-groups", "tags", "isrcs"],
+                includes=["artists", "releases", "tags", "isrcs"],
             )
         result = await loop.run_in_executor(None, _fetch)
     except Exception as e:
