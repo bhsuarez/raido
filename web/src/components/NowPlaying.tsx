@@ -1,5 +1,6 @@
 import React from 'react'
-import { SkipForwardIcon, MusicIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { SkipForwardIcon, MusicIcon, BarChart2Icon } from 'lucide-react'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
@@ -154,6 +155,17 @@ const NowPlaying: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Analytics link */}
+      <div className="border-t border-gray-800 px-5 py-2.5 flex justify-end">
+        <Link
+          to="/analytics"
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          <BarChart2Icon className="w-3.5 h-3.5" />
+          Analytics
+        </Link>
       </div>
     </section>
   )
