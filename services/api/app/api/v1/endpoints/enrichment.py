@@ -339,31 +339,80 @@ async def skip_track(
 
 
 @router.post("/track/{track_id}/lookup", response_model=CandidateRead, status_code=201)
-async def lookup_mb_recording(
+async def lookup_mb_release(
     track_id: int,
     payload: LookupRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_admin),
 ):
     """
-    Look up a specific MusicBrainz recording by URL or UUID and add it as a
-    top-scored pending candidate for this track.
+    Look up a MusicBrainz release by URL or UUID, match the track title to a
+    recording within it, and add as a top-scored pending candidate.
     """
     m = _MB_UUID_RE.search(payload.mb_url.strip())
     if not m:
         raise HTTPException(status_code=422, detail="No valid MusicBrainz UUID found in input")
-    recording_mbid = m.group(0).lower()
+    release_mbid = m.group(0).lower()
 
     track = (await db.execute(select(Track).where(Track.id == track_id))).scalar_one_or_none()
     if not track:
         raise HTTPException(status_code=404, detail="Track not found")
 
-    # If a candidate with this recording ID already exists, just re-pend it
-    existing = (await db.execute(
-        select(MBCandidate)
-        .where(MBCandidate.track_id == track_id)
-        .where(MBCandidate.mb_recording_id == recording_mbid)
-    )).scalar_one_or_none()
+    # Fetch release from MusicBrainz
+    loop = asyncio.get_event_loop()
+    try:
+        def _fetch():
+            musicbrainzngs.set_useragent("Raido", "1.0", "raido@local")
+            return musicbrainzngs.get_release_by_id(
+                release_mbid,
+                includes=["artists", "recordings", "labels"],
+            )
+        result = await loop.run_in_executor(None, _fetch)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"MusicBrainz lookup failed: {e}")
+
+    rel = result.get("release", {})
+    album = rel.get("title")
+    country = rel.get("country")
+    rel_artist = (rel.get("artist-credit-phrase") or "").strip() or track.artist
+
+    year = None
+    date_str = rel.get("date", "")
+    if date_str and len(date_str) >= 4:
+        try:
+            year = int(date_str[:4])
+        except ValueError:
+            pass
+
+    label = None
+    for li in rel.get("label-info-list") or []:
+        label_entry = li.get("label") if isinstance(li, dict) else None
+        if label_entry and label_entry.get("name"):
+            label = label_entry["name"]
+            break
+
+    # Find the recording in the release that matches the track title
+    recording_mbid = None
+    rec_title = track.title
+    rec_artist = rel_artist
+    track_title_lower = track.title.lower().strip()
+
+    for medium in rel.get("medium-list") or []:
+        for tr in medium.get("track-list") or []:
+            rec = tr.get("recording") or {}
+            if rec.get("title", "").lower().strip() == track_title_lower:
+                recording_mbid = rec.get("id")
+                rec_title = rec.get("title") or track.title
+                rec_artist = (rec.get("artist-credit-phrase") or "").strip() or rel_artist
+                break
+        if recording_mbid:
+            break
+
+    # If already have a candidate with this release+recording combo, re-pend it
+    existing_q = select(MBCandidate).where(MBCandidate.track_id == track_id).where(MBCandidate.mb_release_id == release_mbid)
+    if recording_mbid:
+        existing_q = existing_q.where(MBCandidate.mb_recording_id == recording_mbid)
+    existing = (await db.execute(existing_q)).scalar_one_or_none()
     if existing:
         if existing.status != CandidateStatus.pending:
             existing.status = CandidateStatus.pending
@@ -372,69 +421,18 @@ async def lookup_mb_recording(
             await db.refresh(existing)
         return existing
 
-    # Fetch recording from MusicBrainz
-    loop = asyncio.get_event_loop()
-    try:
-        def _fetch():
-            musicbrainzngs.set_useragent("Raido", "1.0", "raido@local")
-            return musicbrainzngs.get_recording_by_id(
-                recording_mbid,
-                includes=["artists", "releases", "tags", "isrcs"],
-            )
-        result = await loop.run_in_executor(None, _fetch)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"MusicBrainz lookup failed: {e}")
-
-    rec = result.get("recording", {})
-    rec_title = rec.get("title") or track.title
-    rec_artist = (rec.get("artist-credit-phrase") or "").strip() or track.artist
-
-    releases = rec.get("release-list") or []
-    release = releases[0] if releases else {}
-    release_mbid = release.get("id")
-    album = release.get("title")
-    country = release.get("country")
-
-    year = None
-    date_str = release.get("date", "")
-    if date_str and len(date_str) >= 4:
-        try:
-            year = int(date_str[:4])
-        except ValueError:
-            pass
-
-    label = None
-    for li in release.get("label-info-list") or []:
-        label_entry = li.get("label") if isinstance(li, dict) else None
-        if label_entry and label_entry.get("name"):
-            label = label_entry["name"]
-            break
-
-    isrc = None
-    isrc_list = rec.get("isrc-list") or []
-    if isrc_list:
-        isrc = isrc_list[0]
-
-    genre = None
-    tags = rec.get("tag-list") or []
-    filtered = [t for t in tags if t.get("name", "").lower() not in _NON_GENRE_TAGS]
-    if filtered:
-        top = max(filtered, key=lambda t: int(t.get("count", 0)))
-        genre = top["name"].title()
-
-    # Try to fetch artwork from Cover Art Archive
+    # Artwork from Cover Art Archive
     artwork_url = None
-    if release_mbid:
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(
-                    f"https://coverartarchive.org/release/{release_mbid}/front-500",
-                    follow_redirects=True,
-                )
-                if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
-                    artwork_url = str(resp.url)
-        except Exception:
-            pass
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"https://coverartarchive.org/release/{release_mbid}/front-500",
+                follow_redirects=True,
+            )
+            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                artwork_url = str(resp.url)
+    except Exception:
+        pass
 
     candidate = MBCandidate(
         track_id=track_id,
@@ -446,15 +444,13 @@ async def lookup_mb_recording(
         proposed_artist=rec_artist,
         proposed_album=album,
         proposed_year=year,
-        proposed_genre=genre,
         proposed_country=country,
         proposed_label=label,
-        proposed_isrc=isrc,
         proposed_artwork_url=artwork_url,
         reviewed_by=user.id,
     )
     db.add(candidate)
     await db.commit()
     await db.refresh(candidate)
-    logger.info("Manual MB lookup candidate added", track_id=track_id, recording_mbid=recording_mbid)
+    logger.info("Manual MB release lookup candidate added", track_id=track_id, release_mbid=release_mbid, recording_mbid=recording_mbid)
     return candidate

@@ -444,7 +444,7 @@ export default function MBEnrich() {
                     value={lookupUrl}
                     onChange={e => { setLookupUrl(e.target.value); setLookupError(null) }}
                     onKeyDown={e => e.key === 'Enter' && handleLookup(selectedTrack.id)}
-                    placeholder="Paste MusicBrainz URL or recording ID…"
+                    placeholder="Paste MusicBrainz release URL or UUID…"
                     className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary-500"
                   />
                   <button
