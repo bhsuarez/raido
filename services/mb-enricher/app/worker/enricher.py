@@ -46,6 +46,7 @@ class _Track(sa.orm.MappedAsDataclass, _Base):
     id: sa.orm.Mapped[int] = sa.orm.mapped_column(primary_key=True)
     title: sa.orm.Mapped[str]
     artist: sa.orm.Mapped[str]
+    file_path: sa.orm.Mapped[str]
     album: sa.orm.Mapped[Optional[str]] = sa.orm.mapped_column(default=None)
     recording_mbid: sa.orm.Mapped[Optional[str]] = sa.orm.mapped_column(default=None)
 
