@@ -97,21 +97,8 @@ def _top_genre(tags: list) -> Optional[str]:
     return top["name"].title()
 
 
-def _mb_search_releases(artist: str, title: str) -> list:
-    """Search for releases containing this track. Returns release stubs."""
-    musicbrainzngs.set_useragent("Raido", "1.0", settings.MB_USER_AGENT)
-    # Normalise whitespace so double-spaces / dirty filenames don't kill the query
-    clean_title = " ".join(title.split())
-    clean_artist = " ".join(artist.split())
-    result = musicbrainzngs.search_releases(
-        query=f'track:{clean_title} AND artist:{clean_artist}',
-        limit=settings.MB_SEARCH_LIMIT,
-    )
-    return result.get("release-list") or []
-
-
 def _mb_search_recordings(artist: str, title: str) -> list:
-    """Fallback: search recordings by artist + title. Returns recording dicts."""
+    """Search recordings by artist + title. Returns recording dicts."""
     musicbrainzngs.set_useragent("Raido", "1.0", settings.MB_USER_AGENT)
     clean_title = " ".join(title.split())
     clean_artist = " ".join(artist.split())
@@ -130,6 +117,50 @@ def _mb_get_release(release_mbid: str) -> dict:
     )
 
 
+# Release type preference: lower = better
+_RELEASE_TYPE_RANK = {"Album": 0, "Single": 1, "EP": 2, "Broadcast": 3, "Other": 4}
+_RELEASE_STATUS_RANK = {"Official": 0, "Promotion": 1, "Bootleg": 2, "Pseudo-Release": 3}
+
+
+def _best_release(releases: list) -> dict:
+    """Pick the most relevant release from a recording's release list."""
+    if not releases:
+        return {}
+
+    def _rank(r: dict) -> tuple:
+        rg = r.get("release-group", {})
+        type_rank = _RELEASE_TYPE_RANK.get(rg.get("type", ""), 5)
+        status_rank = _RELEASE_STATUS_RANK.get(r.get("status", ""), 5)
+        # Prefer releases with a date and country; prefer older (original) releases
+        date = r.get("date", "9999")
+        year = int(date[:4]) if date and len(date) >= 4 and date[:4].isdigit() else 9999
+        has_country = 0 if r.get("country") else 1
+        return (type_rank, status_rank, has_country, year)
+
+    return min(releases, key=_rank)
+
+
+async def _fetch_genre(release_mbid: str) -> Optional[str]:
+    """Fetch release tags from MB REST API to derive genre."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(
+            timeout=5.0,
+            headers={"User-Agent": settings.MB_USER_AGENT},
+        ) as client:
+            resp = await client.get(
+                f"https://musicbrainz.org/ws/2/release/{release_mbid}",
+                params={"inc": "tags release-groups", "fmt": "json"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                all_tags = data.get("tags", []) + data.get("release-group", {}).get("tags", [])
+                return _top_genre(all_tags)
+    except Exception:
+        pass
+    return None
+
+
 async def _fetch_artwork_url(release_mbid: str) -> Optional[str]:
     """Check Cover Art Archive for front artwork."""
     import httpx
@@ -146,175 +177,96 @@ async def _fetch_artwork_url(release_mbid: str) -> Optional[str]:
 
 async def process_track(track_id: int, title: str, artist: str, db: AsyncSession) -> int:
     """
-    Search MusicBrainz for a track, insert candidates, return number inserted.
-    Tries release search first (more accurate); falls back to recording search.
+    Search MusicBrainz recordings for a track, pick the best release for each,
+    insert candidates, return number inserted.
     """
     loop = asyncio.get_event_loop()
-    title_lower = " ".join(title.split()).lower()
 
-    # ── Step 1: release-based search ──────────────────────────────────────────
     try:
-        rel_stubs = await loop.run_in_executor(
-            None, functools.partial(_mb_search_releases, artist, title)
+        recordings = await loop.run_in_executor(
+            None, functools.partial(_mb_search_recordings, artist, title)
         )
     except Exception as e:
-        logger.warning("MB release search failed", track_id=track_id, error=str(e))
-        rel_stubs = []
+        logger.warning("MB recording search failed", track_id=track_id, error=str(e))
+        return 0
 
-    candidates_data: list[dict] = []  # normalised candidate dicts
-
-    if rel_stubs:
-        seen_release_mbids: set[str] = set()
-        for rel_stub in rel_stubs:
-            release_mbid = rel_stub.get("id")
-            if not release_mbid or release_mbid in seen_release_mbids:
-                continue
-            seen_release_mbids.add(release_mbid)
-
-            score = None
-            try:
-                score = float(rel_stub.get("ext:score", 0))
-            except (ValueError, TypeError):
-                pass
-
-            await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
-            try:
-                rel_result = await loop.run_in_executor(
-                    None, functools.partial(_mb_get_release, release_mbid)
-                )
-            except Exception as e:
-                logger.warning("MB get_release failed", release_mbid=release_mbid, error=str(e))
-                continue
-
-            rel = rel_result.get("release", {})
-            album = rel.get("title")
-            country = rel.get("country")
-            rel_artist = (rel.get("artist-credit-phrase") or "").strip() or artist
-
-            year = None
-            date_str = rel.get("date", "")
-            if date_str and len(date_str) >= 4:
-                try:
-                    year = int(date_str[:4])
-                except ValueError:
-                    pass
-
-            label = None
-            for li in rel.get("label-info-list") or []:
-                label_entry = li.get("label") if isinstance(li, dict) else None
-                if label_entry and label_entry.get("name"):
-                    label = label_entry["name"]
-                    break
-
-            genre = None
-            tags = rel.get("tag-list") or []
-            filtered = [t for t in tags if t.get("name", "").lower() not in _NON_GENRE_TAGS]
-            if filtered:
-                top = max(filtered, key=lambda t: int(t.get("count", 0)))
-                genre = top["name"].title()
-
-            # Find recording in release matching the track title
-            recording_mbid = None
-            rec_title = " ".join(title.split())
-            rec_artist = rel_artist
-            for medium in rel.get("medium-list") or []:
-                for tr in medium.get("track-list") or []:
-                    rec = tr.get("recording") or {}
-                    if rec.get("title", "").lower().strip() == title_lower:
-                        recording_mbid = rec.get("id")
-                        rec_title = rec.get("title") or rec_title
-                        rec_artist = (rec.get("artist-credit-phrase") or "").strip() or rel_artist
-                        break
-                if recording_mbid:
-                    break
-
-            candidates_data.append(dict(
-                score=score, mb_recording_id=recording_mbid, mb_release_id=release_mbid,
-                rec_title=rec_title, rec_artist=rec_artist, album=album, year=year,
-                genre=genre, country=country, label=label, raw=rel,
-            ))
-
-    # ── Step 2: fall back to recording search if release search found nothing ─
-    if not candidates_data:
-        logger.debug("Release search empty, falling back to recording search",
-                     track_id=track_id, title=title, artist=artist)
-        try:
-            recordings = await loop.run_in_executor(
-                None, functools.partial(_mb_search_recordings, artist, title)
-            )
-        except Exception as e:
-            logger.warning("MB recording search failed", track_id=track_id, error=str(e))
-            return 0
-
-        seen_rec_mbids: set[str] = set()
-        for rec in recordings:
-            recording_mbid = rec.get("id")
-            if not recording_mbid or recording_mbid in seen_rec_mbids:
-                continue
-            seen_rec_mbids.add(recording_mbid)
-
-            rec_title = rec.get("title", title)
-            rec_artist = (rec.get("artist-credit-phrase") or "").strip() or artist
-            releases = rec.get("release-list") or []
-            release = releases[0] if releases else {}
-            release_mbid = release.get("id")
-            album = release.get("title")
-            country = release.get("country")
-
-            year = None
-            date_str = release.get("date", "")
-            if date_str and len(date_str) >= 4:
-                try:
-                    year = int(date_str[:4])
-                except ValueError:
-                    pass
-
-            label = None
-            for li in release.get("label-info-list") or []:
-                label_entry = li.get("label") if isinstance(li, dict) else None
-                if label_entry and label_entry.get("name"):
-                    label = label_entry["name"]
-                    break
-
-            score = None
-            try:
-                score = float(rec.get("ext:score", 0))
-            except (ValueError, TypeError):
-                pass
-
-            candidates_data.append(dict(
-                score=score, mb_recording_id=recording_mbid, mb_release_id=release_mbid,
-                rec_title=rec_title, rec_artist=rec_artist, album=album, year=year,
-                genre=None, country=country, label=label, raw=rec,
-            ))
-
-    if not candidates_data:
+    if not recordings:
         logger.debug("No MB results", track_id=track_id, title=title, artist=artist)
         return 0
 
-    # ── Step 3: insert candidates with artwork ────────────────────────────────
     inserted = 0
-    for cd in candidates_data:
+    seen_mbids: set[str] = set()
+
+    # Fetch genre once from the best release of the top result
+    first_release_mbid = None
+    for rec in recordings:
+        releases = rec.get("release-list") or []
+        best = _best_release(releases)
+        if best.get("id"):
+            first_release_mbid = best["id"]
+            break
+
+    genre: Optional[str] = None
+    if first_release_mbid:
+        await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
+        genre = await _fetch_genre(first_release_mbid)
+
+    for rec in recordings:
+        recording_mbid = rec.get("id")
+        if not recording_mbid or recording_mbid in seen_mbids:
+            continue
+        seen_mbids.add(recording_mbid)
+
+        rec_title = rec.get("title", title)
+        rec_artist = (rec.get("artist-credit-phrase") or "").strip() or artist
+
+        releases = rec.get("release-list") or []
+        release = _best_release(releases)
+        release_mbid = release.get("id")
+        album = release.get("title")
+        country = release.get("country")
+
+        year = None
+        date_str = release.get("date", "")
+        if date_str and len(date_str) >= 4:
+            try:
+                year = int(date_str[:4])
+            except ValueError:
+                pass
+
+        label = None
+        for li in release.get("label-info-list") or []:
+            label_entry = li.get("label") if isinstance(li, dict) else None
+            if label_entry and label_entry.get("name"):
+                label = label_entry["name"]
+                break
+
+        score = None
+        try:
+            score = float(rec.get("ext:score", 0))
+        except (ValueError, TypeError):
+            pass
+
         artwork_url = None
-        if cd["mb_release_id"]:
+        if release_mbid:
             await asyncio.sleep(settings.MB_REQUEST_INTERVAL)
-            artwork_url = await _fetch_artwork_url(cd["mb_release_id"])
+            artwork_url = await _fetch_artwork_url(release_mbid)
 
         candidate = _MBCandidate(
             track_id=track_id,
             status=_CandidateStatus.pending,
-            score=cd["score"],
-            mb_recording_id=cd["mb_recording_id"],
-            mb_release_id=cd["mb_release_id"],
-            proposed_title=cd["rec_title"],
-            proposed_artist=cd["rec_artist"],
-            proposed_album=cd["album"],
-            proposed_year=cd["year"],
-            proposed_genre=cd["genre"],
-            proposed_country=cd["country"],
-            proposed_label=cd["label"],
+            score=score,
+            mb_recording_id=recording_mbid,
+            mb_release_id=release_mbid,
+            proposed_title=rec_title,
+            proposed_artist=rec_artist,
+            proposed_album=album,
+            proposed_year=year,
+            proposed_genre=genre,
+            proposed_country=country,
+            proposed_label=label,
             proposed_artwork_url=artwork_url,
-            mb_raw_response=cd["raw"],
+            mb_raw_response=rec,
         )
         db.add(candidate)
         inserted += 1
