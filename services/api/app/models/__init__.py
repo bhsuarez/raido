@@ -5,6 +5,7 @@ from .settings import Setting
 from .users import User
 from .request_queue import RequestQueue, RequestType, RequestStatus
 from .stations import Station
+from .mb_candidate import MBCandidate, CandidateStatus
 
 __all__ = [
     "Track",
@@ -16,4 +17,6 @@ __all__ = [
     "RequestType",
     "RequestStatus",
     "Station",
+    "MBCandidate",
+    "CandidateStatus",
 ]

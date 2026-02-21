@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     
     # Security
     JWT_SECRET: str = "your-super-secret-jwt-signing-key-minimum-32-chars"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 90
     SESSION_SECRET: str = "your-session-secret-key-here"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
     

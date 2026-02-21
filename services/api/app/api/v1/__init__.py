@@ -10,6 +10,8 @@ from app.api.v1.endpoints import (
     artwork,
     tracks,
     stations,
+    auth,
+    enrichment,
 )
 
 api_router = APIRouter()
@@ -24,3 +26,5 @@ api_router.include_router(request_queue.router, prefix="/queue", tags=["queue"])
 api_router.include_router(artwork.router, prefix="/artwork", tags=["artwork"])
 api_router.include_router(tracks.router, prefix="/tracks", tags=["tracks"])
 api_router.include_router(stations.router, prefix="/stations", tags=["stations"])
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(enrichment.router, prefix="/enrichment", tags=["enrichment"])

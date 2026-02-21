@@ -1,8 +1,10 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, BarChart2Icon, LibraryIcon } from 'lucide-react'
+import { Sparkles, LogOut } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useAuthStore } from '../store/authStore'
 import Logo from './Logo'
 
 interface LayoutProps {
@@ -11,10 +13,12 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
+  const navigate = useNavigate()
   const { isConnected, nowPlaying } = useRadioStore((state) => ({
     isConnected: state.isConnected,
     nowPlaying: state.nowPlaying,
   }))
+  const { isAuthenticated, clearAuth } = useAuthStore()
   useWebSocket()
 
   const navigation = [
@@ -23,7 +27,13 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Analytics', href: '/analytics', icon: BarChart2Icon },
     { name: 'Stations', href: '/stations', icon: RadioIcon },
     { name: 'Media', href: '/media', icon: LibraryIcon },
+    { name: 'Enrich', href: '/raido/enrich', icon: Sparkles },
   ]
+
+  function handleLogout() {
+    clearAuth()
+    navigate('/login')
+  }
 
   const trackTitle = nowPlaying?.track?.title?.trim()
   const trackArtist = nowPlaying?.track?.artist?.trim()
@@ -73,8 +83,8 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             )}
 
-            {/* Connection status */}
-            <div className="ml-auto flex-shrink-0">
+            {/* Connection status + logout */}
+            <div className="ml-auto flex-shrink-0 flex items-center gap-3">
               <div
                 className={`flex items-center gap-1.5 text-xs font-medium ${
                   isConnected ? 'text-green-400' : 'text-red-400'
@@ -89,6 +99,15 @@ export default function Layout({ children }: LayoutProps) {
                 )}
                 <span className="hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
               </div>
+              {isAuthenticated() && (
+                <button
+                  onClick={handleLogout}
+                  title="Sign out"
+                  className="text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

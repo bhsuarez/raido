@@ -12,6 +12,8 @@ import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
 import StationControlPanel from './components/StationControlPanel'
 import MediaLibrary from './components/MediaLibrary'
+import LoginPage from './components/LoginPage'
+import MBEnrich from './components/MBEnrich'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -59,6 +61,14 @@ function App() {
           <Route
             path="/media"
             element={<MediaLibrary />}
+          />
+          <Route
+            path="/login"
+            element={<LoginPage />}
+          />
+          <Route
+            path="/raido/enrich"
+            element={<MBEnrich />}
           />
           {/* DJ Settings route removed - functionality moved to /tts */}
           <Route
