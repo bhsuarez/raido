@@ -55,6 +55,7 @@ class TrackWithCandidates(BaseModel):
     genre: Optional[str] = None
     artwork_url: Optional[str] = None
     recording_mbid: Optional[str] = None
+    file_path: Optional[str] = None
     candidates: List[CandidateRead] = []
 
     class Config:
@@ -203,6 +204,7 @@ async def get_enrichment_queue(
             genre=t.genre,
             artwork_url=t.artwork_url,
             recording_mbid=t.recording_mbid,
+            file_path=t.file_path,
             candidates=cands_by_track.get(t.id, []),
         )
         for t in tracks
@@ -236,6 +238,7 @@ async def get_track_candidates(
         genre=track.genre,
         artwork_url=track.artwork_url,
         recording_mbid=track.recording_mbid,
+        file_path=track.file_path,
         candidates=cands,
     )
 

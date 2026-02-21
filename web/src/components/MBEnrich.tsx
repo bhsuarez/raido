@@ -42,6 +42,7 @@ interface TrackWithCandidates {
   genre: string | null
   artwork_url: string | null
   recording_mbid: string | null
+  file_path: string | null
   candidates: Candidate[]
 }
 
@@ -405,6 +406,11 @@ export default function MBEnrich() {
                       <span className="text-green-400">✓ Already matched</span>
                     )}
                   </div>
+                  {selectedTrack.file_path && (
+                    <p className="text-xs text-gray-600 font-mono mt-1 truncate" title={selectedTrack.file_path}>
+                      {selectedTrack.file_path}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button
