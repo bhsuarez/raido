@@ -86,9 +86,10 @@ async def _set_active_upstream(index: int) -> None:
 
 
 async def _ordered_upstream_indexes() -> list[int]:
-    async with UPSTREAM_STATE_LOCK:
-        start = int(UPSTREAM_STATE.get("active_index", 0)) % len(UPSTREAMS)
-    return [(start + offset) % len(UPSTREAMS) for offset in range(len(UPSTREAMS))]
+    # Always prefer index 0 (primary/chatterbox). When the primary is down the
+    # circuit breaker trips and _request_single_upstream immediately raises 503,
+    # so the failover loop falls through to Kokoro without any long timeout.
+    return list(range(len(UPSTREAMS)))
 
 
 def _get_upstream_metrics(base: str) -> dict[str, Any]:
@@ -402,7 +403,12 @@ async def _mark_upstream_success(index: int) -> None:
         metrics = _get_upstream_metrics(base)
         metrics["last_success"] = time.time()
         metrics["consecutive_failures"] = 0
-        UPSTREAM_STATE["active_index"] = index
+        # Only promote to primary when the primary itself succeeds.
+        # Secondary upstreams (e.g. Kokoro fallback) should never permanently
+        # displace the primary (chatterbox). The circuit breaker handles the
+        # "primary is down" case by short-circuiting attempts for 30s cooldown.
+        if index == 0:
+            UPSTREAM_STATE["active_index"] = 0
 
 
 async def _mark_upstream_failure(index: int) -> None:
