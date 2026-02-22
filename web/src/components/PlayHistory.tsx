@@ -44,7 +44,11 @@ export default function PlayHistory() {
     )
   }
 
-  const tracks = history.tracks || []
+  const tracks = (history.tracks || []).filter((item: any) => {
+    const t = item?.track || {}
+    const isUnknown = (s?: string) => !s || s.toLowerCase().startsWith('unknown')
+    return !(isUnknown(t.title) && isUnknown(t.artist))
+  })
 
   if (tracks.length === 0) {
     return (

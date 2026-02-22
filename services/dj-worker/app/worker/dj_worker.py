@@ -113,7 +113,7 @@ class DJWorker:
         if not hasattr(self, '_placeholder_times'):
             self._placeholder_times: dict = {}
         for tid in list(self._placeholders.keys()):
-            started = self._placeholder_times.get(tid, now)
+            started = self._placeholder_times.get(tid, now - stale_cutoff - 1)
             if now - started > stale_cutoff:
                 cid = self._placeholders.pop(tid, None)
                 self._placeholder_times.pop(tid, None)
@@ -582,12 +582,22 @@ class DJWorker:
             except Exception as e:
                 job.status = JobStatus.FAILED
                 job.error = str(e)
-                logger.error("Commentary job failed", 
+                logger.error("Commentary job failed",
                            error=str(e),
                            track_title=job.track_info.get('title'))
-            
+
             finally:
                 self.current_jobs.pop(job_id, None)
+                # Clear placeholder on any non-success exit so the worker can retry
+                if job.status != JobStatus.READY:
+                    try:
+                        _tid = job.track_info.get('id')
+                        if _tid:
+                            self._placeholders.pop(int(_tid), None)
+                            if hasattr(self, '_placeholder_times'):
+                                self._placeholder_times.pop(int(_tid), None)
+                    except Exception:
+                        pass
     
     async def _save_commentary(
         self,
