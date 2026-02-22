@@ -987,23 +987,7 @@ async def speak(request: SpeakRequest):
             has_prompt=bool(tts_params.get("audio_prompt_path")),
         )
 
-        try:
-            return await _call_upstream_tts(tts_params, bound_logger=req_logger)
-        except HTTPException as http_exc:
-            # Bubble true client errors (bad request, auth, validation) but NOT 404
-            # (404 means the upstream doesn't have this endpoint, fall through to /v1/audio/speech)
-            if http_exc.status_code and http_exc.status_code < 500 and http_exc.status_code != 404:
-                raise
-            req_logger.warning(
-                "GET /tts failed; falling back to /v1/audio/speech",
-                status=http_exc.status_code,
-                detail=str(http_exc.detail),
-            )
-        except Exception as exc:
-            req_logger.warning(
-                "GET /tts threw unexpected error; falling back to /v1/audio/speech",
-                error=str(exc),
-            )
+        # Skip legacy GET /tts — current chatterbox only supports POST /v1/audio/speech
 
         # Use OpenAI-compatible endpoint as fallback when /tts is unavailable
         payload = {
