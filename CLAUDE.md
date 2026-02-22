@@ -126,8 +126,8 @@ Raido is a containerized AI-powered radio station with the following core servic
 - **PostgreSQL** - Primary database for track history, settings, and user data
 
 ### External Integration Services
-- **Chatterbox TTS** - External TTS service (192.168.1.170:8000) accessed via chatterbox-shim proxy
-- **Chatterbox Shim** - Local proxy service (port 18000) providing OpenAI-compatible API for Chatterbox TTS
+- **Chatterbox TTS** - External TTS service (192.168.1.170:8150) accessed via chatterbox-shim proxy; uses `POST /v1/audio/speech` only (no legacy `GET /tts`); 300-char text limit handled by truncation in tts_service.py
+- **Chatterbox Shim** - Local proxy service (port 18000) providing OpenAI-compatible API for Chatterbox TTS with Kokoro fallback; primary upstream always tried first (index 0); circuit breaker short-circuits to Kokoro after 5 consecutive failures (30s cooldown)
 - **Kokoro TTS** - Neural text-to-speech service (runs on port 8091, internal 8880)
 - **Ollama** - Local LLM service for AI commentary generation (enabled)
 - **OpenAI TTS** - Cloud-based TTS service (alternative option)
@@ -171,9 +171,10 @@ Raido is a containerized AI-powered radio station with the following core servic
 - **Providers**: OpenAI GPT models, local Ollama models, or static templates
 - **TTS Options**: Chatterbox TTS (via shim proxy), Kokoro TTS (neural), OpenAI TTS, or XTTS
 - **Flow**: Track change → API → DJ Worker → AI generation → TTS → Audio queue
-- **Configuration**: DJ settings via `.env` (currently: DJ_PROVIDER=ollama, DJ_VOICE_PROVIDER=chatterbox)
+- **Configuration**: DJ settings stored in DB, configurable via Admin UI (not just .env)
 - **Admin UI**: DJ settings configurable via web interface with prompt templates and voice selection
 - **TTS Proxy**: `chatterbox-shim` service provides OpenAI-compatible API for external Chatterbox TTS
+- **Chatterbox UI availability**: Chatterbox option in Voice & TTS Settings only shown when shim health returns `status: running` (`chatterbox_health.status === 'running'` from `/admin/tts-status`)
 
 ### Audio Processing
 - **Music Directory**: `/mnt/music` (supports MP3, FLAC, OGG, WAV)
@@ -346,76 +347,30 @@ make update        # Update and rebuild all services
   - Development: http://localhost:3000 (live reload)
   - Production: http://localhost (via proxy)
 
-## Recent Fixes (September 2025)
+## Recent Fixes (February 2026)
 
-### TTS Audio Playback Issues - RESOLVED
-- **Problem**: TTS files not playing in browser, generating 105-byte error files instead of audio
-- **Root Cause**:
-  1. API client bug in `dj_worker.py:258` - incorrect attribute `session` instead of `client`
-  2. External Chatterbox TTS service connectivity via chatterbox-shim proxy
-- **Fix Applied**:
-  1. Fixed API client HTTP client reference in DJ worker
-  2. Configured chatterbox-shim to proxy requests to external Chatterbox service (192.168.1.170:8000)
-  3. Updated environment configuration for proper TTS service integration
-- **Verification**: Manual TTS tests now generate proper 50KB+ MP3 files accessible via web interface
+### Chatterbox TTS Re-integration - RESOLVED
+- **Chatterbox now at LAN IP:8150** — Docker containers cannot reach Tailscale IPs; changed `CH_SHIM_UPSTREAM` in `docker-compose.yml` from `100.75.98.84:8150` to `192.168.1.170:8150`
+- **Removed legacy GET /tts fallback** — current Chatterbox only supports `POST /v1/audio/speech`; the old `GET /tts` call caused 120s timeouts per attempt (6 min per request), opening the circuit breaker
+- **Fixed active_index sticking on Kokoro** — `_mark_upstream_success` was setting `UPSTREAM_STATE["active_index"]` for any upstream; secondary upstreams (Kokoro) would permanently displace the primary; fixed so only index 0 updates `active_index`, and `_ordered_upstream_indexes` always returns `[0, 1, ...]`
+- **300-char text limit** — Chatterbox rejects text >300 chars; added truncation at word boundary in `services/dj-worker/app/services/tts_service.py` before the TTS call
+- **Chatterbox UI availability** — Chatterbox option in Voice & TTS Settings (`TTSMonitor.tsx`) now conditionally shown based on `chatterbox_health.status === 'running'` from `/admin/tts-status`
 
-### Voice Cloning Interface Removal - RESOLVED
-- **Problem**: Voice cloning page still accessible and visible in navigation
-- **Root Cause**: React routes and navigation components not properly updated
-- **Fix Applied**:
-  1. Removed `/voices` route from `web/src/App.tsx`
-  2. Removed Voice Cloning navigation link from `web/src/components/Layout.tsx`
-  3. Rebuilt frontend with asset cache invalidation (new hash: `index-CMHznLHM.js`)
-- **Verification**: `/voices` now shows 404 page, navigation no longer displays voice cloning option
+### Chatterbox Backend API (192.168.1.170:8150)
+```bash
+# Health check
+GET /health  → 200 OK
+
+# TTS generation (primary endpoint)
+POST /v1/audio/speech
+Body: {"input": "text", "voice": "default", "response_format": "wav"}
+Returns: WAV audio
+
+# List voices
+GET /voices
+```
 
 ### System Status
-- **TTS Provider**: Chatterbox TTS (external) via chatterbox-shim proxy
+- **TTS Provider**: Chatterbox TTS (192.168.1.170:8150) via chatterbox-shim proxy, Kokoro as fallback
 - **AI Provider**: Ollama (local LLM service)
-- **Frontend**: Production build with voice cloning removed
-- **Audio Pipeline**: Fully functional with automated commentary generation
-- Chatterbox Backend Server (Port 8000)
-
-  GET Endpoints:
-
-  - GET /tts - Text-to-speech generation
-    - Parameters:
-        - text (required): Text to synthesize
-      - audio_prompt_path (optional): Path to audio file for voice cloning
-    - Returns: WAV audio file
-  - GET /health - Health check
-    - Returns: {"status": "ok"}
-
-  POST Endpoints:
-
-  - POST /v1/audio/speech - OpenAI-compatible TTS
-    - Body: {"input": "text", "voice": "voice_name"}
-    - Supports voice mapping (e.g., "brian")
-    - Returns: WAV audio file
-
-  Frontend Upload Server (Port 8080)
-
-  GET Endpoints:
-
-  - GET /api/status - Server status
-  - GET /api/voices - List available voices
-
-  POST Endpoints:
-
-  - POST /api/upload-voice - Upload WAV files for voice cloning
-  - POST /api/download-voice - Download audio from URLs using yt-dlp
-
-  Usage Examples:
-
-  # Basic TTS
-  curl "http://192.168.1.170:8000/tts?text=Hello%20world" -o output.wav
-
-  # Voice cloning TTS
-  curl "http://192.168.1.170:8000/tts?text=Hello&audio_prompt_path=/path/to/voice.wav" -o cloned.wav
-
-  # OpenAI-compatible
-  curl -X POST "http://192.168.1.170:8000/v1/audio/speech" \
-    -H "Content-Type: application/json" \
-    -d '{"input": "Hello world", "voice": "brian"}' \
-    -o speech.wav
-
-  All endpoints support CORS and return audio as WAV files.
+- **Christmas station**: Kokoro TTS (not chatterbox)

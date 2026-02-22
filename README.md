@@ -47,8 +47,8 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 ### External TTS Services
 
 ```
-DJ Worker ──► Chatterbox Shim (port 18000) ──► Chatterbox TTS (192.168.1.170:8000)
-           └► Kokoro TTS (port 8091)
+DJ Worker ──► Chatterbox Shim (port 18000) ──► Chatterbox TTS (192.168.1.170:8150)
+           └► Kokoro TTS (port 8091)                     (fallback when shim primary fails)
            └► OpenAI TTS (cloud)
 ```
 
@@ -187,19 +187,33 @@ Chatterbox is an external TTS service accessed via the `chatterbox-shim` proxy:
 # In .env
 DJ_VOICE_PROVIDER=chatterbox
 CHATTERBOX_BASE_URL=http://chatterbox-shim:18000
+
+# Shim upstream (LAN IP required — Docker can't reach Tailscale IPs)
+CH_SHIM_UPSTREAM=http://192.168.1.170:8150,http://kokoro-tts:8880
 ```
 
-The `chatterbox-shim` service proxies requests to the external Chatterbox server at `192.168.1.170:8000`.
+The `chatterbox-shim` service (port 18000) proxies requests to Chatterbox at `192.168.1.170:8150`, falling back to Kokoro if Chatterbox is unreachable. Chatterbox is always tried first; the circuit breaker trips after 5 consecutive failures (30s cooldown) and routes to Kokoro during that window.
 
-**Chatterbox API:**
+**Notes:**
+- Chatterbox has a **300-character text limit** — the DJ worker truncates at word boundary automatically
+- The Voice & TTS Settings UI shows Chatterbox as an option only when the shim reports it healthy
+- Chatterbox uses `POST /v1/audio/speech` (OpenAI-compatible); the legacy `GET /tts` endpoint is not used
+
+**Chatterbox API (direct):**
 ```bash
-# Basic TTS
-curl "http://192.168.1.170:8000/tts?text=Hello%20world" -o output.wav
+# Health check
+curl http://192.168.1.170:8150/health
 
-# OpenAI-compatible
-curl -X POST "http://192.168.1.170:8000/v1/audio/speech" \
+# OpenAI-compatible TTS
+curl -X POST "http://192.168.1.170:8150/v1/audio/speech" \
   -H "Content-Type: application/json" \
-  -d '{"input": "Hello world", "voice": "brian"}' \
+  -d '{"input": "Hello world", "voice": "default", "response_format": "wav"}' \
+  -o speech.wav
+
+# Via shim (as DJ worker uses it)
+curl -X POST "http://localhost:18000/v1/audio/speech" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Hello world", "voice": "default"}' \
   -o speech.wav
 ```
 
