@@ -1,0 +1,16 @@
+{
+  "name": "Raido",
+  "short_name": "Raido",
+  "description": "24/7 AI-powered radio",
+  "start_url": "/now-playing",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#030712",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
