@@ -178,9 +178,8 @@ services:
     build: ./services/chatterbox-shim
     restart: unless-stopped
     environment:
-      # Primary: MacBook chatterbox via Tailscale, Fallback: local Kokoro
-      # MacBook at 100.75.98.84:8150, Kokoro as fallback
-      - CH_SHIM_UPSTREAM=http://100.75.98.84:8150,http://kokoro-tts:8880
+      # Primary: MacBook chatterbox (LAN IP), Fallback: local Kokoro
+      - CH_SHIM_UPSTREAM=http://192.168.1.170:8150,http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
     ports:
