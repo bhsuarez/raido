@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, update, func
 from typing import Optional, Dict, Any
@@ -238,6 +238,34 @@ async def get_now_playing(station: str = Query("main", description="Station iden
     except Exception as e:
         logger.error("Failed to get now playing", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve now playing information")
+
+@router.get("/meta")
+async def get_now_playing_meta(request: Request, station: str = Query("main")):
+    """Flat now-playing response with absolute artwork URL — for Triode / Shortcuts / external clients."""
+    try:
+        base = str(request.base_url).rstrip("/")
+        now = await get_now_playing(station=station)
+        track = now.track
+        if not track:
+            return {"title": "", "artist": "", "album": "", "artwork": ""}
+
+        raw_art = track.get("artwork_url") if isinstance(track, dict) else getattr(track, "artwork_url", None)
+        if raw_art and raw_art.startswith("/"):
+            artwork = f"{base}{raw_art}"
+        else:
+            artwork = raw_art or ""
+
+        t = track if isinstance(track, dict) else track.__dict__
+        return {
+            "title": t.get("title") or "",
+            "artist": t.get("artist") or "",
+            "album": t.get("album") or "",
+            "artwork": artwork,
+        }
+    except Exception as e:
+        logger.error("Failed to get now playing meta", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve now playing metadata")
+
 
 @router.get("/next", response_model=NextUpResponse)
 async def get_next_up(
