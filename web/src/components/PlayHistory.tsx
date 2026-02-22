@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { ClockIcon, MusicIcon, MicIcon, SkipForwardIcon } from 'lucide-react'
 import { usePlayHistory } from '../hooks/useNowPlaying'
 import { formatDistanceToNow } from 'date-fns'
@@ -107,7 +108,7 @@ function HistoryRow({ item, isRecent }: HistoryRowProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-100 truncate">{track.title}</p>
+              <Link to={`/media/tracks/${track.id}`} className="text-sm font-medium text-gray-100 hover:text-primary-400 transition-colors truncate block">{track.title}</Link>
               <p className="text-xs text-gray-400 truncate">{track.artist}</p>
             </div>
             <div className="flex-shrink-0 text-right">

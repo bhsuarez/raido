@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { MusicIcon, ListMusicIcon, BotIcon } from 'lucide-react'
 import { useNextUp } from '../hooks/useNowPlaying'
 
@@ -79,7 +80,7 @@ const ComingUp: React.FC = () => {
         </div>
         <div className="flex-1 min-w-0">
           <p className="section-header mb-1">Up Next</p>
-          <p className="font-semibold text-white truncate">{featured.title}</p>
+          <Link to={`/media/tracks/${featured.id}`} className="font-semibold text-white hover:text-primary-400 transition-colors truncate block">{featured.title}</Link>
           <p className="text-sm text-gray-400 truncate">{featured.artist}</p>
           <div className="flex items-center gap-2 mt-1">
             {featured.genre && (
@@ -119,7 +120,7 @@ const ComingUp: React.FC = () => {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-200 truncate">{track.title}</p>
+                <Link to={`/media/tracks/${track.id}`} className="text-sm font-medium text-gray-200 hover:text-primary-400 transition-colors truncate block">{track.title}</Link>
                 <p className="text-xs text-gray-500 truncate">{track.artist}</p>
               </div>
               {track.duration > 0 && (
