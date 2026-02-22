@@ -74,6 +74,15 @@ export function useTrackFacets() {
   })
 }
 
+export function useTrack(trackId: number | null) {
+  return useQuery<Track>({
+    queryKey: ['track', trackId],
+    queryFn: () => apiHelpers.getTrack(trackId!).then(res => res.data),
+    enabled: trackId !== null,
+    staleTime: 30000,
+  })
+}
+
 export function useMusicBrainzSearch(trackId: number | null) {
   return useQuery<MBCandidate[]>({
     queryKey: ['musicbrainz', trackId],

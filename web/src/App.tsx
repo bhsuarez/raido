@@ -63,6 +63,10 @@ function App() {
             element={<MediaLibrary />}
           />
           <Route
+            path="/media/tracks/:trackId"
+            element={<MediaLibrary />}
+          />
+          <Route
             path="/login"
             element={<LoginPage />}
           />

@@ -120,6 +120,7 @@ export const apiHelpers = {
 
   // Music library and stations
   getTracks: (params?: Record<string, any>) => api.get('/tracks', { params }),
+  getTrack: (trackId: number) => api.get(`/tracks/${trackId}`),
   getTrackFacets: () => api.get('/tracks/facets'),
   searchMusicBrainz: (trackId: number) => api.get(`/tracks/${trackId}/musicbrainz`),
   updateTrack: (trackId: number, data: Record<string, any>) => api.patch(`/tracks/${trackId}`, data),
