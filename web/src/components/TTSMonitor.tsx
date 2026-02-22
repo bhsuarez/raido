@@ -44,6 +44,11 @@ interface TTSStatusResponse {
     has_more: boolean
   }
   system_status: SystemStatus
+  chatterbox_health?: {
+    status: string
+    detail: string | null
+    endpoint: string | null
+  }
 }
 
 // Voice Testing Component
@@ -78,6 +83,11 @@ const VoiceTestSection: React.FC<{
           endpoint = '/admin/tts-test-xtts'
           payload.voice = settings.xtts_voice || 'coqui-tts:en_ljspeech'
           payload.speaker = settings.xtts_speaker
+          break
+
+        case 'chatterbox':
+          endpoint = '/admin/tts-test-chatterbox'
+          payload.voice = settings.chatterbox_voice || ''
           break
 
         default: // kokoro
@@ -214,7 +224,8 @@ const VoiceProviderSection: React.FC<{
   settings: any,
   setSettings: (s: any) => void,
   voices: string[],
-}> = ({ settings, setSettings, voices }) => {
+  chatterboxAvailable: boolean,
+}> = ({ settings, setSettings, voices, chatterboxAvailable }) => {
   const provider = settings?.dj_voice_provider || 'kokoro'
 
   const getVoiceOptions = () => {
@@ -222,6 +233,8 @@ const VoiceProviderSection: React.FC<{
       case 'openai_tts':
         return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
       case 'xtts':
+        return voices.length ? voices : []
+      case 'chatterbox':
         return voices.length ? voices : []
       default: { // kokoro
         const base = voices.length ? voices : [
@@ -238,6 +251,7 @@ const VoiceProviderSection: React.FC<{
     switch (provider) {
       case 'openai_tts': return 'openai_tts_voice'
       case 'xtts': return 'xtts_voice'
+      case 'chatterbox': return 'chatterbox_voice'
       default: return 'kokoro_voice'
     }
   }
@@ -263,13 +277,19 @@ const VoiceProviderSection: React.FC<{
             <option value="openai_tts">OpenAI TTS</option>
             <option value="xtts">XTTS</option>
             <option value="liquidsoap">Liquidsoap</option>
+            {chatterboxAvailable ? (
+              <option value="chatterbox">Chatterbox</option>
+            ) : provider === 'chatterbox' ? (
+              <option value="chatterbox" disabled>Chatterbox (unavailable)</option>
+            ) : null}
           </select>
         </div>
 
         <div>
           <label className="block text-sm text-gray-300 mb-1">
             {provider === 'openai_tts' ? 'OpenAI Voice' :
-             provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
+             provider === 'xtts' ? 'XTTS Voice' :
+             provider === 'chatterbox' ? 'Chatterbox Voice' : 'Kokoro Voice'}
           </label>
           <select
             className="input w-full"
@@ -484,6 +504,9 @@ const TTSMonitor: React.FC = () => {
       try {
         if (provider === 'xtts') {
           const res = await api.get('/admin/voices-xtts')
+          setVoices(res.data?.voices || [])
+        } else if (provider === 'chatterbox') {
+          const res = await api.get('/admin/voices-chatterbox')
           setVoices(res.data?.voices || [])
         } else {
           const res = await api.get('/admin/voices')
@@ -706,6 +729,7 @@ const TTSMonitor: React.FC = () => {
               settings={settings}
               setSettings={setSettings}
               voices={voices}
+              chatterboxAvailable={ttsStatus?.chatterbox_health?.status === 'running'}
             />
             
             {/* AI Model Settings - only show if using Ollama */}
