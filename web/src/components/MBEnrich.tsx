@@ -9,7 +9,7 @@
  */
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, X, SkipForward, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { Check, X, SkipForward, ChevronLeft, ChevronRight, Search, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 const API = '/api/v1'
@@ -164,6 +164,7 @@ export default function MBEnrich() {
   const [lookupUrl, setLookupUrl] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupError, setLookupError] = useState<string | null>(null)
+  const [mobileShowDetail, setMobileShowDetail] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated()) navigate('/login')
@@ -350,9 +351,9 @@ export default function MBEnrich() {
       )}
 
       {/* Main split panel */}
-      <div className="flex gap-4 min-h-[500px]">
-        {/* Track list (left) */}
-        <div className="w-72 flex-shrink-0 card overflow-y-auto max-h-[70vh]">
+      <div className="flex gap-4 md:min-h-[500px]">
+        {/* Track list — hidden on mobile when viewing detail */}
+        <div className={`${mobileShowDetail ? 'hidden md:block' : 'block'} md:w-72 md:flex-shrink-0 w-full card overflow-y-auto max-h-[60vh] md:max-h-[70vh]`}>
           {loading && tracks.length === 0 ? (
             <div className="p-4 text-gray-400 text-sm text-center">Loading…</div>
           ) : tracks.length === 0 ? (
@@ -365,7 +366,7 @@ export default function MBEnrich() {
               {tracks.map((t, idx) => (
                 <li
                   key={t.id}
-                  onClick={() => setSelectedIdx(idx)}
+                  onClick={() => { setSelectedIdx(idx); setMobileShowDetail(true) }}
                   className={`px-3 py-2.5 cursor-pointer border-b border-gray-800 transition-colors ${
                     idx === selectedIdx ? 'bg-primary-900/40 border-l-2 border-l-primary-500' : 'hover:bg-gray-800/50'
                   }`}
@@ -388,8 +389,8 @@ export default function MBEnrich() {
           )}
         </div>
 
-        {/* Detail panel (right) */}
-        <div className="flex-1 min-w-0">
+        {/* Detail panel — hidden on mobile when viewing list */}
+        <div className={`${mobileShowDetail ? 'block' : 'hidden md:block'} flex-1 min-w-0`}>
           {selectedTrack ? (
             <div className="card p-5 space-y-4">
               {/* Track header */}
@@ -413,6 +414,14 @@ export default function MBEnrich() {
                   )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
+                  {/* Back to list — mobile only */}
+                  <button
+                    onClick={() => setMobileShowDetail(false)}
+                    className="md:hidden p-1.5 rounded bg-gray-700 hover:bg-gray-600 transition-colors"
+                    title="Back to list"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => setSelectedIdx(i => Math.max(i - 1, 0))}
                     disabled={selectedIdx === 0}
@@ -486,8 +495,8 @@ export default function MBEnrich() {
                 </div>
               )}
 
-              {/* Keyboard hint */}
-              <p className="text-xs text-gray-600 pt-1">
+              {/* Keyboard hint — desktop only */}
+              <p className="hidden md:block text-xs text-gray-600 pt-1">
                 Shortcuts: <kbd className="bg-gray-700 px-1 rounded">A</kbd> approve top &nbsp;
                 <kbd className="bg-gray-700 px-1 rounded">S</kbd> skip &nbsp;
                 <kbd className="bg-gray-700 px-1 rounded">←</kbd><kbd className="bg-gray-700 px-1 rounded">→</kbd> navigate
