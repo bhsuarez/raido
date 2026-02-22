@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { SearchIcon, FilterIcon } from 'lucide-react'
-import { useTracks, useTrackFacets, Track, TrackFilters, TracksResult } from '../hooks/useMediaLibrary'
+import { useTracks, useTrackFacets, useTrack, Track, TrackFilters, TracksResult } from '../hooks/useMediaLibrary'
 import TrackMetadataPanel from './TrackMetadataPanel'
 import { apiHelpers } from '../utils/api'
 
@@ -21,6 +22,10 @@ function formatDuration(sec: number | null): string {
 }
 
 export default function MediaLibrary() {
+  const { trackId: trackIdParam } = useParams<{ trackId?: string }>()
+  const navigate = useNavigate()
+  const parsedTrackId = trackIdParam ? parseInt(trackIdParam, 10) : null
+
   const [search, setSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState<string>('')
   const [selectedArtist, setSelectedArtist] = useState<string>('')
@@ -29,6 +34,23 @@ export default function MediaLibrary() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [noArtwork, setNoArtwork] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+
+  // Fetch track by ID when navigating via permalink
+  const { data: trackFromParam } = useTrack(parsedTrackId)
+
+  // When URL has no track param, clear the panel
+  useEffect(() => {
+    if (parsedTrackId === null) {
+      setSelectedTrack(null)
+    }
+  }, [parsedTrackId])
+
+  // When track data loads from permalink, open the panel
+  useEffect(() => {
+    if (trackFromParam) {
+      setSelectedTrack(trackFromParam)
+    }
+  }, [trackFromParam])
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -240,7 +262,7 @@ export default function MediaLibrary() {
               {tracks.map(track => (
                 <button
                   key={track.id}
-                  onClick={() => setSelectedTrack(track)}
+                  onClick={() => { setSelectedTrack(track); navigate(`/media/tracks/${track.id}`) }}
                   className="w-full card hover:bg-gray-800 transition-colors p-3 flex items-center gap-3 text-left"
                 >
                   {/* Artwork */}
@@ -295,7 +317,7 @@ export default function MediaLibrary() {
       {selectedTrack && (
         <TrackMetadataPanel
           track={selectedTrack}
-          onClose={() => setSelectedTrack(null)}
+          onClose={() => { setSelectedTrack(null); navigate('/media') }}
           onTrackUpdated={(updated) => setSelectedTrack(updated)}
         />
       )}

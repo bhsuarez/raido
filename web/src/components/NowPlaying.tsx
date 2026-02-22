@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { SkipForwardIcon, MusicIcon, BarChart2Icon } from 'lucide-react'
+import { SkipForwardIcon, MusicIcon, BarChart2Icon, PencilIcon } from 'lucide-react'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
@@ -91,9 +91,18 @@ const NowPlaying: React.FC = () => {
         <div className="flex-1 p-5 lg:p-7 flex flex-col justify-between gap-5">
           {/* Track metadata */}
           <div className="space-y-1">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
-              {track.title}
-            </h2>
+            <div className="flex items-start gap-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white leading-tight flex-1">
+                {track.title}
+              </h2>
+              <Link
+                to={`/media/tracks/${track.id}`}
+                title="Edit track metadata"
+                className="flex-shrink-0 mt-1 p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </Link>
+            </div>
             <p className="text-lg text-gray-300 font-medium">{track.artist}</p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {track.genre && (
