@@ -254,8 +254,12 @@ class TTSService:
             clean_text = text.replace('<speak>', '').replace('</speak>', '')
             clean_text = clean_text.replace('<break time="400ms"/>', ' ')
 
+            # Chatterbox has a 300-char limit — truncate at word boundary
+            if len(clean_text) > 300:
+                clean_text = clean_text[:300].rsplit(' ', 1)[0]
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
+
             # Use voice override or default
             use_voice = voice_override or settings.CHATTERBOX_VOICE
             use_exaggeration = exaggeration_override or settings.CHATTERBOX_EXAGGERATION
