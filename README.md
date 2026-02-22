@@ -4,16 +4,19 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 
 ## Features
 
-- **🎵 24/7 Music Streaming**: Continuous music playback from your collection
-- **🤖 AI DJ Commentary**: Dynamic commentary generated using OpenAI or Ollama
+- **24/7 Music Streaming**: Continuous music playback from your local collection
+- **AI DJ Commentary**: Dynamic commentary generated using Ollama (local) or OpenAI
   - Configurable prompt templates via DJ Admin interface
-- **🎙️ Multiple TTS Options**: Kokoro TTS, OpenAI TTS, or XTTS
-- **📱 Modern Web Interface**: Responsive React frontend with real-time updates
-- **🔄 Live Updates**: WebSocket integration for real-time track changes
-- **📊 Admin Dashboard**: Configure DJ settings, monitor stats, manage users
-- **🎨 Modern UI**: Clean dark-mode web interface
-- **🐳 Docker Ready**: Fully containerized with Docker Compose
-- **📈 Observability**: Structured logging and health monitoring
+- **Multiple TTS Options**: Chatterbox TTS (primary), Kokoro TTS, OpenAI TTS, or XTTS
+- **Modern Web Interface**: Responsive React frontend with real-time updates
+- **Live Updates**: WebSocket integration for real-time track changes
+- **Media Library**: Browse, search, and filter your music collection with track permalinks
+- **Metadata Editing**: Edit track metadata inline with MusicBrainz lookup support
+- **MusicBrainz Enrichment**: Bulk and per-track enrichment from MusicBrainz database
+- **Admin Dashboard**: Configure DJ settings, monitor TTS activity, manage stations
+- **Analytics**: Track play counts, history, and upcoming queue
+- **Docker Ready**: Fully containerized with Docker Compose
+- **Observability**: Structured logging, health endpoints, and Signal monitoring alerts
 
 ## Architecture
 
@@ -37,13 +40,16 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
                   │              │                │
          ┌─────────────────┐     │       ┌─────────────────┐
          │   Caddy Proxy   │     │       │   Music Files   │
-         │   (HTTPS)       │     │       │   (/music)      │
+         │   (HTTPS)       │     │       │   (/mnt/music)  │
          └─────────────────┘     │       └─────────────────┘
-                                 │
-                        ┌─────────────────┐
-                        │   Redis Cache   │
-                        │   (Optional)    │
-                        └─────────────────┘
+```
+
+### External TTS Services
+
+```
+DJ Worker ──► Chatterbox Shim (port 18000) ──► Chatterbox TTS (192.168.1.170:8000)
+           └► Kokoro TTS (port 8091)
+           └► OpenAI TTS (cloud)
 ```
 
 ## Quick Start
@@ -70,13 +76,15 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
 3. **Configure environment**:
    Edit `.env` file with your settings:
    ```bash
-   # Required for AI commentary
-   OPENAI_API_KEY=sk-your-openai-api-key-here
-   
+   # AI commentary provider (ollama or openai)
+   DJ_PROVIDER=ollama
+   OPENAI_API_KEY=sk-your-openai-api-key-here  # Required if using openai
+
+   # TTS provider (chatterbox, kokoro, openai_tts, or xtts)
+   DJ_VOICE_PROVIDER=chatterbox
+
    # Database password
    POSTGRES_PASSWORD=your_secure_password
-   
-   # Other settings...
    ```
 
 4. **Add music**:
@@ -89,317 +97,237 @@ A 24/7 AI-powered radio station with live DJ commentary, built with modern web t
    ```bash
    # Option 1: Full production setup (recommended)
    make production-setup
-   
+
    # Option 2: Manual production build and start
-   make build  # Build all services with production optimizations
-   make up     # Start all services in production mode
-   make migrate # Run database migrations
-   
+   make build    # Build all services with production optimizations
+   make up       # Start all services in production mode
+   make migrate  # Run database migrations
+
    # Option 3: Selective service deployment
-   docker compose build web api dj-worker  # Build core services
+   docker compose build web api dj-worker
    docker compose up -d proxy api web icecast liquidsoap dj-worker
    make migrate
+   ```
+
+6. **Scan your music library**:
+   ```bash
+   curl -X GET "http://localhost:8001/api/v1/metadata/scan_music_directory"
+   # Then extract embedded artwork
+   curl -X POST "http://localhost:8001/api/v1/artwork/batch_extract?limit=100"
    ```
 
 ### Access Points (production)
 
 - **Web UI**: http://localhost
-- **DJ Admin**: http://localhost/tts
+- **DJ Admin**: http://localhost/raido/admin
 - **API (via proxy)**: http://localhost/api/v1
 - **Stream**: http://localhost:8000/raido.mp3
 - **pgAdmin**: http://localhost:5050
 
-## Ollama Prompt Template & Remote Ollama
+## Web Interface
 
-### Edit Ollama Prompt Template (Dev & Prod)
-- Open the DJ Admin at `/tts`.
-- Set "Commentary Provider" to `Ollama`.
-- Use the new "Prompt Template" textarea to customize the DJ prompt.
-  - Supports Jinja variables: `{{song_title}}`, `{{artist}}`, `{{album}}`, `{{year}}`.
-- Click "Save Settings" — changes apply immediately to the DJ worker.
+### Pages
 
-### Point DJ Worker to a Remote Ollama Server
-If you run Ollama on another host (recommended for low-resource boxes):
-- Set in `.env` on the Raido host: `OLLAMA_BASE_URL=http://<remote-ip>:11434`
-- Restart the worker: `docker compose restart dj-worker`
-- Verify from worker container: `curl http://<remote-ip>:11434/api/tags` returns 200.
+| Path | Description |
+|------|-------------|
+| `/now-playing` | Live now-playing display with progress and skip |
+| `/media` | Music library with search, filters, and metadata editing |
+| `/media/tracks/:id` | Track permalink — direct link to a track's metadata panel |
+| `/raido/admin` | DJ Admin — TTS settings, prompt templates, voice selection |
+| `/raido/enrich` | Bulk MusicBrainz metadata enrichment |
+| `/analytics` | Play history and track statistics |
+| `/stations` | Station management |
+| `/history` | Recent play history with commentary |
 
-### Disable Local Ollama Service (to save CPU/RAM)
-We disabled the local `ollama` service in `docker-compose.yml` so it won’t start in future `make up` runs. If you need it again, re-enable that service block.
+### Track Permalinks & Metadata Editing
 
-### Switch DJ Provider to Ollama
-You can set via the Admin UI (DJ Admin → Commentary Provider → Ollama) or API:
+Every track has a permanent URL at `/media/tracks/:id`. You can:
+
+- Click any track in the Media Library to open its metadata panel and update the URL
+- Click the pencil icon next to the current track title in Now Playing to jump directly to its edit panel
+- Share or bookmark `/media/tracks/123` to return directly to a specific track
+- Edit title, artist, album, year, and genre inline and save to both the database and audio file tags
+- Search MusicBrainz for matching releases and apply artwork, metadata, and MBIDs with one click
+- Paste a MusicBrainz release URL or UUID for a manual lookup
+
+## AI Commentary
+
+### Ollama (Local LLM)
+
 ```bash
-curl -X POST -H 'Content-Type: application/json' \
-  -d '{"dj_provider":"ollama"}' \
-  http://localhost/api/v1/admin/settings
+# Point DJ Worker to a remote Ollama server
+OLLAMA_BASE_URL=http://<remote-ip>:11434
+
+# Restart the worker after changes
+docker compose restart dj-worker
+
+# Verify connectivity
+curl http://<remote-ip>:11434/api/tags
 ```
 
-### Recommended Models
+**Recommended models:**
 - Lightweight: `llama3.2:1b` (fast on CPU)
-- Balanced: `llama3.2:3b` or `llama3.1:8b` (needs more resources)
+- Balanced: `llama3.2:3b` or `llama3.1:8b`
+
+### Prompt Template
+
+- Open DJ Admin at `/raido/admin`
+- Set "Commentary Provider" to `Ollama` or `OpenAI`
+- Edit the Prompt Template textarea — supports Jinja variables:
+  - `{{song_title}}`, `{{artist}}`, `{{album}}`, `{{year}}`
+- Click "Save Settings" — applies immediately to the DJ worker
+
+## TTS Configuration
+
+### Chatterbox TTS (Primary)
+
+Chatterbox is an external TTS service accessed via the `chatterbox-shim` proxy:
+
+```bash
+# In .env
+DJ_VOICE_PROVIDER=chatterbox
+CHATTERBOX_BASE_URL=http://chatterbox-shim:18000
+```
+
+The `chatterbox-shim` service proxies requests to the external Chatterbox server at `192.168.1.170:8000`.
+
+**Chatterbox API:**
+```bash
+# Basic TTS
+curl "http://192.168.1.170:8000/tts?text=Hello%20world" -o output.wav
+
+# OpenAI-compatible
+curl -X POST "http://192.168.1.170:8000/v1/audio/speech" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Hello world", "voice": "brian"}' \
+  -o speech.wav
+```
+
+### Kokoro TTS
+
+High-quality neural TTS, runs locally on port 8091:
+
+```bash
+DJ_VOICE_PROVIDER=kokoro
+KOKORO_BASE_URL=http://kokoro-tts:8880
+KOKORO_VOICE=am_onyx   # am_onyx, af_bella, etc.
+KOKORO_SPEED=1.0
+```
+
+```bash
+cd kokoro-tts
+./start-cpu.sh   # CPU inference
+./start-gpu.sh   # GPU inference (requires NVIDIA GPU)
+```
+
+List available voices:
+```bash
+curl http://localhost/api/v1/admin/voices | jq .voices
+```
+
+### OpenAI TTS
+
+```bash
+DJ_VOICE_PROVIDER=openai_tts
+OPENAI_API_KEY=sk-your-key-here
+```
+
+### XTTS (Experimental)
+
+Docker Compose defines an `xtts-server` service using `synesthesiam/opentts:en` on port 5500:
+
+```bash
+DJ_VOICE_PROVIDER=xtts
+XTTS_BASE_URL=http://xtts-server:5500
+```
+
+Switch via DJ Admin: `/raido/admin` → Voice Provider → XTTS.
 
 ## Development
 
-### Development Setup & Build Process
+### Quick Start
 
-**Quick Development Start:**
 ```bash
 # Complete development environment setup
 make dev-setup
-# This runs: setup → build → up-dev → migrate
+# Runs: setup → build → up-dev → migrate
 ```
 
-**Manual Development Setup:**
+### Manual Setup
+
 ```bash
-# 1. Initial setup
-make setup  # Create .env, directories
-
-# 2. Build all development containers
-make build  # Builds api, dj-worker, web services
-
-# 3. Start development stack with live reload
-make up-dev  # Uses docker-compose.override.yml
+make setup      # Create .env, directories
+make build      # Build all containers
+make up-dev     # Start with live reload (docker-compose.override.yml)
 ```
 
-### Development Build Commands
+### Development URLs
 
-**Container Builds:**
-```bash
-# Build all services
-make build
-docker compose build
-
-# Build individual services
-docker compose build api        # FastAPI backend
-docker compose build dj-worker  # AI commentary worker  
-docker compose build web        # React frontend (production)
-
-# Development web service (live reload)
-# Built automatically when using make up-dev
-```
-
-**Development vs Production Builds:**
-```bash
-# Development: Live reload with source mounting
-make up-dev
-# Uses web-dev service with Vite dev server
-# Source code mounted for instant updates
-
-# Production: Optimized static build  
-make build && make up
-# Creates production React build served by nginx
-
-### Dev & Prod Parity for DJ Admin
-- The DJ Admin prompt editor exists in both dev (`web-dev`) and prod (`web`).
-- In dev, changes are hot-reloaded; in prod, the UI ships in the built `web` image.
-```
-
-### Development Workflow
-
-**Dev Stack Management:**
-```bash
-# Start dev stack (Caddy→Vite @ :3000, API @ :8001)
-make up-dev
-
-# Service management
-make restart-dev     # restart api, web-dev, proxy
-make restart-web     # restart web-dev only
-make restart-api     # restart api only
-make down-dev        # stop dev stack
-
-# Monitoring
-make logs-web        # tail web-dev logs (Vite)
-make logs-api        # tail api logs
-make logs-proxy      # tail proxy logs
-make status          # show container status
-```
-
-**Development URLs:**
-- **Web UI**: http://localhost:3000 (Caddy → Vite with HMR)  
-- **API Direct**: http://localhost:8001 (health at /health)
+- **Web UI**: http://localhost:3000 (Caddy → Vite with HMR)
+- **API Direct**: http://localhost:8001 (health at `/health`)
 - **Stream**: http://localhost:8000/raido.mp3
 - **Database Admin**: http://localhost:8081 (Adminer)
 
-### Build Architecture
+### Build Commands
 
-**Development Environment:**
-- **web-dev**: Node.js container running Vite dev server
-- **API**: Python FastAPI with `--reload` flag
-- **Source Mounting**: Code changes trigger automatic rebuilds
-- **Hot Module Replacement**: Instant frontend updates
-- **Override Configuration**: Uses `docker-compose.override.yml`
-
-**Production Environment:**  
-- **web**: Multi-stage build (Node.js build → nginx serve)
-- **Optimized Assets**: Minified, bundled, cached
-- **Reverse Proxy**: All traffic through Caddy
-- **SSL Termination**: HTTPS handled by proxy layer
-
-### Rebuilding After Changes
-
-**Frontend Changes:**
 ```bash
-# Development (automatic)
-# Changes to web/ trigger Vite HMR automatically
-
-# Production rebuild  
-docker compose build web
-make restart  # or: docker compose up -d web
-```
-
-**Backend Changes:**
-```bash
-# Development (automatic)  
-# Python changes trigger uvicorn reload automatically
-
-# Production rebuild
-docker compose build api        # rebuild API
-docker compose build dj-worker # rebuild DJ worker
-make restart                   # restart services
-```
-
-**Environment Changes:**
-```bash
-# After .env changes
-make restart        # restart all services
-make restart-dev    # restart dev services only
-```
-
-### Monitoring & Alerts
-
-- A lightweight `monitor` service runs in the stack and periodically checks API, Web, and Stream availability.
-- To enable Slack alerts on failures, set `ALERT_SLACK_WEBHOOK` in your `.env` file.
-- You can also run `make health` locally; it checks host ports (API on `8001`, Web on `3000`, Stream on `8000`).
-
-## Build & Container Reference
-
-### Service Build Details
-
-**API Service (`services/api/`):**
-```dockerfile
-# Built from: services/api/Dockerfile  
-# Base: python:3.11-slim
-# Features: FastAPI, Alembic, PostgreSQL drivers
-# Optimization: Multi-stage build, dependency caching
-```
-
-**DJ Worker (`services/dj-worker/`):**
-```dockerfile  
-# Built from: services/dj-worker/Dockerfile
-# Base: python:3.11-slim  
-# Features: OpenAI, Ollama clients, TTS integrations
-# Optimization: AI/ML dependencies, model caching
-```
-
-**Web Frontend (`web/`):**
-```dockerfile
-# Built from: web/Dockerfile
-# Stage 1: node:18 (build React app)
-# Stage 2: nginx:alpine (serve static files)
-# Features: Vite build, TypeScript, Tailwind CSS
-# Optimization: Multi-stage, static asset serving
-```
-
-### Build Commands Reference
-
-**Complete Build Commands:**
-```bash
-# Full stack build
-make build                          # Build all services
-docker compose build               # Alternative full build
-docker compose build --no-cache    # Clean rebuild
-
-# Production optimized builds  
-make production-setup              # Complete production setup
-docker compose build --pull       # Rebuild with latest base images
-
-# Development builds
-make dev-setup                     # Complete dev environment
-make up-dev                       # Start with development overrides
-```
-
-**Individual Service Builds:**
-```bash
-# Backend services
-docker compose build api          # FastAPI backend
-docker compose build dj-worker    # AI commentary worker
-
-# Frontend builds  
-docker compose build web          # Production React build (nginx)
-# Note: web-dev service uses mounted source, no build needed
-
-# Infrastructure
-docker compose pull kokoro-tts    # Neural TTS service
-docker compose pull ollama        # LLM service  
-```
-
-**Build Troubleshooting:**
-```bash
-# Clean rebuild after issues
-make clean                        # Remove containers and volumes
-docker system prune -af           # Remove all unused containers
-make build                        # Fresh rebuild
-
-# Check build context and caches
-docker compose build --progress=plain api  # Verbose build output
-docker builder prune                       # Clear build cache
-```
-
-### Production Deployment Guide
-
-**Full Production Setup:**
-```bash
-# 1. Initial setup and configuration
-make setup
-# Edit .env with production values (passwords, API keys, domains)
-
-# 2. Build production containers  
+# Build all services
 make build
 
-# 3. Deploy services
-make up      # or: docker compose up -d
+# Build individual services
+docker compose build api         # FastAPI backend
+docker compose build dj-worker   # AI commentary worker
+docker compose build web         # React frontend (production nginx)
 
-# 4. Initialize database
-make migrate
+# Rebuild after frontend changes
+docker compose build web && make restart
 
-# 5. Verify deployment
-make health
-make status
+# Verbose build output
+docker compose build --progress=plain api
 ```
 
-**Production Build Optimizations:**
-- **Static Assets**: React app built and minified
-- **Multi-stage Builds**: Smaller final images  
-- **Dependency Caching**: Faster rebuilds
-- **Security**: Non-root users in containers
-- **SSL**: HTTPS termination via Caddy proxy
-- **Resource Limits**: Memory and CPU constraints
+### Workflow
 
-**Scaling Considerations:**
 ```bash
-# Resource monitoring
-make monitoring               # Container resource usage
-docker stats                 # Real-time container stats
-
-# Service scaling (if needed)  
-docker compose up -d --scale dj-worker=2  # Scale DJ workers
+make up-dev          # Start dev stack
+make restart-dev     # Restart api, web-dev, proxy
+make restart-web     # Restart web-dev only
+make restart-api     # Restart api only
+make down-dev        # Stop dev stack
+make logs-web        # Tail web-dev logs (Vite)
+make logs-api        # Tail API logs
+make status          # Show container status
 ```
+
+### Production Deployment
+
+```bash
+make setup          # Initial setup and .env configuration
+make build          # Build production containers
+make up             # Start all services
+make migrate        # Run database migrations
+make health         # Verify deployment
+make status         # Container status
+```
+
+**Production optimizations:**
+- Static React assets minified and bundled
+- Multi-stage Docker builds for smaller images
+- Non-root users in all containers
+- HTTPS termination via Caddy proxy
+- Memory and CPU limits per service
 
 ## Configuration
 
 ### DJ Settings
 
-Configure AI commentary in `.env`:
-
 ```bash
-# AI Provider (openai, ollama, or templates)
+# AI Provider (ollama or openai)
 DJ_PROVIDER=ollama
-OPENAI_API_KEY=your-key-here  # Required if using openai
+OPENAI_API_KEY=your-key-here
 
-# TTS Provider (kokoro, openai_tts, or xtts)
-DJ_VOICE_PROVIDER=kokoro
-
+# TTS Provider (chatterbox, kokoro, openai_tts, or xtts)
+DJ_VOICE_PROVIDER=chatterbox
 
 # Commentary frequency (1 = after every song)
 DJ_COMMENTARY_INTERVAL=1
@@ -407,93 +335,30 @@ DJ_COMMENTARY_INTERVAL=1
 # Max commentary length in seconds
 DJ_MAX_SECONDS=30
 
-# DJ personality
-DJ_TONE=energetic
+# Station identity
 STATION_NAME="Raido"
+DJ_TONE=energetic
 ```
-
-### Kokoro TTS Settings
-
-For high-quality neural TTS using Kokoro:
-
-```bash
-# TTS Provider
-DJ_VOICE_PROVIDER=kokoro
-
-# Kokoro TTS Configuration
-KOKORO_BASE_URL=http://kokoro-tts:8880
-KOKORO_VOICE=am_onyx  # Available voices: am_onyx, af_bella, etc.
-KOKORO_SPEED=1.0
-```
-
-**Starting Kokoro TTS:**
-```bash
-cd kokoro-tts
-./start-cpu.sh  # For CPU inference
-# or
-./start-gpu.sh  # For GPU inference (requires NVIDIA GPU)
-```
-
-List all voices through the API:
-```bash
-curl http://localhost/api/v1/admin/voices | jq .voices
-```
-
-### XTTS (Experimental)
-
-You can try XTTS via an OpenTTS container to compare synthesis speed/quality.
-
-1) Docker Compose already defines an `xtts-server` service using `synesthesiam/opentts:en`.
-   - It listens on `5500` inside the Docker network.
-   - Set `XTTS_BASE_URL=http://xtts-server:5500` in your environment (see `.env.example`).
-   - Choose a voice that OpenTTS provides for XTTS (e.g., `coqui-xtts-high`).
-
-2) Switch the voice provider in the DJ Admin UI:
-   - Navigate to `/tts` in the Web UI.
-   - Set “Voice Provider” to `XTTS`.
-   - Optionally adjust voice name under settings if needed.
-
-3) Observe generation time in the TTS dashboard:
-   - Recent activity lists per-item `TTS` timing.
-   - The “Avg TTS Time” card shows average over the window.
-
-Notes:
-- The worker attempts two API styles: POST `${XTTS_BASE_URL}/tts` and GET `${XTTS_BASE_URL}/api/tts` (OpenTTS).
-- You can tail logs with `make logs-xtts`.
 
 ### Stream Settings
 
 ```bash
-# Stream quality
 ICECAST_BITRATE=128
 STREAM_FORMAT=mp3
-
-# Crossfade between tracks
 CROSSFADE_DURATION=2.0
 ```
 
 ### Security
 
-For production deployment:
-
 ```bash
-# Use strong passwords
 POSTGRES_PASSWORD=very-secure-password
 JWT_SECRET=very-long-random-secret-key
-
-# Set allowed origins
 CORS_ORIGINS=https://yourdomain.com
-
-# Configure HTTPS in Caddy
 ```
 
 ## Music Library
 
-Raido supports:
-- **MP3** (recommended)
-- **FLAC** (high quality)
-- **OGG Vorbis**
-- **WAV**
+**Supported formats:** MP3, FLAC, OGG Vorbis, WAV
 
 ### File Organization
 
@@ -502,7 +367,7 @@ music/
 ├── Artist1/
 │   ├── Album1/
 │   │   ├── 01 - Song1.mp3
-│   │   ├── 02 - Song2.mp3
+│   │   └── 02 - Song2.mp3
 │   └── Album2/
 ├── Artist2/
 └── Various/
@@ -510,48 +375,78 @@ music/
 
 ### Metadata
 
-Raido reads ID3 tags for:
-- Title, Artist, Album
-- Year, Genre
-- Embedded artwork
-- Duration
+Raido reads ID3 tags for title, artist, album, year, genre, embedded artwork, and duration. After scanning, use the Media Library at `/media` to edit metadata per-track or the MusicBrainz enrichment tool at `/raido/enrich` for bulk updates.
 
-## API Documentation
+## Monitoring & Alerts
 
-### Core Endpoints
+A lightweight monitor service checks API, Web, and Stream availability and sends **Signal** notifications on failure.
 
-- `GET /api/v1/now` - Current playing track
-- `GET /api/v1/now/history` - Play history
-- `GET /api/v1/now/next` - Upcoming tracks
-- `WS /ws` - Real-time updates
+```bash
+# Start monitoring
+cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
 
-### Admin Endpoints
+# Configure Signal notifications
+cp monitoring/.env.monitoring.example monitoring/.env.monitoring
+# Edit .env.monitoring with your Signal phone numbers
+```
 
-- `GET /api/v1/admin/settings` - Get settings
-- `POST /api/v1/admin/settings` - Update settings
-- `GET /api/v1/admin/stats` - System statistics
-- `GET /api/v1/admin/voices` - List Kokoro voices (proxy)
-- `GET /api/v1/admin/tts-status?window_hours=24&limit=100` - TTS activity window + pagination
+See [monitoring/README.md](monitoring/README.md) for full setup instructions.
 
-See `/docs` endpoint for full API documentation.
+Local health check:
+```bash
+make health   # Checks API (8001), Web (3000), Stream (8000)
+```
+
+## API Reference
+
+### Now Playing
+
+```
+GET  /api/v1/now                   Current playing track + progress
+GET  /api/v1/now/history           Recent play history
+GET  /api/v1/now/next              Upcoming tracks
+WS   /ws                           Real-time WebSocket updates
+```
+
+### Tracks
+
+```
+GET   /api/v1/tracks               List/search tracks (search, genre, artist, sort, page)
+GET   /api/v1/tracks/facets        Distinct genres, artists, albums for filters
+GET   /api/v1/tracks/{id}          Get single track
+PATCH /api/v1/tracks/{id}          Update track metadata (writes ID3 tags to file)
+GET   /api/v1/tracks/{id}/musicbrainz               Search MusicBrainz
+GET   /api/v1/tracks/{id}/musicbrainz/release/{mbid} Lookup specific release
+```
+
+### Admin
+
+```
+GET  /api/v1/admin/settings        Get DJ/station settings
+POST /api/v1/admin/settings        Update settings
+GET  /api/v1/admin/stats           System statistics
+GET  /api/v1/admin/voices          List available TTS voices
+GET  /api/v1/admin/tts-status      TTS activity window and pagination
+```
+
+Full interactive docs at `/docs` (Swagger UI).
 
 ## Troubleshooting
-
-### Common Issues
 
 **No audio playing:**
 ```bash
 make logs-liquidsoap
-# Check for music files in ./music directory
+# Check for music files in ./music
 # Verify file permissions
 ```
 
 **DJ commentary not working:**
 ```bash
 make logs-dj
-# Verify Provider/Voice Provider in DJ Admin (/tts)
-# Ensure Kokoro is running (http://localhost:8091/health)
-# Check Ollama model exists and base URL is correct
+# Verify Provider/Voice Provider in DJ Admin (/raido/admin)
+# Check Chatterbox shim: curl http://localhost:18000/health
+# Check Kokoro: curl http://localhost:8091/health
+# Check Ollama: curl http://<ollama-host>:11434/api/tags
 # Press Skip to force an intro
 ```
 
@@ -565,11 +460,11 @@ make logs-api
 **Web interface not loading:**
 ```bash
 make logs-proxy
-# Dev: ensure web-dev is up (make logs-web) and proxy uses Caddyfile.dev
-# Prod: rebuild web (docker compose build web) and restart
+# Dev: ensure web-dev is up and proxy uses Caddyfile.dev
+# Prod: docker compose build web && make restart
 ```
 
-If PostgreSQL shows a manifest/`ContainerConfig` error:
+**PostgreSQL container error:**
 ```bash
 docker compose down -v
 docker image rm postgres:16 || true
@@ -578,26 +473,26 @@ docker compose pull db
 docker compose up -d db
 ```
 
-See also: `instructions.md` for a step-by-step runbook.
+See [RECOVERY.md](RECOVERY.md) for detailed recovery procedures and [instructions.md](instructions.md) for a step-by-step runbook.
 
 ## Screenshots
 
 - Home: `docs/screenshots/home.png`
 - DJ Admin: `docs/screenshots/dj-admin.png`
 
-### Debugging
+## Build Troubleshooting
 
-Enable debug logging:
 ```bash
-# In .env
-APP_DEBUG=true
-LOG_LEVEL=debug
-```
+# Clean rebuild after issues
+make clean
+docker system prune -af
+make build
 
-Check service status:
-```bash
-make status
-make health
+# Clear build cache
+docker builder prune
+
+# Verbose build output
+docker compose build --progress=plain api
 ```
 
 ## Contributing
@@ -605,7 +500,7 @@ make health
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes
-4. Run tests: `make test`
+4. Run linters: `make lint`
 5. Format code: `make format`
 6. Submit a pull request
 
@@ -619,9 +514,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Icecast**: Streaming server
 - **FastAPI**: Modern Python web framework
 - **React**: Frontend library
-- **OpenAI**: AI commentary generation
+- **Ollama**: Local LLM inference
+- **MusicBrainz**: Music metadata database
 - **Docker**: Containerization platform
-
----
-
-For support, issues, or feature requests, please visit our GitHub repository.
