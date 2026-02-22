@@ -6,7 +6,7 @@
 }
 
 # Domain configuration
-raido.zorro.network {
+raido.zorro.network, raido.zorro.home.local {
 	# Christmas station routes (handle before catch-all)
 	redir /christmas /christmas/ 301
 	handle /christmas/* {
