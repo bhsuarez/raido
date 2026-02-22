@@ -990,8 +990,9 @@ async def speak(request: SpeakRequest):
         try:
             return await _call_upstream_tts(tts_params, bound_logger=req_logger)
         except HTTPException as http_exc:
-            # Bubble client errors (bad request, missing prompt) to the caller
-            if http_exc.status_code and http_exc.status_code < 500:
+            # Bubble true client errors (bad request, auth, validation) but NOT 404
+            # (404 means the upstream doesn't have this endpoint, fall through to /v1/audio/speech)
+            if http_exc.status_code and http_exc.status_code < 500 and http_exc.status_code != 404:
                 raise
             req_logger.warning(
                 "GET /tts failed; falling back to /v1/audio/speech",
