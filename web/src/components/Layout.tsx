@@ -35,7 +35,10 @@ export default function Layout({ children }: LayoutProps) {
 
   const trackTitle = nowPlaying?.track?.title?.trim()
   const trackArtist = nowPlaying?.track?.artist?.trim()
-  const songLabel = trackTitle ? (trackArtist ? `${trackTitle} — ${trackArtist}` : trackTitle) : null
+  const isUnknown = (s?: string) => !s || s.toLowerCase().startsWith('unknown')
+  const songLabel = !isUnknown(trackTitle)
+    ? (!isUnknown(trackArtist) ? `${trackTitle} — ${trackArtist}` : trackTitle!)
+    : null
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
@@ -83,12 +86,15 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Connection status + logout */}
             <div className="ml-auto flex-shrink-0 flex items-center gap-3">
-              <div
+              <a
+                href="/stream/raido.mp3"
                 className={`flex items-center gap-1.5 text-xs font-medium ${
-                  isConnected ? 'text-green-400' : 'text-red-400'
+                  isConnected ? 'text-green-400 hover:text-green-300' : 'text-red-400'
                 }`}
                 role="status"
-                aria-label={isConnected ? 'Connected' : 'Disconnected'}
+                aria-label={isConnected ? 'Listen live' : 'Disconnected'}
+                title={isConnected ? 'Listen to stream' : undefined}
+                {...(!isConnected && { onClick: (e) => e.preventDefault() })}
               >
                 {isConnected ? (
                   <WifiIcon className="h-4 w-4" />
@@ -96,7 +102,7 @@ export default function Layout({ children }: LayoutProps) {
                   <WifiOffIcon className="h-4 w-4" />
                 )}
                 <span className="hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
-              </div>
+              </a>
               {isAuthenticated() ? (
                 <button
                   onClick={handleLogout}
