@@ -182,9 +182,6 @@ services:
       - CH_SHIM_UPSTREAM=http://192.168.1.170:8150,http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
-      # Serialize requests to chatterbox — it can only handle one at a time
-      - CH_SHIM_MAX_CONNECTIONS=1
-      - CH_SHIM_POOL_TIMEOUT=120
     ports:
       - "18000:8000"
     healthcheck:
