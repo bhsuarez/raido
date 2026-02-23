@@ -17,6 +17,7 @@ logger = structlog.get_logger()
 STATION_LIQUIDSOAP_CONFIG = {
     "main": {"host": "liquidsoap", "port": 1234},
     "christmas": {"host": "christmas-liquidsoap", "port": 1235},
+    "recent": {"host": "recent-liquidsoap", "port": 1236},
 }
 
 def get_liquidsoap_client(station: str = "main") -> LiquidsoapClient:

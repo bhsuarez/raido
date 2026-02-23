@@ -279,6 +279,9 @@ async def skip_current_track(station: str = "main", db: AsyncSession = Depends(g
         if station == "christmas":
             liquidsoap_host = "christmas-liquidsoap"
             liquidsoap_port = 1235
+        elif station == "recent":
+            liquidsoap_host = "recent-liquidsoap"
+            liquidsoap_port = 1236
         else:
             liquidsoap_host = "liquidsoap"
             liquidsoap_port = 1234
@@ -324,6 +327,10 @@ async def inject_commentary_file(
             liquidsoap_host = "christmas-liquidsoap"
             liquidsoap_port = 1235
             queue_name = "tts_christmas"
+        elif station == "recent":
+            liquidsoap_host = "recent-liquidsoap"
+            liquidsoap_port = 1236
+            queue_name = "tts_recent"
         else:
             liquidsoap_host = "liquidsoap"
             liquidsoap_port = 1234

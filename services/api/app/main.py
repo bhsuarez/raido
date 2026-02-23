@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
@@ -20,6 +21,39 @@ logger = structlog.get_logger()
 # WebSocket manager instance
 websocket_manager = WebSocketManager()
 
+async def _write_recent_playlist():
+    """Write /shared/recent.m3u with tracks added in the last 30 days.
+
+    Runs once on startup then refreshes hourly so the Liquidsoap 'recent'
+    station always sees the current 30-day window.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.tracks import Track
+
+    while True:
+        try:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Track.file_path)
+                    .where(Track.created_at >= cutoff)
+                    .where(~Track.file_path.like("liquidsoap://%"))
+                    .order_by(Track.created_at.desc())
+                )
+                paths = [row[0] for row in result.fetchall()]
+
+            content = "#EXTM3U\n" + "\n".join(paths) + "\n"
+            with open("/shared/recent.m3u", "w") as f:
+                f.write(content)
+            logger.info("Wrote recent.m3u", track_count=len(paths))
+        except Exception as e:
+            logger.warning("Failed to write recent.m3u", error=str(e))
+
+        await asyncio.sleep(3600)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
@@ -32,6 +66,8 @@ async def lifespan(app: FastAPI):
         logger.info("Database tables created/verified")
     except Exception as e:
         logger.warning("Database not available on startup; continuing", error=str(e))
+
+    asyncio.create_task(_write_recent_playlist())
 
     yield
 

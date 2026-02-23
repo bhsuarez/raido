@@ -51,6 +51,17 @@ services:
     command: ["liquidsoap","/christmas.liq"]
     ports: ["1235:1235"]
 
+  recent-liquidsoap:
+    image: savonet/liquidsoap:v2.2.5
+    restart: unless-stopped
+    depends_on: [icecast]
+    volumes:
+      - /mnt/music:/mnt/music:ro
+      - ./infra/liquidsoap/recent.liq:/recent.liq:ro
+      - shared:/shared
+    command: ["liquidsoap","/recent.liq"]
+    ports: ["1236:1236"]
+
   api:
     build: ./services/api
     restart: unless-stopped
@@ -149,6 +160,27 @@ services:
       - STATION_NAME=christmas
       - LIQUIDSOAP_HOST=christmas-liquidsoap
       - LIQUIDSOAP_PORT=1235
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://api:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: "1g"
+    cpus: "0.50"
+
+  recent-dj-worker:
+    build: ./services/dj-worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=recent
+      - LIQUIDSOAP_HOST=recent-liquidsoap
+      - LIQUIDSOAP_PORT=1236
     healthcheck:
       test: ["CMD", "curl", "-f", "http://api:8000/health"]
       interval: 30s
