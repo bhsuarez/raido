@@ -5,7 +5,7 @@
 set -eu
 
 API_URL="http://api:8000/health"
-WEB_URL="http://web:3000/health"
+WEB_URL="http://web/health"
 STREAM_URL="http://icecast:8000/raido.mp3"
 PINGOS_URL="http://192.168.1.116:8090/api/notify"
 INTERVAL_SECONDS="60"
@@ -41,11 +41,13 @@ check_web() {
 }
 
 check_stream() {
-  # Try to fetch first byte; success if 2xx
-  if curl -sS --fail --max-time 5 -r 0-0 "$STREAM_URL" -o /dev/null; then
-    log "Stream: LIVE"
+  # For live streams, curl will time out (exit 28) even when data is flowing.
+  # Accept exit 0 or 28; anything else (e.g. connection refused) is a real failure.
+  bytes=$(curl -sS -o /dev/null --max-time 3 -w "%{size_download}" "$STREAM_URL" 2>/dev/null || true)
+  if [ -n "$bytes" ] && [ "$bytes" -gt 0 ]; then
+    log "Stream: LIVE (${bytes} bytes)"
   else
-    notify "Stream offline" "HEAD/GET ${STREAM_URL} failed"
+    notify "Stream offline" "GET ${STREAM_URL} returned no data"
     log "Stream: OFFLINE"
     return 1
   fi
