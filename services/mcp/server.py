@@ -33,7 +33,7 @@ async def get_now_playing(station: str = "main") -> str:
     """Get the currently playing track on Raido radio station.
 
     Args:
-        station: Station identifier (e.g. "main" or "christmas")
+        station: Station identifier — "main", "christmas", or "recent" (new arrivals: tracks added in the last 30 days)
     """
     data = await _api_get("/api/v1/now/", params={"station": station})
 
@@ -65,7 +65,7 @@ async def skip_track(station: str = "main") -> str:
     """Skip the currently playing track on Raido radio station.
 
     Args:
-        station: Station identifier (e.g. "main" or "christmas")
+        station: Station identifier — "main", "christmas", or "recent"
     """
     await _api_post("/api/v1/liquidsoap/skip", params={"station": station})
     # Fetch what's playing now after the skip
@@ -78,7 +78,7 @@ async def get_history(station: str = "main", limit: int = 5) -> str:
     """Get recent play history from Raido radio station.
 
     Args:
-        station: Station identifier (e.g. "main" or "christmas")
+        station: Station identifier — "main", "christmas", or "recent"
         limit: Number of recent tracks to return (1-20)
     """
     limit = max(1, min(limit, 20))
@@ -145,7 +145,7 @@ async def get_dj_voices(station: str = "main") -> str:
     """List available Kokoro TTS voices for the Raido DJ, and show the currently active voice.
 
     Args:
-        station: Station identifier (e.g. "main" or "christmas")
+        station: Station identifier — "main", "christmas", or "recent"
     """
     voices_data = await _api_get("/api/v1/admin/voices")
     settings_data = await _api_get("/api/v1/admin/settings", params={"station": station})
@@ -165,7 +165,7 @@ async def set_dj_voice(voice: str, station: str = "main") -> str:
     Args:
         voice: Voice identifier (e.g. "af_bella", "am_michael", "bm_george").
                Use get_dj_voices to see all options.
-        station: Station identifier (e.g. "main" or "christmas")
+        station: Station identifier — "main", "christmas", or "recent"
     """
     voices_data = await _api_get("/api/v1/admin/voices")
     available = voices_data.get("voices", [])
