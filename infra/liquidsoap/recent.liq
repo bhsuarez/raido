@@ -2,7 +2,8 @@
 
 # ----- Liquidsoap 2.2.x config for Raido New Arrivals -----
 # Plays tracks added to the library in the last 30 days.
-# The API writes /shared/recent.m3u hourly; this script reloads it automatically.
+# The API writes /shared/recent.m3u hourly with tracks from the last 30 days.
+# If the playlist is empty/unavailable, the sine fallback keeps the stream alive.
 
 settings.decoder.priorities.ffmpeg := 10
 settings.decoder.priorities.mad    := 1
@@ -18,18 +19,10 @@ settings.server.telnet.port := 1236
 # ---------- Sources ----------
 tts_q = request.queue(id="tts_recent", timeout=30.0, interactive=true)
 
-# Fallback: full music library when no recent tracks available
-backup_music = playlist(
-  mode="random",
-  reload=300,
-  reload_mode="watch",
-  "/mnt/music"
-)
-
-# Recent tracks playlist — API writes this file hourly.
+# Recent tracks playlist — the API writes and refreshes this file hourly.
 # reload=300 + reload_mode="watch" means: pick up changes immediately via
 # inotify, with a 5-minute forced reload as a safety net.
-recent_playlist = playlist(
+recent_music = playlist(
   mode="random",
   reload=300,
   reload_mode="watch",
@@ -62,12 +55,8 @@ def update_metadata(m)
 end
 
 # ---------- Chain / processing ----------
-# Use recent tracks, falling back to full library when the playlist is
-# unavailable (file missing or empty on first start).
-all_music = fallback(track_sensitive=true, [recent_playlist, backup_music])
-
 # Normalize metadata
-music = metadata.map(update_metadata, all_music)
+music = metadata.map(update_metadata, recent_music)
 
 # Wrap with insert_metadata so we can inject per-track StreamUrl (for artwork in players like Triode)
 music_inj = insert_metadata(music)
