@@ -269,8 +269,8 @@ services:
       - lidarr_config:/config
       # Music library — Lidarr imports completed downloads here instantly
       - /mnt/music:/mnt/music
-      # Downloads from the Gateway LXC (mount via NFS or bind if co-located)
-      # - /mnt/downloads:/mnt/downloads
+      # Downloads from the Gateway LXC — bind mount via PCT 127 mp1
+      - /mnt/downloads:/mnt/downloads
     ports:
       - "8686:8686"
     # Lidarr does NOT go through the VPN — it talks to Prowlarr/qBittorrent
