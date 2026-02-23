@@ -1,9 +1,30 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SearchIcon, FilterIcon } from 'lucide-react'
+import { SearchIcon, FilterIcon, MicIcon } from 'lucide-react'
 import { useTracks, useTrackFacets, useTrack, Track, TrackFilters, TracksResult } from '../hooks/useMediaLibrary'
 import TrackMetadataPanel from './TrackMetadataPanel'
+import VoicingProgress from './VoicingProgress'
 import { apiHelpers } from '../utils/api'
+
+// Status badge colours for voicing
+const VOICING_BADGE: Record<string, string> = {
+  ready: 'text-green-400',
+  ready_text_only: 'text-blue-400',
+  generating: 'text-yellow-400',
+  failed: 'text-red-500',
+  pending: 'text-gray-600',
+}
+
+async function fetchVoicingStatuses(ids: number[]): Promise<Record<string, string | null>> {
+  if (!ids.length) return {}
+  try {
+    const r = await fetch(apiHelpers.apiUrl(`/api/v1/voicing/tracks/status?ids=${ids.join(',')}`))
+    if (!r.ok) return {}
+    return r.json()
+  } catch {
+    return {}
+  }
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = React.useState(value)
@@ -34,6 +55,8 @@ export default function MediaLibrary() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [noArtwork, setNoArtwork] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [voicingStatuses, setVoicingStatuses] = useState<Record<string, string | null>>({})
+  const [showVoicingEngine, setShowVoicingEngine] = useState(false)
 
   // Fetch track by ID when navigating via permalink
   const { data: trackFromParam } = useTrack(parsedTrackId)
@@ -86,18 +109,38 @@ export default function MediaLibrary() {
 
   const resolveArtwork = (url: string | null) => apiHelpers.resolveStaticUrl(url)
 
+  // Fetch voicing statuses whenever the track list changes
+  useEffect(() => {
+    if (tracks && tracks.length > 0) {
+      fetchVoicingStatuses(tracks.map(t => t.id)).then(setVoicingStatuses)
+    }
+  }, [tracks])
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Media Library</h1>
-        <button
-          className="md:hidden btn-secondary flex items-center gap-2 text-sm py-2 px-3"
-          onClick={() => setShowFilters(f => !f)}
-        >
-          <FilterIcon className="h-4 w-4" />
-          Filters
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className={`btn-secondary flex items-center gap-1.5 text-sm py-2 px-3 ${showVoicingEngine ? 'border-primary-500/40 text-primary-400' : ''}`}
+            onClick={() => setShowVoicingEngine(v => !v)}
+            title="Voice of Raido Engine"
+          >
+            <MicIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Voice Engine</span>
+          </button>
+          <button
+            className="md:hidden btn-secondary flex items-center gap-2 text-sm py-2 px-3"
+            onClick={() => setShowFilters(f => !f)}
+          >
+            <FilterIcon className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
       </div>
+
+      {/* Voicing Engine panel */}
+      {showVoicingEngine && <VoicingProgress />}
 
       <div className="flex gap-4 items-start">
         {/* Sidebar */}
@@ -291,6 +334,14 @@ export default function MediaLibrary() {
                       {track.year && <span className="text-gray-600"> · {track.year}</span>}
                     </p>
                   </div>
+
+                  {/* Voicing status mic icon */}
+                  {voicingStatuses[String(track.id)] !== undefined && (
+                    <MicIcon
+                      className={`hidden sm:block flex-shrink-0 h-3.5 w-3.5 ${VOICING_BADGE[voicingStatuses[String(track.id)] ?? 'pending'] ?? 'text-gray-600'}`}
+                      title={`Voice: ${voicingStatuses[String(track.id)] ?? 'pending'}`}
+                    />
+                  )}
 
                   {/* Genre badge */}
                   {track.genre && (

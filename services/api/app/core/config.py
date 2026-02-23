@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     SESSION_SECRET: str = "your-session-secret-key-here"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
     
+    # Anthropic (Voicing Engine — pre-rendered commentary)
+    ANTHROPIC_API_KEY: Optional[str] = None
+
+    # Lidarr (Download Gateway API proxy)
+    LIDARR_URL: str = "http://lidarr:8686"
+    LIDARR_API_KEY: Optional[str] = None
+
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4"

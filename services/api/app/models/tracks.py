@@ -72,6 +72,7 @@ class Track(Base):
     stations = relationship(
         "Station", secondary=station_tracks, back_populates="tracks"
     )
+    voicing_cache = relationship("TrackVoicingCache", back_populates="track", uselist=False)
 
     def __repr__(self):
         return f"<Track(id={self.id}, title='{self.title}', artist='{self.artist}')>"

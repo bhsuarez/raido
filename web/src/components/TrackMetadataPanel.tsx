@@ -1,12 +1,73 @@
-import React, { useState } from 'react'
-import { XIcon, SearchIcon, CheckIcon, MusicIcon, ExternalLinkIcon } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { XIcon, SearchIcon, CheckIcon, MusicIcon, ExternalLinkIcon, MicIcon, RefreshCwIcon } from 'lucide-react'
 import { Track, MBCandidate, useMusicBrainzSearch, useUpdateTrack } from '../hooks/useMediaLibrary'
 import { apiHelpers } from '../utils/api'
+
+interface VoicingCache {
+  status: string
+  genre_persona: string | null
+  script_text: string | null
+  audio_filename: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  estimated_cost_usd: number | null
+  version: number
+  updated_at: string | null
+}
+
+function useTrackVoicing(trackId: number) {
+  const [voicing, setVoicing] = useState<VoicingCache | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchVoicing = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await fetch(apiHelpers.apiUrl(`/api/v1/voicing/tracks/${trackId}`))
+      if (r.status === 404) { setVoicing(null); setLoading(false); return }
+      if (!r.ok) throw new Error('fetch failed')
+      setVoicing(await r.json())
+    } catch {
+      setError('Failed to load voicing data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchVoicing() }, [trackId])
+
+  const regenerate = async () => {
+    try {
+      await fetch(apiHelpers.apiUrl(`/api/v1/voicing/tracks/${trackId}/regenerate`), { method: 'POST' })
+      await fetchVoicing()
+    } catch {
+      setError('Regeneration failed')
+    }
+  }
+
+  return { voicing, loading, error, refetch: fetchVoicing, regenerate }
+}
 
 interface Props {
   track: Track
   onClose: () => void
   onTrackUpdated: (track: Track) => void
+}
+
+function VoicingStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    ready: 'bg-green-500/20 text-green-400 border-green-500/30',
+    ready_text_only: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    generating: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    failed: 'bg-red-500/20 text-red-400 border-red-500/30',
+    pending: 'bg-gray-700 text-gray-400 border-gray-600',
+  }
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full border ${map[status] ?? map.pending}`}>
+      {status.replace('_', ' ')}
+    </span>
+  )
 }
 
 function formatDuration(sec: number | null): string {
@@ -25,6 +86,8 @@ export default function TrackMetadataPanel({ track, onClose, onTrackUpdated }: P
     genre: track.genre ?? '',
   })
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const { voicing, loading: voicingLoading, error: voicingError, regenerate } = useTrackVoicing(track.id)
+  const [regenerating, setRegenerating] = useState(false)
   const [manualMbid, setManualMbid] = useState('')
   const [manualLoading, setManualLoading] = useState(false)
   const [manualError, setManualError] = useState('')
@@ -369,6 +432,74 @@ export default function TrackMetadataPanel({ track, onClose, onTrackUpdated }: P
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* Voice of Raido */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <p className="section-header flex items-center gap-1.5">
+                <MicIcon className="h-3.5 w-3.5" />
+                Voice of Raido
+              </p>
+              <button
+                onClick={async () => { setRegenerating(true); await regenerate(); setRegenerating(false) }}
+                disabled={regenerating}
+                className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+                title="Queue regeneration of DJ script and audio"
+              >
+                <RefreshCwIcon className={`h-3 w-3 ${regenerating ? 'animate-spin' : ''}`} />
+                Regenerate
+              </button>
+            </div>
+            {voicingLoading && (
+              <div className="h-16 bg-gray-800/50 rounded-xl animate-pulse" />
+            )}
+            {voicingError && (
+              <p className="text-xs text-red-400">{voicingError}</p>
+            )}
+            {!voicingLoading && !voicingError && !voicing && (
+              <div className="card p-3 text-xs text-gray-500 text-center">
+                Not yet voiced — start the Voicing Engine from the Media page.
+              </div>
+            )}
+            {!voicingLoading && voicing && (
+              <div className="card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Status</span>
+                  <VoicingStatusBadge status={voicing.status} />
+                </div>
+                {voicing.genre_persona && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Persona</span>
+                    <span className="text-xs text-gray-300">{voicing.genre_persona}</span>
+                  </div>
+                )}
+                {voicing.script_text && (
+                  <div className="mt-1">
+                    <p className="text-xs text-gray-500 mb-1">Cached Script</p>
+                    <p className="text-xs text-gray-300 bg-gray-800 rounded-lg p-2 leading-relaxed">
+                      {voicing.script_text}
+                    </p>
+                  </div>
+                )}
+                {voicing.audio_filename && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Audio</span>
+                    <span className="text-xs text-green-400">Cached</span>
+                  </div>
+                )}
+                {voicing.estimated_cost_usd !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Cost</span>
+                    <span className="text-xs text-gray-500">${voicing.estimated_cost_usd?.toFixed(5)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Version</span>
+                  <span className="text-xs text-gray-600">v{voicing.version}</span>
+                </div>
               </div>
             )}
           </section>

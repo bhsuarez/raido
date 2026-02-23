@@ -12,6 +12,8 @@ from app.api.v1.endpoints import (
     stations,
     auth,
     enrichment,
+    voicing,
+    lidarr,
 )
 
 api_router = APIRouter()
@@ -28,3 +30,5 @@ api_router.include_router(tracks.router, prefix="/tracks", tags=["tracks"])
 api_router.include_router(stations.router, prefix="/stations", tags=["stations"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(enrichment.router, prefix="/enrichment", tags=["enrichment"])
+api_router.include_router(voicing.router, prefix="/voicing", tags=["voicing"])
+api_router.include_router(lidarr.router, prefix="/lidarr", tags=["lidarr"])

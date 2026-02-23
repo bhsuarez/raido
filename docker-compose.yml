@@ -240,4 +240,40 @@ services:
     environment:
       - RAIDO_API_URL=http://api:8000
 
-volumes: { db: {}, caddy: {}, shared: {}, kokoro_models: {} }
+  # ─── Voice of Raido — Commentary Pre-rendering Engine ─────────────────────
+  voicing-worker:
+    build: ./services/dj-worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.voicing_main"]
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=voicing-engine
+      # ANTHROPIC_API_KEY must be set in .env
+    # Run with conservative resource limits — this is a background job
+    mem_limit: "512m"
+    cpus: "0.25"
+
+  # ─── Download Gateway — Lidarr music management ───────────────────────────
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - lidarr_config:/config
+      # Music library — Lidarr imports completed downloads here instantly
+      - /mnt/music:/mnt/music
+      # Downloads from the Gateway LXC (mount via NFS or bind if co-located)
+      # - /mnt/downloads:/mnt/downloads
+    ports:
+      - "8686:8686"
+    # Lidarr does NOT go through the VPN — it talks to Prowlarr/qBittorrent
+    # on the Gateway LXC via LAN IP (192.168.1.201). See infra/gateway/VPN_GATEWAY.md
+
+volumes: { db: {}, caddy: {}, shared: {}, kokoro_models: {}, lidarr_config: {} }

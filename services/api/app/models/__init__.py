@@ -6,6 +6,7 @@ from .users import User
 from .request_queue import RequestQueue, RequestType, RequestStatus
 from .stations import Station
 from .mb_candidate import MBCandidate, CandidateStatus
+from .voicing import TrackVoicingCache, VoicingBudget, VoicingWorkerConfig
 
 __all__ = [
     "Track",
@@ -19,4 +20,7 @@ __all__ = [
     "Station",
     "MBCandidate",
     "CandidateStatus",
+    "TrackVoicingCache",
+    "VoicingBudget",
+    "VoicingWorkerConfig",
 ]

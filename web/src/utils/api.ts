@@ -127,6 +127,16 @@ export const apiHelpers = {
   lookupMBRelease: (trackId: number, releaseMbid: string) => api.get(`/tracks/${trackId}/musicbrainz/release/${releaseMbid}`),
   getStations: () => api.get('/admin/stations'),
   createStation: (data: any) => api.post('/stations', data),
+
+  // Build a fully-qualified URL for native fetch() calls
+  apiUrl: (path: string): string => {
+    const rawBase = (import.meta as any)?.env?.VITE_API_URL as string | undefined
+    if (rawBase) {
+      const base = rawBase.replace(/\/$/, '').replace(/\/(api)(\/v1)?$/i, '')
+      return `${base}${path}`
+    }
+    return path
+  },
 }
 
 export default api
