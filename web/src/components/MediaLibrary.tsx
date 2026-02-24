@@ -4,6 +4,7 @@ import { SearchIcon, FilterIcon, MicIcon } from 'lucide-react'
 import { useTracks, useTrackFacets, useTrack, Track, TrackFilters, TracksResult } from '../hooks/useMediaLibrary'
 import TrackMetadataPanel from './TrackMetadataPanel'
 import VoicingProgress from './VoicingProgress'
+import StationVoicePanel from './StationVoicePanel'
 import { apiHelpers } from '../utils/api'
 
 // Status badge colours for voicing
@@ -280,6 +281,12 @@ export default function MediaLibrary() {
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
+          {/* Station DJ voice panel */}
+          {selectedStation && facets && (() => {
+            const s = facets.stations.find(st => st.identifier === selectedStation)
+            return s ? <StationVoicePanel stationIdentifier={s.identifier} stationName={s.name} /> : null
+          })()}
+
           {/* Track count */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-gray-400">
