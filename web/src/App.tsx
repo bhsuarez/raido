@@ -52,6 +52,10 @@ function App() {
             element={<TTSMonitor />}
           />
           <Route
+            path="/:station/admin"
+            element={<TTSMonitor />}
+          />
+          <Route
             path="/analytics"
             element={<Analytics />}
           />

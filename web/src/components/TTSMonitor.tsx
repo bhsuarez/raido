@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useParams } from 'react-router-dom'
 import api, { apiHelpers, ttsApi } from '../utils/api'
 import LoadingSpinner from './LoadingSpinner'
 import { toast } from 'react-hot-toast'
@@ -443,6 +444,8 @@ const AIModelSection: React.FC<{
 }
 
 const TTSMonitor: React.FC = () => {
+  const { station: stationParam } = useParams<{ station?: string }>()
+  const station = stationParam || 'main'
   const AUTO_REFRESH_INTERVAL_MS = 30000
   const [saving, setSaving] = useState(false)
   const [voices, setVoices] = useState<string[]>([])
@@ -465,13 +468,13 @@ const TTSMonitor: React.FC = () => {
   }>({ interval: 1, tracksSince: 0, nextTrack: null })
 
   useEffect(() => {
-    apiHelpers.getSettings()
+    apiHelpers.getSettings(station)
       .then(res => {
         setSettings(res.data)
         setOriginalSettings(res.data)
       })
       .catch(() => setSettingsError('Failed to load settings'))
-  }, [])
+  }, [station])
 
   // Compute simple gating info similar to worker logic: tracks since last commentary vs interval
   useEffect(() => {
@@ -541,7 +544,7 @@ const TTSMonitor: React.FC = () => {
     setSaving(true)
     setSettingsError(null)
     try {
-      await apiHelpers.updateSettings(settings)
+      await apiHelpers.updateSettings(settings, station)
       toast.success('Settings saved successfully! 🎛️')
       setOriginalSettings(settings)
     } catch (e: any) {
@@ -569,10 +572,10 @@ const TTSMonitor: React.FC = () => {
   const itemsPerPage = 20
 
   const { data: ttsStatus, isLoading, error, refetch } = useQuery<TTSStatusResponse>({
-    queryKey: ['ttsStatus', 'main', currentPage],
+    queryKey: ['ttsStatus', station, currentPage],
     queryFn: () => api.get('/admin/tts-status', {
       params: {
-        station: 'main',
+        station,
         window_hours: 24,
         limit: itemsPerPage,
         offset: currentPage * itemsPerPage,
