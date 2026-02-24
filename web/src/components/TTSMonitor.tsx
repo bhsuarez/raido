@@ -660,7 +660,11 @@ const TTSMonitor: React.FC = () => {
       {/* Page header */}
       <div>
         <h1 className="text-xl font-bold text-white">DJ Admin</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage DJ settings and monitor TTS activity</p>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {settings?.station_name
+            ? `${settings.station_name} · Manage DJ settings and monitor TTS activity`
+            : 'Manage DJ settings and monitor TTS activity'}
+        </p>
       </div>
 
       {/* Settings Panel */}
