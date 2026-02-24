@@ -1,6 +1,7 @@
 from typing import List, Optional
 import asyncio
 import functools
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, distinct, or_
@@ -9,7 +10,9 @@ import httpx
 
 from app.core.database import get_db
 from app.models import Track
-from app.schemas.track import TrackRead, TrackUpdate, MBCandidate, TrackFacets
+from app.models import Station
+from app.models.stations import station_tracks
+from app.schemas.track import TrackRead, TrackUpdate, MBCandidate, TrackFacets, StationInfo
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -17,7 +20,7 @@ logger = structlog.get_logger()
 
 @router.get("/facets", response_model=TrackFacets)
 async def get_track_facets(db: AsyncSession = Depends(get_db)):
-    """Return distinct genres, artists, and albums for sidebar filters."""
+    """Return distinct genres, artists, albums, and stations for sidebar filters."""
     genres_result = await db.execute(
         select(distinct(Track.genre)).where(Track.genre.isnot(None)).order_by(Track.genre)
     )
@@ -27,10 +30,18 @@ async def get_track_facets(db: AsyncSession = Depends(get_db)):
     albums_result = await db.execute(
         select(distinct(Track.album)).where(Track.album.isnot(None)).order_by(Track.album)
     )
+    stations_result = await db.execute(
+        select(Station.identifier, Station.name)
+        .where(Station.is_active == True)
+        .order_by(Station.name)
+    )
+    db_stations = [StationInfo(identifier=row[0], name=row[1]) for row in stations_result.all()]
+    all_stations = [StationInfo(identifier="recent", name="New Arrivals (30 days)")] + db_stations
     return TrackFacets(
         genres=[r[0] for r in genres_result.all()],
         artists=[r[0] for r in artists_result.all()],
         albums=[r[0] for r in albums_result.all()],
+        stations=all_stations,
     )
 
 
@@ -41,6 +52,7 @@ async def list_tracks(
     genre: Optional[str] = Query(None),
     artist: Optional[str] = Query(None),
     album: Optional[str] = Query(None),
+    station: Optional[str] = Query(None),
     sort: Optional[str] = Query("artist", regex="^(artist|album|title|play_count)$"),
     page: int = Query(1, ge=1),
     per_page: int = Query(100, ge=1, le=500),
@@ -73,6 +85,18 @@ async def list_tracks(
         cond = (Track.artwork_url.is_(None)) | (Track.artwork_url == '')
         q = q.where(cond)
         count_q = count_q.where(cond)
+    if station:
+        if station == "recent":
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+            q = q.where(Track.created_at >= cutoff)
+            count_q = count_q.where(Track.created_at >= cutoff)
+        else:
+            q = (q.join(station_tracks, Track.id == station_tracks.c.track_id)
+                   .join(Station, Station.id == station_tracks.c.station_id)
+                   .where(Station.identifier == station))
+            count_q = (count_q.join(station_tracks, Track.id == station_tracks.c.track_id)
+                               .join(Station, Station.id == station_tracks.c.station_id)
+                               .where(Station.identifier == station))
 
     total = (await db.execute(count_q)).scalar_one()
     response.headers["X-Total-Count"] = str(total)

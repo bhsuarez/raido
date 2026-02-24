@@ -50,6 +50,7 @@ export default function MediaLibrary() {
   const [search, setSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState<string>('')
   const [selectedArtist, setSelectedArtist] = useState<string>('')
+  const [selectedStation, setSelectedStation] = useState<string>('')
   const [sort, setSort] = useState<TrackFilters['sort']>('artist')
   const [page, setPage] = useState(1)
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
@@ -81,6 +82,7 @@ export default function MediaLibrary() {
     search: debouncedSearch || undefined,
     genre: selectedGenre || undefined,
     artist: selectedArtist || undefined,
+    station: selectedStation || undefined,
     sort,
     page,
     per_page: 100,
@@ -104,6 +106,11 @@ export default function MediaLibrary() {
 
   const handleArtistChange = useCallback((artist: string) => {
     setSelectedArtist(prev => prev === artist ? '' : artist)
+    setPage(1)
+  }, [])
+
+  const handleStationChange = useCallback((station: string) => {
+    setSelectedStation(prev => prev === station ? '' : station)
     setPage(1)
   }, [])
 
@@ -230,14 +237,38 @@ export default function MediaLibrary() {
             </div>
           )}
 
+          {/* Station filter */}
+          {facets && facets.stations.length > 0 && (
+            <div>
+              <p className="section-header mb-2">Station</p>
+              <div className="space-y-1">
+                {facets.stations.map(s => (
+                  <button
+                    key={s.identifier}
+                    onClick={() => handleStationChange(s.identifier)}
+                    className={`w-full text-left text-sm px-2 py-1 rounded-lg truncate transition-colors ${
+                      selectedStation === s.identifier
+                        ? 'bg-primary-500/20 text-primary-400'
+                        : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+                    }`}
+                    title={s.name}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Clear filters */}
-          {(selectedGenre || selectedArtist || search || noArtwork) && (
+          {(selectedGenre || selectedArtist || selectedStation || search || noArtwork) && (
             <button
               className="btn-secondary w-full text-sm py-2"
               onClick={() => {
                 setSearch('')
                 setSelectedGenre('')
                 setSelectedArtist('')
+                setSelectedStation('')
                 setNoArtwork(false)
                 setPage(1)
               }}

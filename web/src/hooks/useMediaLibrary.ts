@@ -18,10 +18,16 @@ export interface Track {
   last_played_at: string | null
 }
 
+export interface StationInfo {
+  identifier: string
+  name: string
+}
+
 export interface TrackFacets {
   genres: string[]
   artists: string[]
   albums: string[]
+  stations: StationInfo[]
 }
 
 export interface MBCandidate {
@@ -42,6 +48,7 @@ export interface TrackFilters {
   genre?: string
   artist?: string
   album?: string
+  station?: string
   sort?: 'artist' | 'album' | 'title' | 'play_count'
   page?: number
   per_page?: number

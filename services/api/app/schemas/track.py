@@ -49,7 +49,13 @@ class MBCandidate(BaseModel):
     genre: Optional[str] = None
 
 
+class StationInfo(BaseModel):
+    identifier: str
+    name: str
+
+
 class TrackFacets(BaseModel):
     genres: List[str]
     artists: List[str]
     albums: List[str]
+    stations: List[StationInfo]
