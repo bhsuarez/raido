@@ -2,6 +2,19 @@
 
 A 24/7 AI-powered radio station with live DJ commentary, built with modern web technologies and containerized for easy deployment.
 
+## Now Playing
+<img width="600" height="800" alt="Image" src="https://github.com/user-attachments/assets/250aa1b2-3878-47c8-a64a-c8fdebae001a" />
+
+## TTS Monitoring queue
+
+<img width="600" height="800" alt="Image" src="https://github.com/user-attachments/assets/f6b62aec-d624-4708-a415-6789b78d70cc" />
+
+## Raido Stations
+<img width="600" height="800" alt="Image" src="https://github.com/user-attachments/assets/3c0da62f-1463-4ce9-a7b6-ee3fd794b264" />
+
+## MusicBrainz Enrichment
+<img width="600" height="800" alt="Image" src="https://github.com/user-attachments/assets/e625149e-7316-41cf-9abd-37479953307f" />
+
 ## Features
 
 - **24/7 Music Streaming**: Continuous music playback from your local collection
