@@ -48,8 +48,9 @@ class Settings(BaseSettings):
     TTS_CACHE_DIR: str = "/shared/tts"
     LOGS_DIR: str = "/shared/logs"
     
-    # Anthropic API (for Voicing Engine pre-rendering)
+    # Anthropic API
     ANTHROPIC_API_KEY: Optional[str] = None
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
 
     # API endpoints
     API_BASE_URL: str = "http://api:8000"

@@ -5,6 +5,7 @@ from jinja2 import Template
 from datetime import datetime
 
 from app.core.config import settings
+from app.services.anthropic_client import AnthropicClient
 from app.services.ollama_client import OllamaClient
 
 logger = structlog.get_logger()
@@ -13,6 +14,7 @@ class CommentaryGenerator:
     """Generates DJ commentary using various AI providers"""
     
     def __init__(self):
+        self.anthropic_client = AnthropicClient() if settings.ANTHROPIC_API_KEY else None
         self.ollama_client = OllamaClient()
         
         # Default prompt template (will be overridden by database settings)
@@ -143,7 +145,12 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 logger.info("Adjusted max_seconds for Chatterbox TTS", max_seconds=dj_settings['dj_max_seconds'])
             
             # Generate commentary based on provider
-            if provider == "ollama":
+            if provider == "anthropic" and self.anthropic_client:
+                res = await self._generate_with_anthropic(prompt_context, dj_settings, token_callback=token_callback)
+                if isinstance(res, dict):
+                    res["provider_used"] = "anthropic"
+                return res
+            elif provider == "ollama":
                 result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
                 if result:
                     # Mark that Ollama was used
@@ -284,6 +291,38 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             'christmas_mode': track_info.get('christmas_mode', False) or context.get('christmas_mode', False)
         }
     
+    async def _generate_with_anthropic(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None, token_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Optional[Dict[str, str]]:
+        """Generate commentary using Anthropic Claude"""
+        try:
+            christmas_mode = prompt_context.get('christmas_mode', False)
+            template = self._load_prompt_template_from_settings(dj_settings or {}, christmas_mode=christmas_mode)
+            prompt = template.render(**prompt_context)
+            logger.info("Rendered DJ prompt (Anthropic)", preview=prompt[:160])
+
+            user_tokens = dj_settings.get('dj_max_tokens', 200) if dj_settings else 200
+            est_cap = self._estimate_token_cap(dj_settings or {})
+            max_tokens = min(int(user_tokens), est_cap)
+            temperature = dj_settings.get('dj_temperature', 0.8) if dj_settings else 0.8
+
+            response = await self.anthropic_client.generate_commentary(
+                prompt=prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                token_callback=token_callback,
+            )
+
+            if response:
+                full_transcript = self._sanitize_generated_text(response.strip())
+                ssml = f'<speak><break time="400ms"/>{full_transcript}</speak>'
+                trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
+                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
+
+            return None
+
+        except Exception as e:
+            logger.error("Anthropic commentary generation failed", error=str(e))
+            return None
+
     async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None, token_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using Ollama"""
         try:

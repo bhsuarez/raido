@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     SESSION_SECRET: str = "your-session-secret-key-here"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
     
-    # Anthropic (Voicing Engine — pre-rendered commentary)
+    # Anthropic
     ANTHROPIC_API_KEY: Optional[str] = None
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
 
     # Lidarr (Download Gateway API proxy)
     LIDARR_URL: str = "http://lidarr:8686"

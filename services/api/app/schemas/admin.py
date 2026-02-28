@@ -6,7 +6,7 @@ class AdminSettingsResponse(BaseModel):
     dj_commentary_interval: int = 1
     dj_max_seconds: int = 30
     dj_tone: str = "energetic"
-    dj_provider: str = "templates"  # ollama, templates, disabled
+    dj_provider: str = "templates"  # anthropic, ollama, templates, disabled
     dj_voice_provider: str = "kokoro"  # kokoro, liquidsoap, chatterbox
     dj_voice_id: Optional[str] = None
     kokoro_voice: Optional[str] = None
@@ -16,6 +16,7 @@ class AdminSettingsResponse(BaseModel):
     chatterbox_voice: Optional[str] = None
     chatterbox_exaggeration: float = 1.0
     chatterbox_cfg_weight: float = 0.5
+    anthropic_model: str = "claude-haiku-4-5-20251001"
     ollama_model: str = "llama3.1:8b"
     ollama_base_url: str = "http://ollama:11434"
     dj_profanity_filter: bool = True

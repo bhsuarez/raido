@@ -196,6 +196,7 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
           value={settings.dj_provider || 'templates'}
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
+          <option value="anthropic">Claude (Anthropic)</option>
           <option value="ollama">Ollama</option>
           <option value="templates">Templates</option>
           <option value="disabled">Disabled</option>

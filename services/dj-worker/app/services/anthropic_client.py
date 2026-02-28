@@ -1,18 +1,22 @@
-"""Anthropic Claude API client for the Voicing Engine.
+"""Anthropic Claude API client for the Voicing Engine and live DJ commentary.
 
-Uses Claude 3.5 Haiku for cost-efficient, high-quality DJ script generation.
+Uses Claude Haiku for cost-efficient, high-quality DJ script generation.
 """
 
 import re
-from typing import Optional, Tuple
+import time
+from collections import deque
+from typing import Optional, Tuple, Callable, Awaitable
 import structlog
+
+from app.core.config import settings
 
 logger = structlog.get_logger()
 
 # Claude 3.5 Haiku pricing (USD per million tokens)
 HAIKU_INPUT_COST_PER_M = 0.80
 HAIKU_OUTPUT_COST_PER_M = 4.00
-MODEL_ID = "claude-3-5-haiku-20241022"
+MODEL_ID = "claude-haiku-4-5-20251001"
 
 
 def estimate_cost(input_tokens: int, output_tokens: int) -> float:
@@ -32,15 +36,19 @@ def estimate_dry_run_cost(num_tracks: int, avg_input_tokens: int = 250, avg_outp
 class AnthropicClient:
     """Thin async wrapper around the Anthropic Python SDK for DJ script generation."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: Optional[str] = None):
         try:
             import anthropic
-            self._client = anthropic.AsyncAnthropic(api_key=api_key)
+            self._client = anthropic.AsyncAnthropic(api_key=api_key or settings.ANTHROPIC_API_KEY)
         except ImportError:
             raise RuntimeError(
                 "anthropic package not installed. "
                 "Add 'anthropic>=0.34.0' to dj-worker/requirements.txt"
             )
+        # Circuit breaker for live commentary path
+        self._failures: deque[float] = deque(maxlen=10)
+        self._cooldown_seconds = 30
+        self._failure_threshold = 3
 
     async def generate_dj_script(
         self,
@@ -88,6 +96,83 @@ class AnthropicClient:
 
         except Exception as e:
             logger.error("Anthropic API call failed", error=str(e), track=f"{artist} - {title}")
+            return None
+
+    async def generate_commentary(
+        self,
+        prompt: str,
+        max_tokens: int = 200,
+        temperature: float = 0.8,
+        token_callback: Optional[Callable[[str], Awaitable[None]]] = None,
+    ) -> Optional[str]:
+        """Generate DJ commentary from a pre-rendered prompt string.
+
+        Compatible with the commentary_generator.py interface.
+        Uses streaming for low latency; falls back to non-streaming on error.
+        """
+        try:
+            # Circuit breaker check
+            now = time.time()
+            while self._failures and (now - self._failures[0]) > self._cooldown_seconds:
+                self._failures.popleft()
+            if len(self._failures) >= self._failure_threshold:
+                logger.warning(
+                    "Skipping Anthropic call due to recent failures",
+                    recent_failures=len(self._failures),
+                )
+                return None
+
+            model = settings.ANTHROPIC_MODEL or MODEL_ID
+            logger.debug("Generating commentary with Anthropic", model=model, max_tokens=max_tokens)
+
+            content_parts: list[str] = []
+
+            try:
+                async with self._client.messages.stream(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    messages=[{"role": "user", "content": prompt}],
+                ) as stream:
+                    async for text in stream.text_stream:
+                        if text:
+                            content_parts.append(text)
+                            if token_callback:
+                                try:
+                                    await token_callback(text)
+                                except Exception as cb_err:
+                                    logger.debug("Token callback error", error=str(cb_err))
+            except Exception as se:
+                logger.warning("Anthropic streaming failed; trying non-streaming", error=str(se))
+
+            # Non-streaming fallback
+            if not content_parts:
+                response = await self._client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = response.content[0].text if response.content else None
+                if text:
+                    content_parts = [text]
+
+            if content_parts:
+                content = "".join(content_parts).strip()
+                logger.debug("Generated commentary", length=len(content))
+                self._failures.clear()
+                return content
+
+            self._failures.append(time.time())
+            logger.error("Anthropic produced no content", model=model)
+            return None
+
+        except Exception as e:
+            logger.error("Anthropic commentary generation failed", error=str(e))
+            try:
+                self._failures.append(time.time())
+            except Exception:
+                pass
             return None
 
     def _build_user_prompt(

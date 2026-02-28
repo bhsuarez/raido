@@ -179,6 +179,7 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
           value={settings.dj_provider || 'templates'}
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
+          <option value="anthropic">Claude (Anthropic)</option>
           <option value="ollama">Ollama</option>
           <option value="templates">Templates</option>
           <option value="disabled">Disabled</option>
@@ -363,26 +364,40 @@ const AIModelSection: React.FC<{
       <p className="section-header mb-4">AI Model Settings</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
-          <select
-            className="input w-full"
-            value={currentModel}
-            onChange={(e) => setSettings({
-              ...settings,
-              dj_model: e.target.value,
-              ollama_model: e.target.value,
-            })}
-          >
-            {ollamaModels.length > 0 ? (
-              ollamaModels.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))
-            ) : (
-              <option value={currentModel}>{currentModel} (server offline)</option>
-            )}
-          </select>
-        </div>
+        {currentProvider === 'anthropic' ? (
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Claude Model</label>
+            <select
+              className="input w-full"
+              value={settings?.anthropic_model || 'claude-haiku-4-5-20251001'}
+              onChange={(e) => setSettings({ ...settings, anthropic_model: e.target.value })}
+            >
+              <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (fast, cheap)</option>
+              <option value="claude-sonnet-4-6">claude-sonnet-4-6 (smarter)</option>
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Ollama Model</label>
+            <select
+              className="input w-full"
+              value={currentModel}
+              onChange={(e) => setSettings({
+                ...settings,
+                dj_model: e.target.value,
+                ollama_model: e.target.value,
+              })}
+            >
+              {ollamaModels.length > 0 ? (
+                ollamaModels.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))
+              ) : (
+                <option value={currentModel}>{currentModel} (server offline)</option>
+              )}
+            </select>
+          </div>
+        )}
         
         <div>
           <label className="block text-sm text-gray-300 mb-1">Temperature</label>
@@ -725,8 +740,8 @@ const TTSMonitor: React.FC = () => {
               chatterboxAvailable={ttsStatus?.chatterbox_health?.status === 'running'}
             />
             
-            {/* AI Model Settings - only show if using Ollama */}
-            {settings.dj_provider === 'ollama' && (
+            {/* AI Model Settings - show if using Ollama or Anthropic */}
+            {(settings.dj_provider === 'ollama' || settings.dj_provider === 'anthropic') && (
               <AIModelSection
                 settings={settings}
                 setSettings={setSettings}
