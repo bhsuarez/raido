@@ -594,6 +594,9 @@ class DJWorker:
                             self._placeholders.pop(int(_tid), None)
                             if hasattr(self, '_placeholder_times'):
                                 self._placeholder_times.pop(int(_tid), None)
+                            # Add a short cooldown so the worker doesn't spin on the
+                            # same track every poll interval when generation fails
+                            self._recent_intros[int(_tid)] = time.time()
                     except Exception:
                         pass
     

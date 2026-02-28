@@ -150,6 +150,18 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 if isinstance(res, dict):
                     res["provider_used"] = "anthropic"
                 return res
+            elif provider == "anthropic" and not self.anthropic_client:
+                logger.warning("Anthropic provider selected but no API key configured; falling back to Ollama")
+                result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
+                if result:
+                    if isinstance(result, dict):
+                        result["provider_used"] = "ollama"
+                    return result
+                logger.warning("Ollama also failed; falling back to templates")
+                fallback = await self._generate_with_templates(prompt_context, dj_settings)
+                if isinstance(fallback, dict):
+                    fallback["provider_used"] = "templates"
+                return fallback
             elif provider == "ollama":
                 result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
                 if result:
