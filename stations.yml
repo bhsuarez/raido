@@ -18,8 +18,8 @@ stations:
     # DJ Worker configuration
     dj_worker:
       enabled: true
-      default_provider: "ollama"  # ollama, openai, templates, disabled
-      default_voice_provider: "kokoro"  # kokoro, chatterbox, openai_tts
+      default_provider: "ollama"  # ollama, anthropic, templates, disabled
+      default_voice_provider: "kokoro"  # kokoro, chatterbox
       default_voice: "am_onyx"
       commentary_interval: 1
       max_seconds: 30

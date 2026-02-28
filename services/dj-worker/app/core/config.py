@@ -13,12 +13,6 @@ class Settings(BaseSettings):
     # Redis for task queue
     REDIS_URL: str = "redis://redis:6379/0"
     
-    # OpenAI
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4"
-    OPENAI_TTS_VOICE: str = "onyx"
-    OPENAI_TTS_MODEL: str = "tts-1"
-    
     # Ollama
     OLLAMA_BASE_URL: str = "http://192.168.1.204:11434"
     OLLAMA_MODEL: str = "llama3.2:1b"
@@ -37,8 +31,8 @@ class Settings(BaseSettings):
     CHATTERBOX_CFG_WEIGHT: float = 0.5
     
     # DJ Configuration
-    DJ_PROVIDER: str = "templates"  # openai, ollama, templates, disabled
-    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, openai_tts, kokoro, chatterbox
+    DJ_PROVIDER: str = "templates"  # ollama, templates, disabled
+    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, kokoro, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"

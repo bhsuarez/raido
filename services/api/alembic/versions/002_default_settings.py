@@ -56,18 +56,18 @@ def upgrade() -> None:
         },
         {
             'key': 'dj_provider',
-            'value': 'openai',
+            'value': 'ollama',
             'value_type': 'string',
             'category': 'dj',
-            'description': 'AI provider for DJ commentary (openai, ollama)',
+            'description': 'AI provider for DJ commentary (ollama, templates, disabled)',
             'is_secret': False
         },
         {
             'key': 'dj_voice_provider',
-            'value': 'openai_tts',
+            'value': 'kokoro',
             'value_type': 'string',
             'category': 'dj',
-            'description': 'TTS provider (liquidsoap, openai_tts, xtts)',
+            'description': 'TTS provider (kokoro, liquidsoap, chatterbox)',
             'is_secret': False
         },
         {

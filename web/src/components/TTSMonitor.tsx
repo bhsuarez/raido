@@ -74,12 +74,6 @@ const VoiceTestSection: React.FC<{
       
       // Route to correct endpoint based on provider
       switch (provider) {
-        case 'openai_tts':
-          endpoint = '/admin/tts-test-openai'
-          payload.voice = settings.openai_tts_voice || 'onyx'
-          payload.model = settings.openai_tts_model || 'tts-1'
-          break
-
         case 'xtts':
           endpoint = '/admin/tts-test-xtts'
           payload.voice = settings.xtts_voice || 'coqui-tts:en_ljspeech'
@@ -115,7 +109,6 @@ const VoiceTestSection: React.FC<{
   const getVoiceName = () => {
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
-      case 'openai_tts': return settings?.openai_tts_voice || 'onyx'
       case 'xtts': return settings?.xtts_voice || 'coqui-tts:en_ljspeech'
       default: return settings?.kokoro_voice || 'af_bella'
     }
@@ -124,7 +117,6 @@ const VoiceTestSection: React.FC<{
   const getProviderDisplayName = () => {
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
-      case 'openai_tts': return 'OpenAI TTS'
       case 'xtts': return 'XTTS'
       default: return 'Kokoro'
     }
@@ -188,7 +180,6 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
           <option value="ollama">Ollama</option>
-          <option value="openai">OpenAI</option>
           <option value="templates">Templates</option>
           <option value="disabled">Disabled</option>
         </select>
@@ -231,8 +222,6 @@ const VoiceProviderSection: React.FC<{
 
   const getVoiceOptions = () => {
     switch (provider) {
-      case 'openai_tts':
-        return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
       case 'xtts':
         return voices.length ? voices : []
       case 'chatterbox':
@@ -250,7 +239,6 @@ const VoiceProviderSection: React.FC<{
 
   const getVoiceFieldName = () => {
     switch (provider) {
-      case 'openai_tts': return 'openai_tts_voice'
       case 'xtts': return 'xtts_voice'
       case 'chatterbox': return 'chatterbox_voice'
       default: return 'kokoro_voice'
@@ -275,7 +263,6 @@ const VoiceProviderSection: React.FC<{
             onChange={(e) => setSettings({...settings, dj_voice_provider: e.target.value})}
           >
             <option value="kokoro">Kokoro TTS</option>
-            <option value="openai_tts">OpenAI TTS</option>
             <option value="xtts">XTTS</option>
             <option value="liquidsoap">Liquidsoap</option>
             {chatterboxAvailable ? (
@@ -288,8 +275,7 @@ const VoiceProviderSection: React.FC<{
 
         <div>
           <label className="block text-sm text-gray-300 mb-1">
-            {provider === 'openai_tts' ? 'OpenAI Voice' :
-             provider === 'xtts' ? 'XTTS Voice' :
+            {provider === 'xtts' ? 'XTTS Voice' :
              provider === 'chatterbox' ? 'Chatterbox Voice' : 'Kokoro Voice'}
           </label>
           <select
@@ -425,7 +411,7 @@ const AIModelSection: React.FC<{
 
       <div className="grid grid-cols-1 gap-3">
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Commentary Prompt Template (Ollama/OpenAI)</label>
+          <label className="block text-sm text-gray-300 mb-1">Commentary Prompt Template (Ollama)</label>
           <textarea
             className="input w-full text-sm min-h-[160px]"
             placeholder={
@@ -435,7 +421,7 @@ const AIModelSection: React.FC<{
             onChange={(e) => setSettings({ ...settings, dj_prompt_template: e.target.value })}
           />
           <p className="text-xs text-gray-400 mt-2">
-            Used when provider is Ollama or OpenAI. Supports Jinja variables like {`{{song_title}}`}, {`{{artist}}`}, {`{{album}}`}, {`{{year}}`}.
+            Used when provider is Ollama. Supports Jinja variables like {`{{song_title}}`}, {`{{artist}}`}, {`{{album}}`}, {`{{year}}`}.
           </p>
         </div>
       </div>

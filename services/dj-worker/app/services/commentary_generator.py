@@ -5,7 +5,6 @@ from jinja2 import Template
 from datetime import datetime
 
 from app.core.config import settings
-from app.services.openai_client import OpenAIClient
 from app.services.ollama_client import OllamaClient
 
 logger = structlog.get_logger()
@@ -14,7 +13,6 @@ class CommentaryGenerator:
     """Generates DJ commentary using various AI providers"""
     
     def __init__(self):
-        self.openai_client = OpenAIClient() if settings.OPENAI_API_KEY else None
         self.ollama_client = OllamaClient()
         
         # Default prompt template (will be overridden by database settings)
@@ -145,12 +143,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 logger.info("Adjusted max_seconds for Chatterbox TTS", max_seconds=dj_settings['dj_max_seconds'])
             
             # Generate commentary based on provider
-            if provider == "openai" and self.openai_client and settings.OPENAI_API_KEY:
-                res = await self._generate_with_openai(prompt_context, dj_settings)
-                if isinstance(res, dict):
-                    res["provider_used"] = "openai"
-                return res
-            elif provider == "ollama":
+            if provider == "ollama":
                 result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
                 if result:
                     # Mark that Ollama was used
@@ -169,8 +162,7 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                     res["provider_used"] = "templates"
                 return res
             else:
-                logger.info("DJ provider not available", provider=provider, 
-                           has_openai=bool(self.openai_client and settings.OPENAI_API_KEY))
+                logger.info("DJ provider not available", provider=provider)
                 return None
 
         except Exception as e:
@@ -291,50 +283,6 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             'profanity_filter': dj_settings.get('dj_profanity_filter', settings.DJ_PROFANITY_FILTER),
             'christmas_mode': track_info.get('christmas_mode', False) or context.get('christmas_mode', False)
         }
-    
-    async def _generate_with_openai(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None) -> Optional[Dict[str, str]]:
-        """Generate commentary using OpenAI"""
-        try:
-            # Get custom template if available (with Christmas mode support)
-            christmas_mode = prompt_context.get('christmas_mode', False)
-            template = self._load_prompt_template_from_settings(dj_settings or {}, christmas_mode=christmas_mode)
-            
-            # Render the prompt
-            prompt = template.render(**prompt_context)
-            logger.info("Rendered DJ prompt (OpenAI)", preview=prompt[:160])
-            
-            # Use settings or defaults (cap by duration estimate)
-            user_tokens = dj_settings.get('dj_max_tokens', 50) if dj_settings else 50
-            est_cap = self._estimate_token_cap(dj_settings or {})
-            max_tokens = min(int(user_tokens), est_cap)
-            temperature = dj_settings.get('dj_temperature', 0.8) if dj_settings else 0.8
-            
-            # Call OpenAI with custom parameters
-            response = await self.openai_client.generate_commentary(
-                prompt=prompt,
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-            
-            if response:
-                # Clean up the response and enforce no stage directions
-                cleaned = response.strip()
-                if cleaned.startswith('<speak>'):
-                    cleaned = cleaned[7:]
-                if cleaned.endswith('</speak>'):
-                    cleaned = cleaned[:-8]
-                full_transcript = self._sanitize_generated_text(cleaned.strip())
-
-                # Add basic SSML structure and trim for timing
-                ssml = f'<speak><break time=\"400ms\"/>{full_transcript}</speak>'
-                trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
-                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
-            
-            return None
-        
-        except Exception as e:
-            logger.error("OpenAI commentary generation failed", error=str(e))
-            return None
     
     async def _generate_with_ollama(self, prompt_context: Dict[str, Any], dj_settings: Dict[str, Any] = None, token_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Optional[Dict[str, str]]:
         """Generate commentary using Ollama"""

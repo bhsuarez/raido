@@ -74,12 +74,6 @@ const VoiceTestSection: React.FC<{
       
       // Route to correct endpoint based on provider
       switch (provider) {
-        case 'openai_tts':
-          endpoint = '/admin/tts-test-openai'
-          payload.voice = settings.openai_tts_voice || 'onyx'
-          payload.model = settings.openai_tts_model || 'tts-1'
-          break
-          
         case 'chatterbox':
           endpoint = '/admin/tts-test-chatterbox'
           payload.voice = settings.chatterbox_voice || 'default'
@@ -117,7 +111,6 @@ const VoiceTestSection: React.FC<{
   const getVoiceName = () => {
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
-      case 'openai_tts': return settings?.openai_tts_voice || 'onyx'
       case 'chatterbox': return settings?.chatterbox_voice || 'default'
       case 'xtts': return settings?.xtts_voice || 'coqui-tts:en_ljspeech'
       default: return settings?.kokoro_voice || 'af_bella'
@@ -127,7 +120,6 @@ const VoiceTestSection: React.FC<{
   const getProviderDisplayName = () => {
     const provider = settings?.dj_voice_provider || 'kokoro'
     switch (provider) {
-      case 'openai_tts': return 'OpenAI TTS'
       case 'chatterbox': return 'Chatterbox'
       case 'xtts': return 'XTTS'
       default: return 'Kokoro'
@@ -205,7 +197,6 @@ const GeneralSettingsSection: React.FC<{ settings: any, setSettings: (s: any) =>
           onChange={(e) => setSettings({...settings, dj_provider: e.target.value})}
         >
           <option value="ollama">Ollama</option>
-          <option value="openai">OpenAI</option>
           <option value="templates">Templates</option>
           <option value="disabled">Disabled</option>
         </select>
@@ -248,8 +239,6 @@ const VoiceProviderSection: React.FC<{
   
   const getVoiceOptions = () => {
     switch (provider) {
-      case 'openai_tts':
-        return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
       case 'chatterbox': {
         const base = chatterboxVoices.length ? chatterboxVoices : ['default']
         const cur = settings?.chatterbox_voice
@@ -280,7 +269,6 @@ const VoiceProviderSection: React.FC<{
 
   const getVoiceFieldName = () => {
     switch (provider) {
-      case 'openai_tts': return 'openai_tts_voice'
       case 'chatterbox': return 'chatterbox_voice'
       case 'xtts': return 'xtts_voice'
       default: return 'kokoro_voice'
@@ -307,7 +295,6 @@ const VoiceProviderSection: React.FC<{
             onChange={(e) => setSettings({...settings, dj_voice_provider: e.target.value})}
           >
             <option value="kokoro">Kokoro TTS</option>
-            <option value="openai_tts">OpenAI TTS</option>
             <option value="chatterbox">Chatterbox</option>
             <option value="xtts">XTTS</option>
             <option value="liquidsoap">Liquidsoap</option>
@@ -316,8 +303,7 @@ const VoiceProviderSection: React.FC<{
         
         <div>
           <label className="block text-sm text-gray-300 mb-1">
-            {provider === 'openai_tts' ? 'OpenAI Voice' : 
-             provider === 'chatterbox' ? 'Chatterbox Voice' :
+            {provider === 'chatterbox' ? 'Chatterbox Voice' :
              provider === 'xtts' ? 'XTTS Voice' : 'Kokoro Voice'}
           </label>
           <select

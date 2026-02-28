@@ -26,12 +26,6 @@ class Settings(BaseSettings):
     LIDARR_URL: str = "http://lidarr:8686"
     LIDARR_API_KEY: Optional[str] = None
 
-    # OpenAI
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4"
-    OPENAI_TTS_VOICE: str = "onyx"
-    OPENAI_TTS_MODEL: str = "tts-1"
-    
     # Ollama
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_MODEL: str = "llama3.1"
@@ -49,8 +43,8 @@ class Settings(BaseSettings):
     CHATTERBOX_CFG_WEIGHT: float = 0.5
     
     # DJ Configuration
-    DJ_PROVIDER: str = "openai"  # openai, ollama
-    DJ_VOICE_PROVIDER: str = "openai_tts"  # liquidsoap, openai_tts, chatterbox
+    DJ_PROVIDER: str = "ollama"  # ollama, templates, disabled
+    DJ_VOICE_PROVIDER: str = "kokoro"  # liquidsoap, kokoro, chatterbox
     DJ_MAX_SECONDS: int = 30
     DJ_COMMENTARY_INTERVAL: int = 1
     DJ_TONE: str = "energetic"

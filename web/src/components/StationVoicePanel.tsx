@@ -12,7 +12,6 @@ const FALLBACK_KOKORO_VOICES = [
   'af_bella', 'af_sarah', 'af_sky', 'am_onyx', 'am_michael', 'am_ryan',
   'bf_ava', 'bf_sophie', 'bm_george', 'bm_james',
 ]
-const OPENAI_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
 
 export default function StationVoicePanel({ stationIdentifier, stationName }: Props) {
   const [settings, setSettings] = useState<any>(null)
@@ -66,7 +65,6 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
   const provider = settings.dj_voice_provider || 'kokoro'
 
   const getVoiceOptions = (): string[] => {
-    if (provider === 'openai_tts') return OPENAI_VOICES
     if (provider === 'kokoro') {
       const base = voices.length ? voices : FALLBACK_KOKORO_VOICES
       const cur = settings.kokoro_voice
@@ -77,7 +75,6 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
 
   const getVoiceFieldName = (): string => {
     switch (provider) {
-      case 'openai_tts': return 'openai_tts_voice'
       case 'xtts': return 'xtts_voice'
       case 'chatterbox': return 'chatterbox_voice'
       default: return 'kokoro_voice'
@@ -109,7 +106,6 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
             onChange={e => handleChange({ dj_voice_provider: e.target.value })}
           >
             <option value="kokoro">Kokoro TTS</option>
-            <option value="openai_tts">OpenAI TTS</option>
             <option value="xtts">XTTS</option>
             <option value="liquidsoap">Liquidsoap</option>
             <option value="chatterbox">Chatterbox</option>

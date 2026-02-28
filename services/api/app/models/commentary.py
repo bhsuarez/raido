@@ -17,7 +17,7 @@ class Commentary(Base):
     transcript = Column(Text, nullable=True)  # Clean transcript for display
     
     # Generation metadata
-    provider = Column(String(50), nullable=False)  # openai, ollama, etc.
+    provider = Column(String(50), nullable=False)  # ollama, anthropic, templates, etc.
     model = Column(String(100), nullable=True)     # Specific model used
     voice_provider = Column(String(50), nullable=True)  # TTS provider
     voice_id = Column(String(100), nullable=True)       # Voice/style used

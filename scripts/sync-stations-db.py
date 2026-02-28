@@ -119,8 +119,6 @@ async def sync_station_settings(db, station_id: str, station_config: dict):
             settings_to_sync['kokoro_voice'] = default_voice
         elif voice_provider == 'chatterbox':
             settings_to_sync['chatterbox_voice'] = default_voice
-        elif voice_provider == 'openai_tts':
-            settings_to_sync['openai_tts_voice'] = default_voice
 
     # Add custom prompt template if provided
     if 'prompt_template' in dj_config:

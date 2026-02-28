@@ -46,6 +46,5 @@ def configure_logging() -> None:
     root_logger.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
     
     # Set specific logger levels
-    logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)

@@ -388,8 +388,6 @@ class DJWorker:
                     if isinstance(dj_settings, dict):
                         if vp == 'chatterbox':
                             voice_id = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
-                        elif vp == 'openai_tts':
-                            voice_id = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
                         else:
                             # Default to kokoro or generic id
                             voice_id = dj_settings.get('kokoro_voice') or dj_settings.get('dj_kokoro_voice') or dj_settings.get('dj_voice_id')
@@ -627,8 +625,6 @@ class DJWorker:
             if voice_id is None and dj_settings and isinstance(dj_settings, dict):
                 if vp == 'chatterbox':
                     voice_id = dj_settings.get('chatterbox_voice') or dj_settings.get('dj_voice_id')
-                elif vp == 'openai_tts':
-                    voice_id = dj_settings.get('openai_tts_voice') or dj_settings.get('dj_voice_id')
                 elif vp == 'kokoro':
                     voice_id = (
                         dj_settings.get('kokoro_voice')
@@ -641,8 +637,6 @@ class DJWorker:
             if voice_id is None:
                 if vp == 'chatterbox':
                     voice_id = getattr(settings, 'CHATTERBOX_VOICE', None)
-                elif vp == 'openai_tts':
-                    voice_id = getattr(settings, 'OPENAI_TTS_VOICE', None)
                 elif vp == 'kokoro':
                     voice_id = getattr(settings, 'KOKORO_VOICE', None)
 
