@@ -23,10 +23,6 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
 
-    # Lidarr (Download Gateway API proxy)
-    LIDARR_URL: str = "http://lidarr:8686"
-    LIDARR_API_KEY: Optional[str] = None
-
     # Ollama
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_MODEL: str = "llama3.1"
