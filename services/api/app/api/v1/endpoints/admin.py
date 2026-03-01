@@ -313,7 +313,7 @@ async def cleanup_stale_commentaries(db: AsyncSession = Depends(get_db)):
     try:
         from sqlalchemy import update
         from datetime import datetime, timezone, timedelta
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=3)
         result = await db.execute(
             update(Commentary)
             .where(
