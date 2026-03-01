@@ -580,6 +580,7 @@ class DJWorker:
                 await self._save_commentary(
                     job,
                     transcript_full=transcript_full,
+                    ssml_text=ssml_text,
                     generation_time_ms=generation_time_ms,
                     tts_time_ms=tts_time_ms,
                     dj_settings=dj_settings,
@@ -647,6 +648,7 @@ class DJWorker:
         self,
         job: CommentaryJob,
         transcript_full: Optional[str] = None,
+        ssml_text: Optional[str] = None,
         generation_time_ms: Optional[int] = None,
         tts_time_ms: Optional[int] = None,
         dj_settings: Optional[Dict[str, Any]] = None,
@@ -708,7 +710,7 @@ class DJWorker:
             provider_used = provider_used or settings.DJ_PROVIDER
 
             commentary_data = {
-                'text': job.commentary_text,
+                'text': ssml_text or job.commentary_text,
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
                 'provider': provider_used,
