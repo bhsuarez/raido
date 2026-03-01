@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, func, desc, or_, and_
+from sqlalchemy.orm import selectinload, joinedload
 from typing import Any, Dict, List, Optional, Set
 from datetime import datetime, timezone, timedelta
 import structlog
@@ -340,6 +340,84 @@ async def get_cached_commentary(
         logger = structlog.get_logger()
         logger.error("Failed to get cached commentary", error=str(e), track_id=track_id)
         return None
+
+
+@router.get("/commentaries")
+async def list_commentaries(
+    provider: Optional[str] = Query(None, description="Filter by provider (anthropic, ollama, etc.)"),
+    status: Optional[str] = Query("ready", description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search track title or artist"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """List commentaries with track info, paginated."""
+    logger = structlog.get_logger()
+    try:
+        # Base query joining Commentary → Track
+        stmt = (
+            select(Commentary, Track)
+            .join(Track, Commentary.track_id == Track.id, isouter=True)
+            .order_by(desc(Commentary.created_at))
+        )
+
+        if provider:
+            stmt = stmt.where(Commentary.provider == provider)
+        if status:
+            stmt = stmt.where(Commentary.status == status)
+        if search:
+            term = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    Track.title.ilike(term),
+                    Track.artist.ilike(term),
+                )
+            )
+
+        # Count query
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_result = await db.execute(count_stmt)
+        total = total_result.scalar() or 0
+
+        # Total tracks count for progress chip
+        total_tracks_result = await db.execute(select(func.count(Track.id)))
+        total_tracks = total_tracks_result.scalar() or 0
+
+        # Paginate
+        stmt = stmt.offset((page - 1) * per_page).limit(per_page)
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        items = []
+        for commentary, track in rows:
+            items.append({
+                "id": commentary.id,
+                "transcript": commentary.transcript,
+                "text": commentary.text,
+                "provider": commentary.provider,
+                "model": commentary.model,
+                "audio_url": commentary.audio_url,
+                "duration_ms": commentary.duration_ms,
+                "created_at": commentary.created_at.isoformat() if commentary.created_at else None,
+                "track": {
+                    "id": track.id,
+                    "title": track.title,
+                    "artist": track.artist,
+                    "album": track.album,
+                    "artwork_url": track.artwork_url,
+                } if track else None,
+            })
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_tracks": total_tracks,
+        }
+    except Exception as e:
+        logger.error("Failed to list commentaries", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to list commentaries: {str(e)}")
 
 
 @router.get("/tts-status")

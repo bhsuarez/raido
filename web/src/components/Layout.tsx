@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, LibraryIcon, Sparkles, LogOut, LogIn } from 'lucide-react'
+import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, LibraryIcon, Sparkles, MicIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
@@ -26,6 +26,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Stations', href: '/stations', icon: RadioIcon },
     { name: 'Media', href: '/media', icon: LibraryIcon },
     { name: 'Enrich', href: '/raido/enrich', icon: Sparkles },
+    { name: 'Transcripts', href: '/transcripts', icon: MicIcon },
   ]
 
   function handleLogout() {
