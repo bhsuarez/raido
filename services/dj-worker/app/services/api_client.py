@@ -195,6 +195,17 @@ class APIClient:
             logger.debug("WS broadcast failed (non-critical)", error=str(e))
             return False
 
+    async def cleanup_stale_running_commentaries(self) -> bool:
+        """Mark any stale 'running' commentaries as failed on worker startup."""
+        try:
+            response = await self.client.post(
+                f"{self.base_url}/api/v1/admin/commentary/cleanup-stale",
+            )
+            return response.status_code in [200, 204]
+        except Exception as e:
+            logger.warning("Failed to cleanup stale commentaries on startup", error=str(e))
+            return False
+
     async def close(self):
         """Close the HTTP client"""
         await self.client.aclose()

@@ -306,6 +306,30 @@ async def delete_commentary(
         logger.error("Failed to delete commentary", error=str(e), commentary_id=commentary_id)
         raise HTTPException(status_code=500, detail=f"Failed to delete commentary: {str(e)}")
 
+@router.post("/commentary/cleanup-stale")
+async def cleanup_stale_commentaries(db: AsyncSession = Depends(get_db)):
+    """Mark all 'running' commentaries older than 5 minutes as failed.
+    Called by dj-workers on startup to clear orphaned placeholders."""
+    try:
+        from sqlalchemy import update
+        from datetime import datetime, timezone, timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+        result = await db.execute(
+            update(Commentary)
+            .where(
+                Commentary.status.in_(['running', 'generating']),
+                Commentary.created_at < cutoff,
+            )
+            .values(status='failed', error_message='Stale placeholder cleared on worker startup')
+        )
+        await db.commit()
+        return {"cleared": result.rowcount}
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.error("Failed to cleanup stale commentaries", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/commentary/cached")
 async def get_cached_commentary(
     track_id: int = Query(..., description="Track ID to look up cached commentary for"),

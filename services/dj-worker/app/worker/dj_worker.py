@@ -40,6 +40,13 @@ class DJWorker:
         """Main worker loop with system health monitoring"""
         self.is_running = True
         logger.info("🎙️ DJ Worker started")
+        # On startup, mark any stale 'running' commentaries as failed so they
+        # don't show as stuck in the UI. These are orphans from a previous
+        # process instance that crashed or was restarted.
+        try:
+            await self.api_client.cleanup_stale_running_commentaries()
+        except Exception:
+            pass
         # Best-effort warmup of Ollama to reduce first-request latency
         try:
             if hasattr(self.commentary_generator, 'ollama_client'):
