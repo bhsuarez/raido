@@ -315,6 +315,8 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             est_cap = self._estimate_token_cap(dj_settings or {})
             max_tokens = min(int(user_tokens), est_cap)
             temperature = dj_settings.get('dj_temperature', 0.8) if dj_settings else 0.8
+            # Anthropic requires temperature in [0, 1]; clamp in case Ollama-tuned values are higher
+            temperature = max(0.0, min(1.0, float(temperature)))
 
             response = await self.anthropic_client.generate_commentary(
                 prompt=prompt,
