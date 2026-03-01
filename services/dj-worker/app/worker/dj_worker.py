@@ -289,7 +289,27 @@ class DJWorker:
                 logger.info(f"🎵 TTS already generating for track {track_id}")
                 return True
 
-            # Check recent history via API for commentary on this specific track
+            # Check DB for a recently-generated ready commentary targeting this track.
+            # This handles the post-restart case where in-memory cache is empty but a
+            # commentary was already generated for an upcoming (not yet played) track.
+            try:
+                from datetime import datetime, timezone
+                cached = await self.api_client.get_cached_commentary(track_id)
+                if cached and isinstance(cached, dict):
+                    created_at = cached.get('created_at')
+                    if created_at:
+                        try:
+                            dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+                            if (datetime.now(timezone.utc) - dt).total_seconds() <= cutoff_seconds:
+                                self._recent_intros[track_id] = now
+                                logger.info("Recent commentary found in DB cache", track_id=track_id)
+                                return True
+                        except Exception:
+                            pass
+            except Exception as cache_err:
+                logger.warning("DB cache check failed; falling back to history", error=str(cache_err))
+
+            # Fall back: check play history for commentary on this specific track
             try:
                 from datetime import datetime, timezone
                 hist = await self.api_client.get_history(limit=20)

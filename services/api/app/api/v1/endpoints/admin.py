@@ -335,6 +335,7 @@ async def get_cached_commentary(
             "provider": commentary.provider,
             "voice_provider": commentary.voice_provider,
             "voice_id": commentary.voice_id,
+            "created_at": commentary.created_at.isoformat() if commentary.created_at else None,
         }
     except Exception as e:
         logger = structlog.get_logger()
@@ -894,7 +895,7 @@ def _extract_voice_names(payload: Any) -> list[str]:
         if not text:
             return
         lowered = text.lower()
-        if lowered in GENERIC_VOICE_ALIASES:
+        if not is_voice_id and lowered in GENERIC_VOICE_ALIASES:
             return
         if "://" in text:
             return
@@ -924,7 +925,7 @@ def _extract_voice_names(payload: Any) -> list[str]:
             # Only extract from voice ID fields, not paths or display names
             for field in ("id", "voice_id", "voice", "name"):
                 if field in node and node.get(field):
-                    _append(node.get(field), is_voice_id=True)
+                    _append(node.get(field), is_voice_id=field in ("id", "voice_id"))
             # Recursively walk nested structures
             for key, value in node.items():
                 if isinstance(value, (dict, list)):
