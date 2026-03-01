@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from typing import Optional, Dict, Any
 import structlog
@@ -446,59 +447,97 @@ class DJWorker:
                 except Exception:
                     pass
                 
-                # Generate commentary text, streaming tokens to WebSocket clients as they arrive
-                async def _ws_token_callback(token: str) -> None:
-                    await self.api_client.broadcast_ws("commentary_token", {"token": token})
+                # Check for cached commentary before hitting the LLM
+                ssml_text = None
+                transcript_full = None
+                provider_used = None
+                audio_file = None
+                generation_time_ms = 0
+                tts_time_ms = 0
 
-                commentary_payload = await self.commentary_generator.generate(
-                    track_info=job.track_info,
-                    context=job.context,
-                    dj_settings=dj_settings,
-                    token_callback=_ws_token_callback,
-                )
-                gen_finished = datetime.now(timezone.utc)
-                generation_time_ms = int((gen_finished - gen_started).total_seconds() * 1000)
-                
-                if not commentary_payload:
-                    job.status = JobStatus.FAILED
-                    job.error = "Failed to generate commentary text"
-                    return
+                cached = None
+                if track_id:
+                    try:
+                        cached = await self.api_client.get_cached_commentary(track_id)
+                    except Exception as cache_err:
+                        logger.warning("Cache lookup failed; proceeding with LLM", error=str(cache_err))
 
-                # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full, gen_mode, provider_used}
-                if isinstance(commentary_payload, dict):
-                    ssml_text = commentary_payload.get('ssml') or commentary_payload.get('text')
-                    transcript_full = commentary_payload.get('transcript_full') or None
-                    # Attach LLM generation metadata to context for observability
-                    try:
-                        gen_mode = commentary_payload.get('gen_mode')
-                        if gen_mode:
-                            job.context = dict(job.context or {})
-                            job.context['ollama_mode'] = gen_mode
-                    except Exception:
-                        pass
-                    # Capture the actual provider used after any fallback
-                    try:
-                        provider_used = commentary_payload.get('provider_used')
-                    except Exception:
-                        provider_used = None
+                if cached:
+                    logger.info("Using cached commentary for track", track_id=track_id)
+                    ssml_text = cached.get('ssml') or cached.get('text')
+                    transcript_full = cached.get('transcript')
+                    provider_used = 'cached'
+
+                    # Try to reuse existing audio file
+                    cached_audio = (cached.get('audio_url') or '').lstrip('/')
+                    if cached_audio:
+                        cached_filename = os.path.basename(cached_audio)
+                        cached_path = os.path.join(settings.TTS_CACHE_DIR, cached_filename)
+                        if os.path.exists(cached_path):
+                            audio_file = cached_filename
+                            logger.info("Reusing cached audio file", audio_file=audio_file)
+
+                    if not audio_file and ssml_text:
+                        # Audio was cleaned up — regenerate from cached SSML
+                        logger.info("Cached audio missing; regenerating TTS from cached SSML", track_id=track_id)
+                        tts_started = datetime.now(timezone.utc)
+                        audio_file = await self.tts_service.generate_audio(
+                            text=ssml_text,
+                            job_id=str(job_id),
+                            dj_settings=dj_settings
+                        )
+                        tts_time_ms = int((datetime.now(timezone.utc) - tts_started).total_seconds() * 1000)
+
                 else:
-                    ssml_text = str(commentary_payload)
-                    transcript_full = None
-                    provider_used = None
+                    # Generate commentary text, streaming tokens to WebSocket clients as they arrive
+                    async def _ws_token_callback(token: str) -> None:
+                        await self.api_client.broadcast_ws("commentary_token", {"token": token})
 
-                job.commentary_text = ssml_text
-                job.status = JobStatus.GENERATING_AUDIO
-                tts_started = datetime.now(timezone.utc)
-                
-                # Generate audio
-                audio_file = await self.tts_service.generate_audio(
-                    text=ssml_text,
-                    job_id=str(job_id),
-                    dj_settings=dj_settings
-                )
-                tts_finished = datetime.now(timezone.utc)
-                tts_time_ms = int((tts_finished - tts_started).total_seconds() * 1000)
-                
+                    commentary_payload = await self.commentary_generator.generate(
+                        track_info=job.track_info,
+                        context=job.context,
+                        dj_settings=dj_settings,
+                        token_callback=_ws_token_callback,
+                    )
+                    gen_finished = datetime.now(timezone.utc)
+                    generation_time_ms = int((gen_finished - gen_started).total_seconds() * 1000)
+
+                    if not commentary_payload:
+                        job.status = JobStatus.FAILED
+                        job.error = "Failed to generate commentary text"
+                        return
+
+                    # Supports returning either a plain SSML string, or a dict with keys {ssml, transcript_full, gen_mode, provider_used}
+                    if isinstance(commentary_payload, dict):
+                        ssml_text = commentary_payload.get('ssml') or commentary_payload.get('text')
+                        transcript_full = commentary_payload.get('transcript_full') or None
+                        # Attach LLM generation metadata to context for observability
+                        try:
+                            gen_mode = commentary_payload.get('gen_mode')
+                            if gen_mode:
+                                job.context = dict(job.context or {})
+                                job.context['ollama_mode'] = gen_mode
+                        except Exception:
+                            pass
+                        # Capture the actual provider used after any fallback
+                        try:
+                            provider_used = commentary_payload.get('provider_used')
+                        except Exception:
+                            provider_used = None
+                    else:
+                        ssml_text = str(commentary_payload)
+                        transcript_full = None
+                        provider_used = None
+
+                    # Generate audio
+                    tts_started = datetime.now(timezone.utc)
+                    audio_file = await self.tts_service.generate_audio(
+                        text=ssml_text,
+                        job_id=str(job_id),
+                        dj_settings=dj_settings
+                    )
+                    tts_time_ms = int((datetime.now(timezone.utc) - tts_started).total_seconds() * 1000)
+
                 if not audio_file:
                     job.status = JobStatus.FAILED
                     job.error = "Failed to generate audio"

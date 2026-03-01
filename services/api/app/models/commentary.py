@@ -9,6 +9,7 @@ class Commentary(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     play_id = Column(Integer, ForeignKey("plays.id"), nullable=True, index=True)  # Associated play
+    track_id = Column(Integer, ForeignKey("tracks.id"), nullable=True, index=True)  # Track this commentary is about
     
     # Content
     text = Column(Text, nullable=False)  # Raw text content

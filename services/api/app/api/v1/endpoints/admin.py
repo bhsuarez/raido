@@ -184,6 +184,7 @@ async def create_commentary(
         status_val = commentary_data.get("status") or "ready"
         commentary = Commentary(
             play_id=play_id,
+            track_id=commentary_data.get("target_track_id") or commentary_data.get("track_id"),
             text=commentary_data.get("text", ""),
             transcript=commentary_data.get("transcript"),
             audio_url=audio_url,
@@ -242,8 +243,12 @@ async def update_commentary(
         fields = [
             "text", "ssml", "transcript", "audio_url", "provider", "model",
             "voice_provider", "voice_id", "duration_ms", "generation_time_ms",
-            "tts_time_ms", "status", "error_message", "retry_count", "context_data"
+            "tts_time_ms", "status", "error_message", "retry_count", "context_data",
+            "track_id"
         ]
+        # Also accept target_track_id as alias for track_id
+        if "target_track_id" in payload and "track_id" not in payload:
+            payload["track_id"] = payload["target_track_id"]
         for key in fields:
             if key in payload:
                 setattr(commentary, key, payload[key])
@@ -300,6 +305,42 @@ async def delete_commentary(
     except Exception as e:
         logger.error("Failed to delete commentary", error=str(e), commentary_id=commentary_id)
         raise HTTPException(status_code=500, detail=f"Failed to delete commentary: {str(e)}")
+
+@router.get("/commentary/cached")
+async def get_cached_commentary(
+    track_id: int = Query(..., description="Track ID to look up cached commentary for"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Return the most recent ready LLM-generated commentary for a track, or null if none."""
+    try:
+        from sqlalchemy import desc
+        result = await db.execute(
+            select(Commentary)
+            .where(
+                Commentary.track_id == track_id,
+                Commentary.status == 'ready',
+                Commentary.provider.in_(['anthropic', 'ollama'])
+            )
+            .order_by(desc(Commentary.created_at))
+            .limit(1)
+        )
+        commentary = result.scalar_one_or_none()
+        if not commentary:
+            return None
+        return {
+            "id": commentary.id,
+            "ssml": commentary.text,
+            "transcript": commentary.transcript,
+            "audio_url": commentary.audio_url,
+            "provider": commentary.provider,
+            "voice_provider": commentary.voice_provider,
+            "voice_id": commentary.voice_id,
+        }
+    except Exception as e:
+        logger = structlog.get_logger()
+        logger.error("Failed to get cached commentary", error=str(e), track_id=track_id)
+        return None
+
 
 @router.get("/tts-status")
 async def get_tts_status(

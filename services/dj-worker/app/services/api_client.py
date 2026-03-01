@@ -148,6 +148,20 @@ class APIClient:
             logger.error("Error updating commentary", error=str(e))
             return False
     
+    async def get_cached_commentary(self, track_id: int) -> Optional[Dict[str, Any]]:
+        """Return cached ready commentary for a track, or None if not found."""
+        try:
+            response = await self.client.get(
+                f"{self.base_url}/api/v1/admin/commentary/cached",
+                params={"track_id": track_id},
+            )
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            logger.error("Error fetching cached commentary", error=str(e), track_id=track_id)
+            return None
+
     async def inject_commentary(self, audio_filename: str, station: str = "main") -> bool:
         """Tell Liquidsoap to inject commentary"""
         try:
