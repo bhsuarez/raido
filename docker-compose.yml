@@ -211,8 +211,8 @@ services:
     build: ./services/chatterbox-shim
     restart: unless-stopped
     environment:
-      # Primary: MacBook chatterbox (Tailscale IP), Fallback: local Kokoro
-      - CH_SHIM_UPSTREAM=http://100.75.98.84:8150,http://kokoro-tts:8880
+      # Primary: MacBook chatterbox (LAN IP), Fallback: local Kokoro
+      - CH_SHIM_UPSTREAM=http://192.168.1.170:8150,http://kokoro-tts:8880
       - CH_SHIM_TIMEOUT=120
       - CH_SHIM_FORCE_MP3=true
     ports:
@@ -286,9 +286,29 @@ services:
     environment:
       - STATION_NAME=voicing-engine
       # ANTHROPIC_API_KEY must be set in .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://api:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     # Run with conservative resource limits — this is a background job
     mem_limit: "512m"
     cpus: "0.25"
+
+  tts-worker:
+    build: ./services/dj-worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.tts_main"]
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=tts-engine
+    mem_limit: "512m"
+    cpus: "0.5"
 
   # ─── Download Gateway — Lidarr music management ───────────────────────────
   lidarr:
