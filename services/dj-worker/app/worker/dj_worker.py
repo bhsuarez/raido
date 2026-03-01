@@ -451,6 +451,7 @@ class DJWorker:
                 ssml_text = None
                 transcript_full = None
                 provider_used = None
+                model_used = None
                 audio_file = None
                 generation_time_ms = 0
                 tts_time_ms = 0
@@ -519,11 +520,13 @@ class DJWorker:
                                 job.context['ollama_mode'] = gen_mode
                         except Exception:
                             pass
-                        # Capture the actual provider used after any fallback
+                        # Capture the actual provider and model used after any fallback
                         try:
                             provider_used = commentary_payload.get('provider_used')
+                            model_used = commentary_payload.get('model')
                         except Exception:
                             provider_used = None
+                            model_used = None
                     else:
                         ssml_text = str(commentary_payload)
                         transcript_full = None
@@ -583,7 +586,8 @@ class DJWorker:
                     provider_used=provider_used,
                     existing_commentary_id=placeholder_id,
                     voice_provider_used=self.tts_service.last_voice_provider,
-                    voice_id_override=self.tts_service.last_voice_id
+                    voice_id_override=self.tts_service.last_voice_id,
+                    model=model_used,
                 )
                 
                 # Broadcast commentary_ready so the frontend can show the final transcript
@@ -650,6 +654,7 @@ class DJWorker:
         existing_commentary_id: Optional[int] = None,
         voice_provider_used: Optional[str] = None,
         voice_id_override: Optional[str] = None,
+        model: Optional[str] = None,
     ):
         """Save commentary to database via API"""
         try:
@@ -693,13 +698,13 @@ class DJWorker:
                     trimmed_voice = trimmed_voice[:100]
                 voice_id = trimmed_voice or None
 
-            # Use the admin-selected provider when recording, falling back to env default
-            provider_used = None
-            try:
-                if isinstance(dj_settings, dict) and dj_settings.get('dj_provider'):
-                    provider_used = dj_settings.get('dj_provider')
-            except Exception:
-                provider_used = None
+            # Use the actual provider from generation; fall back to admin setting or env default
+            if not provider_used:
+                try:
+                    if isinstance(dj_settings, dict) and dj_settings.get('dj_provider'):
+                        provider_used = dj_settings.get('dj_provider')
+                except Exception:
+                    pass
             provider_used = provider_used or settings.DJ_PROVIDER
 
             commentary_data = {
@@ -707,6 +712,7 @@ class DJWorker:
                 'transcript': transcript_full,
                 'audio_url': job.audio_file,
                 'provider': provider_used,
+                'model': model,
                 'voice_provider': vp,
                 'voice_id': voice_id,
                 'status': 'ready',

@@ -327,7 +327,9 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
                 full_transcript = self._sanitize_generated_text(response.strip())
                 ssml = f'<speak><break time="400ms"/>{full_transcript}</speak>'
                 trimmed_ssml = self._trim_to_duration(ssml, dj_settings or {})
-                return {"ssml": trimmed_ssml, "transcript_full": full_transcript}
+                from app.services.anthropic_client import MODEL_ID
+                model = getattr(settings, 'ANTHROPIC_MODEL', None) or MODEL_ID
+                return {"ssml": trimmed_ssml, "transcript_full": full_transcript, "model": model}
 
             return None
 
