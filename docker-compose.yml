@@ -6,7 +6,8 @@ services:
       POSTGRES_USER: raido
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: raido
-    volumes: [db:/var/lib/postgresql/data]
+    volumes:
+      - /mnt/raido-db:/var/lib/postgresql/data
 
   db-admin:
     image: dpage/pgadmin4:latest
@@ -308,4 +309,4 @@ services:
     # Lidarr does NOT go through the VPN — it talks to Prowlarr/qBittorrent
     # on the Gateway LXC via LAN IP (192.168.1.201). See infra/gateway/VPN_GATEWAY.md
 
-volumes: { db: {}, caddy: {}, shared: {}, kokoro_models: {}, lidarr_config: {} }
+volumes: { caddy: {}, shared: {}, kokoro_models: {}, lidarr_config: {} }
