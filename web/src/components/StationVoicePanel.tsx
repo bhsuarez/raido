@@ -36,6 +36,16 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
         .then(r => r.json())
         .then(data => setVoices(Array.isArray(data) ? data : FALLBACK_KOKORO_VOICES))
         .catch(() => setVoices(FALLBACK_KOKORO_VOICES))
+    } else if (provider === 'chatterbox') {
+      fetch('/api/v1/admin/voices-chatterbox')
+        .then(r => r.json())
+        .then(data => setVoices(data?.voices || []))
+        .catch(() => setVoices([]))
+    } else if (provider === 'xtts') {
+      fetch('/api/v1/admin/voices-xtts')
+        .then(r => r.json())
+        .then(data => setVoices(data?.voices || []))
+        .catch(() => setVoices([]))
     } else {
       setVoices([])
     }
