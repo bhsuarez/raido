@@ -31,6 +31,7 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
   // Load voice list when provider changes
   useEffect(() => {
     const provider = settings?.dj_voice_provider || 'kokoro'
+    setVoices([])
     if (provider === 'kokoro') {
       fetch('/api/v1/admin/voices')
         .then(r => r.json())
