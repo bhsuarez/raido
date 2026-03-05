@@ -504,6 +504,7 @@ const TTSMonitor: React.FC = () => {
   // Fetch voices based on selected provider
   useEffect(() => {
     const provider = settings?.dj_voice_provider || 'kokoro'
+    setVoices([])
     const load = async () => {
       try {
         if (provider === 'xtts') {
