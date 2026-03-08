@@ -118,7 +118,7 @@ export default function DrawerNav({ open, onClose }: DrawerNavProps) {
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0 mt-0.5"
                   style={{
-                    background: isLive ? '#4ade80' : isSelected ? '#38bdf8' : '#1a1a32',
+                    background: isLive ? '#4ade80' : isSelected ? '#38bdf8' : '#2a2a48',
                     boxShadow: isLive ? '0 0 6px rgba(74,222,128,0.7)' : 'none',
                   }}
                 />
