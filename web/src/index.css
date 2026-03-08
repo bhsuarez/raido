@@ -1,4 +1,12 @@
 @tailwind base;
+
+:root {
+  --art-bg:     hsl(230, 15%, 7%);
+  --art-accent: hsl(200, 70%, 62%);
+  --art-h:      230;
+  --art-s:      15%;
+}
+
 @tailwind components;
 @tailwind utilities;
 
@@ -9,6 +17,7 @@
 
   body {
     @apply antialiased;
+    transition: background-color 0.8s ease;
     background-color: #07070f;
     color: #ddddf0;
     /* Subtle blue radial glow at top — broadcast signal emanating from above */
