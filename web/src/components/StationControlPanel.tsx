@@ -36,7 +36,9 @@ const StationControlPanel: React.FC = () => {
       const response = await apiHelpers.getStations()
       const list = (response.data || []).filter((s: Station) => s.is_active)
       setStations(list)
-      if (list.length > 0) setSelectedStation(list[0].identifier)
+      // Preserve localStorage selection; only default to first if nothing saved
+      const saved = localStorage.getItem('selectedStation')
+      if (!saved && list.length > 0) setSelectedStation(list[0].identifier)
     } catch {
       toast.error('Failed to load stations')
     } finally {

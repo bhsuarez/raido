@@ -1,13 +1,21 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, LibraryIcon, Sparkles, MicIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
+import { apiHelpers } from '../utils/api'
 import Logo from './Logo'
 
 interface LayoutProps {
   children: React.ReactNode
+}
+
+interface Station {
+  id: number
+  identifier: string
+  name: string
+  is_active: boolean
 }
 
 export default function Layout({ children }: LayoutProps) {
@@ -20,9 +28,28 @@ export default function Layout({ children }: LayoutProps) {
   const { isAuthenticated, clearAuth } = useAuthStore()
   useWebSocket()
 
+  const [stations, setStations] = useState<Station[]>([])
+  const [selectedStation, setSelectedStation] = useState<string>(() => {
+    return localStorage.getItem('selectedStation') || 'main'
+  })
+
+  useEffect(() => {
+    apiHelpers.getStations().then((res) => {
+      const active = (res.data || []).filter((s: Station) => s.is_active)
+      setStations(active)
+    }).catch(() => {})
+  }, [])
+
+  function handleStationChange(id: string) {
+    setSelectedStation(id)
+    localStorage.setItem('selectedStation', id)
+  }
+
+  const djAdminHref = selectedStation === 'main' ? '/raido/admin' : `/${selectedStation}/admin`
+
   const navigation = [
     { name: 'Now Playing', href: '/now-playing', icon: HomeIcon },
-    { name: 'DJ Admin', href: '/raido/admin', icon: SettingsIcon },
+    { name: 'DJ Admin', href: djAdminHref, icon: SettingsIcon },
     { name: 'Stations', href: '/stations', icon: RadioIcon },
     { name: 'Media', href: '/media', icon: LibraryIcon },
     { name: 'Enrich', href: '/raido/enrich', icon: Sparkles },
@@ -72,6 +99,21 @@ export default function Layout({ children }: LayoutProps) {
                 )
               })}
             </nav>
+
+            {/* Station picker — desktop only */}
+            {stations.length > 1 && (
+              <div className="hidden md:flex items-center ml-2">
+                <select
+                  value={selectedStation}
+                  onChange={(e) => handleStationChange(e.target.value)}
+                  className="text-xs bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:border-primary-500 cursor-pointer"
+                >
+                  {stations.map((s) => (
+                    <option key={s.identifier} value={s.identifier}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Now playing ticker — desktop only */}
             {songLabel && (
