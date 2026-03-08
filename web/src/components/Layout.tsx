@@ -1,22 +1,24 @@
-import React from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { HomeIcon, SettingsIcon, RadioIcon, WifiOffIcon, LibraryIcon, Sparkles, MicIcon, LogOut, LogIn } from 'lucide-react'
+// web/src/components/Layout.tsx
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { MenuIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
-import Logo from './Logo'
+import DrawerNav from './DrawerNav'
 
 interface LayoutProps {
   children: React.ReactNode
+  /** When true, renders children full-screen (no padding). Used by NowPlayingPage. */
+  fullscreen?: boolean
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const location = useLocation()
+export default function Layout({ children, fullscreen = false }: LayoutProps) {
   const navigate = useNavigate()
-  const { isConnected, nowPlaying, selectedStation } = useRadioStore((state) => ({
-    isConnected: state.isConnected,
-    nowPlaying: state.nowPlaying,
-    selectedStation: state.selectedStation,
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const { isConnected, selectedStation } = useRadioStore((s) => ({
+    isConnected: s.isConnected,
+    selectedStation: s.selectedStation,
   }))
   const { isAuthenticated, clearAuth } = useAuthStore()
   useWebSocket()
@@ -26,171 +28,94 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login')
   }
 
-  const djAdminHref = selectedStation === 'main' ? '/raido/admin' : `/${selectedStation}/admin`
-
-  const navItems = [
-    { name: 'Now Playing', href: '/now-playing',   icon: HomeIcon },
-    { name: 'DJ Admin',    href: djAdminHref,       icon: SettingsIcon },
-    { name: 'Stations',    href: '/stations',       icon: RadioIcon },
-    { name: 'Media',       href: '/media',          icon: LibraryIcon },
-    { name: 'Enrich',      href: '/raido/enrich',   icon: Sparkles },
-    { name: 'Transcripts', href: '/transcripts',    icon: MicIcon },
-  ]
-
-  const track = nowPlaying?.track
-  const isUnknown = (s?: string) => !s || s.toLowerCase().startsWith('unknown')
-  const songLabel = track && !isUnknown(track.title)
-    ? (!isUnknown(track.artist) ? `${track.title} — ${track.artist}` : track.title!)
-    : null
+  const stationLabel = selectedStation === 'main' ? '' : selectedStation.toUpperCase()
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#07070f' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--art-bg, #07070f)', transition: 'background 0.8s ease' }}>
 
-      {/* ── Top Header ─────────────────────────────────────────────── */}
+      {/* Slim top bar */}
       <header
-        className="sticky top-0 z-40"
+        className="sticky top-0 z-30 flex items-center justify-between px-4"
         style={{
-          background: 'rgba(7, 7, 15, 0.92)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid #1a1a32',
+          height: '44px',
+          background: 'rgba(0,0,0,0.35)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
         }}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center h-14 gap-5">
+        {/* Hamburger */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: '#505070' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a0a0c0' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#505070' }}
+          aria-label="Open navigation"
+        >
+          <MenuIcon className="w-5 h-5" />
+        </button>
 
-            {/* Logo */}
-            <Link to="/" className="flex-shrink-0">
-              <Logo size="sm" />
-            </Link>
-
-            {/* Desktop navigation — text-only, uppercase, Syne */}
-            <nav className="hidden md:flex items-center gap-1 ml-1">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.href
-                  || (item.href !== '/now-playing' && location.pathname.startsWith(item.href.split('?')[0].replace(/\/admin$/, '')))
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className="relative px-3 py-1.5 text-xs font-display font-bold uppercase tracking-widest transition-colors duration-150"
-                    style={{
-                      color: isActive ? '#38bdf8' : '#404060',
-                      letterSpacing: '0.1em',
-                    }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#8080a0' }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#404060' }}
-                  >
-                    {item.name}
-                    {isActive && (
-                      <span
-                        className="absolute bottom-0 left-3 right-3 h-px rounded-full"
-                        style={{ background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)' }}
-                      />
-                    )}
-                  </Link>
-                )
-              })}
-            </nav>
-
-            {/* Now playing ticker */}
-            {songLabel && (
-              <div className="hidden md:flex flex-1 min-w-0 items-center gap-2 mx-3 overflow-hidden">
-                <span className="live-dot flex-shrink-0" aria-hidden="true" />
-                <span
-                  className="text-xs truncate"
-                  style={{ color: '#505070', fontFamily: 'Manrope, sans-serif', letterSpacing: '0.02em' }}
-                  title={songLabel}
-                >
-                  {songLabel}
-                </span>
-              </div>
-            )}
-
-            {/* Status + auth */}
-            <div className="ml-auto flex-shrink-0 flex items-center gap-3">
-              {isConnected ? (
-                <a
-                  href="/stream/raido.mp3"
-                  className="flex items-center gap-1.5 text-xs font-mono transition-colors"
-                  style={{ color: '#4ade80' }}
-                  title="Listen live"
-                >
-                  <span className="live-dot glow-live" />
-                  <span className="hidden sm:inline" style={{ letterSpacing: '0.08em' }}>ON AIR</span>
-                </a>
-              ) : (
-                <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: '#503030' }}>
-                  <WifiOffIcon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">OFFLINE</span>
-                </span>
-              )}
-
-              {isAuthenticated() ? (
-                <button
-                  onClick={handleLogout}
-                  title="Sign out"
-                  style={{ color: '#303050' }}
-                  className="transition-colors hover:text-gray-400"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              ) : (
-                <Link
-                  to="/login"
-                  title="Sign in"
-                  style={{ color: '#303050' }}
-                  className="transition-colors hover:text-gray-400"
-                >
-                  <LogIn className="h-3.5 w-3.5" />
-                </Link>
-              )}
-            </div>
-          </div>
+        {/* Wordmark + station */}
+        <div className="flex items-center gap-2">
+          {stationLabel && (
+            <span className="font-mono text-xs" style={{ color: '#303050', letterSpacing: '0.1em', fontSize: '0.6rem' }}>
+              {stationLabel}
+            </span>
+          )}
+          <Link
+            to="/now-playing"
+            className="font-display font-bold tracking-widest text-white uppercase select-none"
+            style={{ fontSize: '13px', letterSpacing: '0.22em' }}
+          >
+            RAIDO
+          </Link>
+          {/* Live dot */}
+          {isConnected && (
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: '#4ade80', boxShadow: '0 0 5px rgba(74,222,128,0.7)' }}
+            />
+          )}
         </div>
 
-        {/* Mobile: now playing strip */}
-        {songLabel && (
-          <div className="md:hidden px-4 py-2" style={{ borderTop: '1px solid #0f0f20' }}>
-            <div className="flex items-center gap-2">
-              <span className="live-dot flex-shrink-0" />
-              <span className="text-xs truncate" style={{ color: '#404060' }}>{songLabel}</span>
-            </div>
-          </div>
-        )}
+        {/* Auth */}
+        <div>
+          {isAuthenticated() ? (
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              className="p-1.5 transition-colors"
+              style={{ color: '#303050' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a0a0c0' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#303050' }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="p-1.5 transition-colors"
+              style={{ color: '#303050' }}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+            </Link>
+          )}
+        </div>
       </header>
 
-      {/* ── Main Content ────────────────────────────────────────────── */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {children}
-      </main>
+      {/* Drawer */}
+      <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      {/* ── Mobile Bottom Navigation ────────────────────────────────── */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom"
-        style={{
-          background: 'rgba(7, 7, 15, 0.95)',
-          backdropFilter: 'blur(16px)',
-          borderTop: '1px solid #1a1a32',
-        }}
-        aria-label="Mobile navigation"
-      >
-        <div className="flex items-stretch justify-around px-2 py-1">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.href
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`nav-item flex-1 ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={item.name}
-              >
-                <item.icon className="h-5 w-5" />
-              </Link>
-            )
-          })}
+      {/* Content */}
+      {fullscreen ? (
+        <div className="flex-1 relative">
+          {children}
         </div>
-      </nav>
+      ) : (
+        <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-6">
+          {children}
+        </main>
+      )}
     </div>
   )
 }
