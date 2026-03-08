@@ -1,103 +1,110 @@
-import React from 'react'
+// web/src/App.tsx
 import { Routes, Route, Navigate } from 'react-router-dom'
 
-// Components
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
-import NowPlaying from './components/NowPlaying'
-import CommentaryTranscript from './components/CommentaryTranscript'
-import ComingUp from './components/ComingUp'
-import PlayHistory from './components/PlayHistory'
+import NowPlayingPage from './pages/NowPlayingPage'
 import TTSMonitor from './components/TTSMonitor'
 import Analytics from './components/Analytics'
-import StationControlPanel from './components/StationControlPanel'
-import MediaLibrary from './components/MediaLibrary'
 import LoginPage from './components/LoginPage'
-import MBEnrich from './components/MBEnrich'
-import CommentaryBrowser from './components/CommentaryBrowser'
-// import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
+import LibraryPage from './pages/LibraryPage'
 
 function App() {
-
   return (
-    <div className="min-h-screen">
-      <Layout>
-        <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<Navigate to="/now-playing" replace />} />
-          <Route 
-            path="/now-playing" 
-            element={
-              <div className="space-y-6">
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Now Playing.</div>}>
-                  <NowPlaying />
-                </ErrorBoundary>
-                <CommentaryTranscript />
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Coming Up.</div>}>
-                  <ComingUp />
-                </ErrorBoundary>
-                <ErrorBoundary fallback={<div className="card p-6 text-gray-300">Failed to render Play History.</div>}>
-                  <PlayHistory />
-                </ErrorBoundary>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/" element={<Navigate to="/now-playing" replace />} />
+
+        {/* Full-screen immersive view */}
+        <Route
+          path="/now-playing"
+          element={
+            <Layout fullscreen>
+              <NowPlayingPage />
+            </Layout>
+          }
+        />
+
+        {/* DJ Admin — per station */}
+        <Route
+          path="/raido/admin"
+          element={
+            <Layout>
+              <TTSMonitor />
+            </Layout>
+          }
+        />
+        <Route
+          path="/:station/admin"
+          element={
+            <Layout>
+              <TTSMonitor />
+            </Layout>
+          }
+        />
+
+        {/* Library — browse + enrich */}
+        <Route
+          path="/library"
+          element={
+            <Layout>
+              <LibraryPage />
+            </Layout>
+          }
+        />
+
+        {/* Media track deep-link — renders LibraryPage so MediaLibrary can handle the trackId */}
+        <Route
+          path="/media/tracks/:trackId"
+          element={
+            <Layout>
+              <LibraryPage />
+            </Layout>
+          }
+        />
+
+        {/* Analytics */}
+        <Route
+          path="/analytics"
+          element={
+            <Layout>
+              <Analytics />
+            </Layout>
+          }
+        />
+
+        {/* Auth */}
+        <Route
+          path="/login"
+          element={
+            <Layout>
+              <LoginPage />
+            </Layout>
+          }
+        />
+
+        {/* Legacy redirects */}
+        <Route path="/tts" element={<Navigate to="/raido/admin" replace />} />
+        <Route path="/media" element={<Navigate to="/library" replace />} />
+        <Route path="/raido/enrich" element={<Navigate to="/library?tab=enrich" replace />} />
+        <Route path="/stations" element={<Navigate to="/now-playing" replace />} />
+        <Route path="/transcripts" element={<Navigate to="/raido/admin" replace />} />
+        <Route path="/history" element={<Navigate to="/now-playing" replace />} />
+
+        {/* 404 */}
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <div className="card p-12 flex flex-col items-center gap-2 text-center mt-8">
+                <p className="text-4xl font-bold" style={{ color: '#1a1a32' }}>404</p>
+                <p className="text-sm font-medium" style={{ color: '#404060' }}>Page not found</p>
               </div>
-            } 
-          />
-          <Route 
-            path="/history" 
-            element={<PlayHistory />} 
-          />
-          <Route path="/tts" element={<Navigate to="/raido/admin" replace />} />
-          <Route
-            path="/raido/admin"
-            element={<TTSMonitor />}
-          />
-          <Route
-            path="/:station/admin"
-            element={<TTSMonitor />}
-          />
-          <Route
-            path="/analytics"
-            element={<Analytics />}
-          />
-          <Route
-            path="/stations"
-            element={<StationControlPanel />}
-          />
-          <Route
-            path="/media"
-            element={<MediaLibrary />}
-          />
-          <Route
-            path="/media/tracks/:trackId"
-            element={<MediaLibrary />}
-          />
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
-          <Route
-            path="/raido/enrich"
-            element={<MBEnrich />}
-          />
-          <Route
-            path="/transcripts"
-            element={<CommentaryBrowser />}
-          />
-          {/* DJ Settings route removed - functionality moved to /tts */}
-          <Route
-            path="*"
-            element={
-              <div className="card p-12 flex flex-col items-center gap-2 text-center">
-                <p className="text-4xl font-bold text-gray-700">404</p>
-                <p className="text-gray-400 font-medium mt-1">Page not found</p>
-                <p className="text-gray-600 text-sm">The page you're looking for doesn't exist.</p>
-              </div>
-            }
-          />
-        </Routes>
-        </ErrorBoundary>
-      </Layout>
-    </div>
+            </Layout>
+          }
+        />
+      </Routes>
+    </ErrorBoundary>
   )
 }
 
