@@ -4,81 +4,126 @@
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Manrope', system-ui, sans-serif;
   }
 
   body {
-    @apply antialiased bg-gray-950 text-gray-100;
+    @apply antialiased;
+    background-color: #07070f;
+    color: #ddddf0;
+    /* Subtle blue radial glow at top — broadcast signal emanating from above */
+    background-image:
+      radial-gradient(ellipse 90% 50% at 50% -5%, rgba(14, 165, 233, 0.07), transparent);
+    min-height: 100dvh;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Syne', system-ui, sans-serif;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white font-medium px-4 py-2.5 rounded-xl transition-colors;
+    @apply bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all duration-200;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.3);
   }
 
   .btn-secondary {
-    @apply bg-gray-800 hover:bg-gray-700 active:bg-gray-900 text-gray-100 font-medium px-4 py-2.5 rounded-xl transition-colors border border-gray-700;
+    @apply font-medium px-4 py-2.5 rounded-xl transition-colors duration-200;
+    background: rgba(19, 19, 39, 0.9);
+    border: 1px solid #1a1a32;
+    color: #c0c0d8;
+  }
+  .btn-secondary:hover {
+    background: rgba(37, 37, 69, 0.9);
+    color: #e0e0f0;
   }
 
   .card {
-    @apply bg-gray-900 rounded-2xl border border-gray-800 shadow-xl;
+    @apply rounded-2xl;
+    background: rgba(13, 13, 26, 0.96);
+    border: 1px solid #1a1a32;
   }
 
   .card-elevated {
-    @apply bg-gray-800 rounded-2xl border border-gray-700 shadow-xl;
+    @apply rounded-2xl;
+    background: rgba(19, 19, 39, 0.96);
+    border: 1px solid #252545;
   }
 
   .input {
-    @apply bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-           transition-colors;
+    @apply rounded-xl px-3 py-2.5 text-white transition-colors duration-200;
+    background: rgba(19, 19, 39, 0.8);
+    border: 1px solid #252545;
+    color: #ddddf0;
+    outline: none;
+  }
+  .input::placeholder {
+    color: #404060;
+  }
+  .input:focus {
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
   }
 
   .nav-item {
-    @apply flex flex-col items-center gap-1 px-4 py-2 text-xs font-medium rounded-xl transition-colors;
+    @apply flex flex-col items-center gap-1 px-4 py-2 text-xs font-medium rounded-xl transition-colors duration-150;
   }
 
   .nav-item-active {
-    @apply text-primary-400;
+    color: #38bdf8;
   }
 
   .nav-item-inactive {
-    @apply text-gray-400 hover:text-gray-200;
+    color: #505070;
+  }
+  .nav-item-inactive:hover {
+    color: #a0a0c0;
   }
 
   .live-dot {
-    @apply w-2 h-2 bg-green-400 rounded-full animate-pulse;
+    @apply w-2 h-2 rounded-full animate-pulse;
+    background: #4ade80;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.7);
   }
 
   .section-header {
-    @apply text-sm font-semibold text-gray-400 uppercase tracking-wider;
+    font-family: 'Syne', system-ui, sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #383860;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
-
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-700 rounded-full;
+  background: #1a1a32;
+  border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  background: #252545;
 }
 
-/* Audio visualizer bars */
+/* Audio visualizer bars — sky blue gradient */
 .audio-bar {
-  @apply bg-gradient-to-t from-primary-600 to-primary-400 rounded-full;
+  background: linear-gradient(to top, #0284c7, #38bdf8);
+  border-radius: 9999px;
   animation: audioBar 1.5s ease-in-out infinite alternate;
 }
-
 .audio-bar:nth-child(2) { animation-delay: -0.3s; }
 .audio-bar:nth-child(3) { animation-delay: -0.6s; }
 .audio-bar:nth-child(4) { animation-delay: -0.9s; }
@@ -86,32 +131,30 @@
 
 @keyframes audioBar {
   from { height: 20%; }
-  to { height: 100%; }
+  to   { height: 100%; }
 }
 
 /* Loading spinner */
 .spinner {
-  border: 2px solid #1f2937;
-  border-top: 2px solid #ec7711;
+  border: 2px solid #1a1a32;
+  border-top: 2px solid #0ea5e9;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-
 @keyframes spin {
-  0% { transform: rotate(0deg); }
+  0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
 /* Shimmer for skeleton loading */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
-
 .skeleton {
-  background: linear-gradient(90deg, #1f2937 25%, #2d3748 50%, #1f2937 75%);
+  background: linear-gradient(90deg, #0d0d1a 25%, #131327 50%, #0d0d1a 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.8s infinite;
 }
 
 /* Progress bar smooth fill */
@@ -119,13 +162,27 @@
   transition: width 1s linear;
 }
 
-/* Mobile safe area padding */
+/* Mobile safe area */
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
 }
 
-/* Commentary transcript blinking cursor */
+/* Commentary cursor blink */
 @keyframes blink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  50%       { opacity: 0; }
+}
+
+/* Neon glow pulse for live badge */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(74, 222, 128, 0.4); }
+  50%       { box-shadow: 0 0 14px rgba(74, 222, 128, 0.8), 0 0 28px rgba(74, 222, 128, 0.2); }
+}
+.glow-live {
+  animation: glowPulse 2.5s ease-in-out infinite;
+}
+
+/* Thin progress bar neon glow */
+.progress-glow {
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.9), 0 0 16px rgba(56, 189, 248, 0.4);
 }

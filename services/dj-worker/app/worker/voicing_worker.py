@@ -1,8 +1,10 @@
 """Background Voicing Engine Worker.
 
-Crawls the track library and pre-renders DJ scripts + TTS audio using:
+Crawls the track library and pre-renders DJ scripts using:
   - Claude 3.5 Haiku (Anthropic) for script generation
-  - Chatterbox TTS (via shim) or Kokoro for audio generation
+
+Stores results as status=ready_text_only. A separate TTS worker
+(tts_worker.py) converts those scripts to audio via Chatterbox TTS.
 
 Budget Guard:
   - Enforces daily_spend_limit_usd and total_project_limit_usd.
@@ -12,7 +14,7 @@ Budget Guard:
 
 import asyncio
 import os
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 import structlog
 import httpx
@@ -20,11 +22,9 @@ import httpx
 from app.core.config import settings
 from app.services.anthropic_client import AnthropicClient, estimate_dry_run_cost
 from app.services.genre_personas import get_persona_for_genre
-from app.services.tts_service import TTSService
 
 logger = structlog.get_logger()
 
-VOICING_AUDIO_DIR = "/shared/tts/voicing"
 API_BASE = settings.API_BASE_URL
 
 
@@ -34,7 +34,6 @@ class VoicingWorker:
     def __init__(self):
         self.running = False
         self._stop_event = asyncio.Event()
-        self.tts_service: Optional[TTSService] = None
         self.anthropic: Optional[AnthropicClient] = None
 
     def _init_services(self):
@@ -43,8 +42,6 @@ class VoicingWorker:
             raise RuntimeError("ANTHROPIC_API_KEY not set — cannot start voicing worker")
 
         self.anthropic = AnthropicClient(api_key=api_key)
-        self.tts_service = TTSService()
-        os.makedirs(VOICING_AUDIO_DIR, exist_ok=True)
 
     async def run(self):
         """Main loop: poll config, process tracks, respect budget."""
@@ -107,8 +104,7 @@ class VoicingWorker:
         # Fetch next unvoiced track
         track = await self._fetch_next_unvoiced_track(config.get("last_processed_track_id"))
         if not track:
-            logger.info("All tracks voiced — voicing worker complete")
-            await self._mark_worker_stopped()
+            logger.info("Library fully scripted, polling for new tracks")
             return
 
         await self._voice_track(track, config, daily_limit - daily_spent, rate_limit)
@@ -144,38 +140,20 @@ class VoicingWorker:
             await self._pause_worker(f"Daily budget would be exceeded by this track (cost=${cost_usd:.5f})")
             return
 
-        # --- TTS audio generation ---
-        job_id = f"voicing_{track_id}"
-        dj_settings = {"dj_voice_provider": settings.DJ_VOICE_PROVIDER}
-        audio_filename = await self.tts_service.generate_audio(
-            text=script_text,
-            job_id=job_id,
-            dj_settings=dj_settings,
-        )
-
-        # Move audio to voicing subdirectory if generated in main tts dir
-        if audio_filename:
-            src = os.path.join(settings.TTS_CACHE_DIR, audio_filename)
-            dst_dir = VOICING_AUDIO_DIR
-            os.makedirs(dst_dir, exist_ok=True)
-            dst = os.path.join(dst_dir, audio_filename)
-            if os.path.exists(src) and src != dst:
-                os.rename(src, dst)
-
-        # --- Store result via API ---
+        # --- Store result via API (script only; TTS handled by tts_worker) ---
         await self._store_voicing_result(
             track_id=track_id,
             genre_persona=persona_name,
             script_text=script_text,
-            audio_filename=audio_filename,
+            audio_filename=None,
             provider="anthropic",
             model="claude-3-5-haiku-20241022",
-            voice_provider=self.tts_service.last_voice_provider,
-            voice_id=self.tts_service.last_voice_id,
+            voice_provider=None,
+            voice_id=None,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost_usd,
-            status="ready" if audio_filename else "ready_text_only",
+            status="ready_text_only",
         )
 
         # --- Update budget ---
@@ -320,12 +298,3 @@ class VoicingWorker:
         except Exception as e:
             logger.error("Failed to pause worker", error=str(e))
 
-    async def _mark_worker_stopped(self):
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                await client.patch(
-                    f"{API_BASE}/api/v1/voicing/config",
-                    json={"is_running": False, "paused_reason": "All tracks voiced"},
-                )
-        except Exception as e:
-            logger.warning("Failed to mark worker stopped", error=str(e))

@@ -45,6 +45,8 @@ async def get_voicing_config(db: AsyncSession = Depends(get_db)):
         "id": cfg.id,
         "is_running": cfg.is_running,
         "dry_run_mode": cfg.dry_run_mode,
+        "tts_is_running": cfg.tts_is_running,
+        "tts_last_processed_track_id": cfg.tts_last_processed_track_id,
         "daily_spend_limit_usd": cfg.daily_spend_limit_usd,
         "total_project_limit_usd": cfg.total_project_limit_usd,
         "rate_limit_per_minute": cfg.rate_limit_per_minute,
@@ -69,7 +71,7 @@ async def update_voicing_config(payload: dict, db: AsyncSession = Depends(get_db
     allowed = {
         "is_running", "dry_run_mode", "daily_spend_limit_usd", "total_project_limit_usd",
         "rate_limit_per_minute", "total_tracks_estimated", "paused_reason",
-        "dry_run_projected_cost_usd",
+        "dry_run_projected_cost_usd", "tts_is_running", "tts_last_processed_track_id",
     }
     for key, value in payload.items():
         if key in allowed:
@@ -94,10 +96,17 @@ async def get_voicing_stats(db: AsyncSession = Depends(get_db)):
     total_tracks_result = await db.execute(select(func.count(Track.id)))
     total_tracks = total_tracks_result.scalar_one()
 
-    voiced_result = await db.execute(
-        select(func.count(TrackVoicingCache.id)).where(TrackVoicingCache.status.in_(["ready", "ready_text_only"]))
+    scripts_only_result = await db.execute(
+        select(func.count(TrackVoicingCache.id)).where(TrackVoicingCache.status == "ready_text_only")
     )
-    voiced_count = voiced_result.scalar_one()
+    scripts_only_count = scripts_only_result.scalar_one()
+
+    audio_ready_result = await db.execute(
+        select(func.count(TrackVoicingCache.id)).where(TrackVoicingCache.status == "ready")
+    )
+    audio_ready_count = audio_ready_result.scalar_one()
+
+    voiced_count = scripts_only_count + audio_ready_count
 
     failed_result = await db.execute(
         select(func.count(TrackVoicingCache.id)).where(TrackVoicingCache.status == "failed")
@@ -129,6 +138,8 @@ async def get_voicing_stats(db: AsyncSession = Depends(get_db)):
     return {
         "total_tracks": total_tracks,
         "voiced_count": voiced_count,
+        "scripts_only_count": scripts_only_count,
+        "audio_ready_count": audio_ready_count,
         "failed_count": failed_count,
         "generating_count": generating_count,
         "pending_count": max(0, total_tracks - voiced_count - failed_count - generating_count),
@@ -136,6 +147,7 @@ async def get_voicing_stats(db: AsyncSession = Depends(get_db)):
         "total_spent_usd": round(total_spent, 5),
         "daily_spent_usd": round(daily_spent, 5),
         "worker_running": cfg.is_running if cfg else False,
+        "tts_is_running": cfg.tts_is_running if cfg else False,
         "dry_run_mode": cfg.dry_run_mode if cfg else False,
         "daily_limit_usd": cfg.daily_spend_limit_usd if cfg else 1.0,
         "project_limit_usd": cfg.total_project_limit_usd if cfg else 10.0,
@@ -177,6 +189,39 @@ async def get_next_unvoiced_track(
         "year": track.year,
         "genre": track.genre,
         "duration_sec": track.duration_sec,
+    }
+
+
+@router.get("/next-pending-tts")
+async def get_next_pending_tts(
+    after_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return next TrackVoicingCache row with status=ready_text_only (awaiting TTS).
+
+    `after_id` is the last track_id processed by the TTS worker (checkpoint).
+    """
+    q = (
+        select(TrackVoicingCache, Track)
+        .join(Track, TrackVoicingCache.track_id == Track.id)
+        .where(TrackVoicingCache.status == "ready_text_only")
+    )
+    if after_id:
+        q = q.where(TrackVoicingCache.track_id > after_id)
+    q = q.order_by(TrackVoicingCache.track_id).limit(1)
+
+    row = (await db.execute(q)).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="No pending TTS tracks")
+
+    vc, track = row
+    return {
+        "voicing_id": vc.id,
+        "track_id": track.id,
+        "script_text": vc.script_text,
+        "title": track.title,
+        "artist": track.artist,
+        "genre": track.genre,
     }
 
 
@@ -233,8 +278,9 @@ async def record_spend(payload: dict, db: AsyncSession = Depends(get_db)):
 
 @router.post("/progress")
 async def update_progress(payload: dict, db: AsyncSession = Depends(get_db)):
-    """Called by worker to advance the progress checkpoint and total spend."""
+    """Called by voicing or TTS worker to advance the progress checkpoint."""
     last_id = payload.get("last_processed_track_id")
+    tts_last_id = payload.get("tts_last_processed_track_id")
     cost_usd = float(payload.get("cost_usd", 0.0))
 
     result = await db.execute(select(VoicingWorkerConfig).where(VoicingWorkerConfig.id == 1))
@@ -242,8 +288,12 @@ async def update_progress(payload: dict, db: AsyncSession = Depends(get_db)):
     if cfg:
         if last_id:
             cfg.last_processed_track_id = last_id
-        cfg.voiced_tracks_count = (cfg.voiced_tracks_count or 0) + 1
-        cfg.total_spent_usd = (cfg.total_spent_usd or 0.0) + cost_usd
+        if tts_last_id:
+            cfg.tts_last_processed_track_id = tts_last_id
+        if cost_usd or last_id:
+            # Only voicing worker increments voiced_tracks_count and spend
+            cfg.voiced_tracks_count = (cfg.voiced_tracks_count or 0) + (1 if last_id else 0)
+            cfg.total_spent_usd = (cfg.total_spent_usd or 0.0) + cost_usd
         await db.commit()
     return {"ok": True}
 

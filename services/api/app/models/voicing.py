@@ -72,6 +72,8 @@ class VoicingWorkerConfig(Base):
     # Control
     is_running = Column(Boolean, default=False, nullable=False)
     dry_run_mode = Column(Boolean, default=False, nullable=False)
+    tts_is_running = Column(Boolean, default=False, nullable=False)
+    tts_last_processed_track_id = Column(Integer, nullable=True)
 
     # Budget limits
     daily_spend_limit_usd = Column(Float, default=1.00, nullable=False)

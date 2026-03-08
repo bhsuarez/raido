@@ -6,56 +6,31 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
-  const iconSize = { sm: 28, md: 34, lg: 40 }[size]
-  const textSize = { sm: 'text-base', md: 'text-lg', lg: 'text-xl' }[size]
+  const dims = { sm: { w: 18, h: 11, text: 13 }, md: { w: 22, h: 14, text: 15 }, lg: { w: 28, h: 18, text: 19 } }[size]
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      {/* Clean radio wave icon */}
+      {/* Signal mark: 5 vertical bars, center tallest — like a frequency spectrum */}
       <svg
-        width={iconSize}
-        height={iconSize}
-        viewBox="0 0 36 36"
+        width={dims.w}
+        height={dims.h}
+        viewBox="0 0 22 14"
         fill="none"
-        xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        {/* Outer waves */}
-        <path
-          d="M6 18 Q6 8 18 8 Q30 8 30 18"
-          stroke="#ec7711"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          fill="none"
-          opacity="0.5"
-        />
-        {/* Middle wave */}
-        <path
-          d="M10 18 Q10 12 18 12 Q26 12 26 18"
-          stroke="#ec7711"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          fill="none"
-          opacity="0.75"
-        />
-        {/* Inner wave */}
-        <path
-          d="M14 18 Q14 15 18 15 Q22 15 22 18"
-          stroke="#ec7711"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          fill="none"
-        />
-        {/* Center dot */}
-        <circle cx="18" cy="20" r="2.5" fill="#ec7711" />
-        {/* Stand */}
-        <line x1="18" y1="22" x2="18" y2="28" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" />
-        <line x1="13" y1="28" x2="23" y2="28" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" />
+        <rect x="0"    y="5"  width="2.5" height="4"  rx="1.25" fill="#38bdf8" opacity="0.4" />
+        <rect x="4.9"  y="2"  width="2.5" height="10" rx="1.25" fill="#38bdf8" opacity="0.7" />
+        <rect x="9.75" y="0"  width="2.5" height="14" rx="1.25" fill="#38bdf8" />
+        <rect x="14.6" y="2"  width="2.5" height="10" rx="1.25" fill="#38bdf8" opacity="0.7" />
+        <rect x="19.5" y="5"  width="2.5" height="4"  rx="1.25" fill="#38bdf8" opacity="0.4" />
       </svg>
 
-      {/* Station name */}
-      <span className={`${textSize} font-bold text-white tracking-tight`}>
-        Raido
+      {/* Wordmark — Syne, all-caps, wide tracking */}
+      <span
+        className="font-display font-bold text-white tracking-widest uppercase select-none"
+        style={{ fontSize: dims.text, letterSpacing: '0.22em' }}
+      >
+        RAIDO
       </span>
     </div>
   )

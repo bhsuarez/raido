@@ -1,16 +1,14 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { MusicIcon, ListMusicIcon, BotIcon } from 'lucide-react'
+import { ListMusicIcon } from 'lucide-react'
 import { useNextUp } from '../hooks/useNowPlaying'
 
-const FALLBACK_ART = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjMWYyOTM3Ii8+CjwvcmVjdD4KPC9zdmc+Cg=='
+const FALLBACK_ART = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iODAiIGZpbGw9IiMwZDBkMWEiLz48L3N2Zz4='
 
 function formatTime(seconds: unknown): string {
   const n = typeof seconds === 'number' ? seconds : Number(seconds)
   if (!isFinite(n) || n <= 0) return ''
-  const mins = Math.floor(n / 60)
-  const secs = Math.floor(n % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+  return `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`
 }
 
 const ComingUp: React.FC = () => {
@@ -20,17 +18,13 @@ const ComingUp: React.FC = () => {
   const tracks = hasRealTracks
     ? nextUpData!.next_tracks.map((item) => {
         const t = item?.track ?? ({} as any)
-        const dur = typeof t.duration_sec === 'number' && isFinite(t.duration_sec) ? t.duration_sec : 0
         return {
           id: t.id ?? 0,
           title: t.title || 'Unknown',
           artist: t.artist || 'Unknown Artist',
-          album: t.album || '',
-          year: typeof t.year === 'number' ? t.year : undefined,
           genre: t.genre || '',
-          duration: dur,
+          duration: typeof t.duration_sec === 'number' && isFinite(t.duration_sec) ? t.duration_sec : 0,
           artwork: t.artwork_url || FALLBACK_ART,
-          commentary: null as string | null,
         }
       })
     : []
@@ -40,12 +34,13 @@ const ComingUp: React.FC = () => {
       <div className="card p-5">
         <div className="section-header mb-4">Up Next</div>
         <div className="space-y-3">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-3 animate-pulse">
-              <div className="w-11 h-11 rounded-lg bg-gray-800 flex-shrink-0" />
+              <div className="w-1 h-10 rounded-full skeleton flex-shrink-0" />
+              <div className="w-10 h-10 rounded-lg skeleton flex-shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="h-3.5 bg-gray-800 rounded w-2/3" />
-                <div className="h-3 bg-gray-800 rounded w-1/2" />
+                <div className="h-3 skeleton rounded w-2/3" />
+                <div className="h-2.5 skeleton rounded w-1/2" />
               </div>
             </div>
           ))}
@@ -56,10 +51,11 @@ const ComingUp: React.FC = () => {
 
   if (tracks.length === 0) {
     return (
-      <div className="card p-6 flex flex-col items-center gap-2 text-center text-gray-500 py-10">
-        <ListMusicIcon className="w-8 h-8 text-gray-700" />
-        <p className="text-sm font-medium text-gray-400">No queue data</p>
-        <p className="text-xs">Tracks are played dynamically from the library</p>
+      <div className="card p-8 flex flex-col items-center gap-2 text-center">
+        <ListMusicIcon className="w-8 h-8" style={{ color: '#1a1a32' }} />
+        <p className="text-sm font-display font-bold uppercase tracking-widest" style={{ color: '#303050' }}>
+          No Queue
+        </p>
       </div>
     )
   }
@@ -68,50 +64,92 @@ const ComingUp: React.FC = () => {
 
   return (
     <div className="card overflow-hidden">
-      {/* Featured next track */}
-      <div className="flex gap-4 p-5 border-b border-gray-800">
-        <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-gray-800">
+
+      {/* ── Section header ─────────────────────────────── */}
+      <div
+        className="px-5 py-3 flex items-center justify-between"
+        style={{ borderBottom: '1px solid #0f0f20' }}
+      >
+        <span className="section-header">Up Next</span>
+        <span className="font-mono text-xs" style={{ color: '#252540', fontSize: '0.65rem' }}>
+          {tracks.length} queued
+        </span>
+      </div>
+
+      {/* ── Featured next track ─────────────────────────── */}
+      <div className="flex gap-4 p-5" style={{ borderBottom: '1px solid #0f0f20' }}>
+        {/* Accent bar */}
+        <div className="w-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(56,189,248,0.4)' }} />
+
+        {/* Artwork */}
+        <div
+          className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden"
+          style={{ background: '#0d0d1a' }}
+        >
           <img
             src={featured.artwork}
-            alt={`${featured.album || featured.title} artwork`}
+            alt={featured.title}
             className="w-full h-full object-cover"
             onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_ART }}
           />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="section-header mb-1">Up Next</p>
-          <Link to={`/media/tracks/${featured.id}`} className="font-semibold text-white hover:text-primary-400 transition-colors truncate block">{featured.title}</Link>
-          <p className="text-sm text-gray-400 truncate">{featured.artist}</p>
-          <div className="flex items-center gap-2 mt-1">
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+          <Link
+            to={`/media/tracks/${featured.id}`}
+            className="font-display font-bold text-sm leading-tight truncate transition-colors"
+            style={{ color: '#ddddf0' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#38bdf8' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#ddddf0' }}
+          >
+            {featured.title}
+          </Link>
+          <p className="text-xs truncate" style={{ color: '#505070' }}>{featured.artist}</p>
+          <div className="flex items-center gap-2">
             {featured.genre && (
-              <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full border border-gray-700">
+              <span
+                className="text-xs font-mono uppercase"
+                style={{
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.08em',
+                  color: '#303058',
+                }}
+              >
                 {featured.genre}
               </span>
             )}
             {featured.duration > 0 && (
-              <span className="text-xs text-gray-500">{formatTime(featured.duration)}</span>
+              <span className="font-mono text-xs" style={{ color: '#303050', fontSize: '0.65rem' }}>
+                {formatTime(featured.duration)}
+              </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Commentary preview if available */}
-      {featured.commentary && (
-        <div className="px-5 py-3 bg-gray-800/40 border-b border-gray-800 flex gap-2 items-start">
-          <BotIcon className="w-4 h-4 text-primary-400 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-gray-300 leading-relaxed">{featured.commentary}</p>
-        </div>
-      )}
-
-      {/* Rest of queue */}
+      {/* ── Queue list ─────────────────────────────────── */}
       {rest.length > 0 && (
-        <div className="divide-y divide-gray-800/60">
+        <div>
           {rest.map((track, i) => (
-            <div key={`${track.id}-${i}`} className="flex items-center gap-3 px-5 py-3">
-              <span className="text-xs font-medium text-gray-600 w-4 text-center flex-shrink-0">
+            <div
+              key={`${track.id}-${i}`}
+              className="flex items-center gap-3 px-5 py-2.5"
+              style={{ borderBottom: i < rest.length - 1 ? '1px solid #0a0a18' : 'none' }}
+            >
+              {/* Track number — mono */}
+              <span
+                className="font-mono flex-shrink-0 text-right"
+                style={{ width: '1.2rem', color: '#252540', fontSize: '0.65rem' }}
+              >
                 {i + 2}
               </span>
-              <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+
+              {/* Tiny artwork */}
+              <div
+                className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
+                style={{ background: '#0d0d1a' }}
+              >
                 <img
                   src={track.artwork}
                   alt={track.title}
@@ -119,28 +157,43 @@ const ComingUp: React.FC = () => {
                   onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_ART }}
                 />
               </div>
+
+              {/* Title / artist */}
               <div className="flex-1 min-w-0">
-                <Link to={`/media/tracks/${track.id}`} className="text-sm font-medium text-gray-200 hover:text-primary-400 transition-colors truncate block">{track.title}</Link>
-                <p className="text-xs text-gray-500 truncate">{track.artist}</p>
+                <Link
+                  to={`/media/tracks/${track.id}`}
+                  className="text-xs font-medium truncate block transition-colors"
+                  style={{ color: '#7070a0' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#38bdf8' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#7070a0' }}
+                >
+                  {track.title}
+                </Link>
+                <p className="text-xs truncate" style={{ color: '#303050', fontSize: '0.65rem' }}>
+                  {track.artist}
+                </p>
               </div>
+
+              {/* Duration */}
               {track.duration > 0 && (
-                <span className="text-xs text-gray-600 flex-shrink-0">{formatTime(track.duration)}</span>
+                <span className="font-mono flex-shrink-0" style={{ color: '#252540', fontSize: '0.65rem' }}>
+                  {formatTime(track.duration)}
+                </span>
               )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-800 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="live-dot" />
-          <span>AI commentary active</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          <MusicIcon className="w-3 h-3" />
-          <span>{tracks.length} queued</span>
-        </div>
+      {/* Footer — AI indicator */}
+      <div
+        className="px-5 py-2.5 flex items-center gap-2"
+        style={{ borderTop: '1px solid #0a0a18' }}
+      >
+        <span className="live-dot" style={{ width: '6px', height: '6px' }} />
+        <span className="font-mono uppercase" style={{ color: '#252540', fontSize: '0.58rem', letterSpacing: '0.1em' }}>
+          AI commentary active
+        </span>
       </div>
     </div>
   )
