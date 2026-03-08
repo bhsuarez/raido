@@ -1,49 +1,25 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { HomeIcon, SettingsIcon, RadioIcon, WifiOffIcon, LibraryIcon, Sparkles, MicIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
-import { apiHelpers } from '../utils/api'
 import Logo from './Logo'
 
 interface LayoutProps {
   children: React.ReactNode
 }
 
-interface Station {
-  id: number
-  identifier: string
-  name: string
-  is_active: boolean
-}
-
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { isConnected, nowPlaying } = useRadioStore((state) => ({
+  const { isConnected, nowPlaying, selectedStation } = useRadioStore((state) => ({
     isConnected: state.isConnected,
     nowPlaying: state.nowPlaying,
+    selectedStation: state.selectedStation,
   }))
   const { isAuthenticated, clearAuth } = useAuthStore()
   useWebSocket()
-
-  const [stations, setStations] = useState<Station[]>([])
-  const [selectedStation, setSelectedStation] = useState<string>(() => {
-    return localStorage.getItem('selectedStation') || 'main'
-  })
-
-  useEffect(() => {
-    apiHelpers.getStations().then((res) => {
-      const active = (res.data || []).filter((s: Station) => s.is_active)
-      setStations(active)
-    }).catch(() => {})
-  }, [])
-
-  function handleStationChange(id: string) {
-    setSelectedStation(id)
-    localStorage.setItem('selectedStation', id)
-  }
 
   function handleLogout() {
     clearAuth()
@@ -115,27 +91,6 @@ export default function Layout({ children }: LayoutProps) {
                 )
               })}
             </nav>
-
-            {/* Station picker */}
-            {stations.length > 1 && (
-              <div className="hidden md:flex items-center ml-1">
-                <select
-                  value={selectedStation}
-                  onChange={(e) => handleStationChange(e.target.value)}
-                  className="text-xs font-mono rounded-lg px-2 py-1 cursor-pointer transition-colors"
-                  style={{
-                    background: 'rgba(19, 19, 39, 0.9)',
-                    border: '1px solid #1a1a32',
-                    color: '#606080',
-                    outline: 'none',
-                  }}
-                >
-                  {stations.map((s) => (
-                    <option key={s.identifier} value={s.identifier}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Now playing ticker */}
             {songLabel && (

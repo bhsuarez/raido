@@ -70,6 +70,10 @@ export interface RadioState {
   // Admin state
   isAdmin: boolean
   setIsAdmin: (isAdmin: boolean) => void
+
+  // Station context
+  selectedStation: string
+  setSelectedStation: (station: string) => void
 }
 
 export const useRadioStore = create<RadioState>()(
@@ -130,6 +134,13 @@ export const useRadioStore = create<RadioState>()(
       // Admin state
       isAdmin: false,
       setIsAdmin: (isAdmin) => set({ isAdmin }),
+
+      // Station context
+      selectedStation: localStorage.getItem('selectedStation') || 'main',
+      setSelectedStation: (station) => {
+        set({ selectedStation: station })
+        localStorage.setItem('selectedStation', station)
+      },
     }),
     {
       name: 'raido-store'
