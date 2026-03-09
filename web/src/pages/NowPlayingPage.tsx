@@ -18,9 +18,10 @@ function fmt(s: number | null | undefined) {
 
 export default function NowPlayingPage() {
   const { data: nowPlaying, isLoading } = useNowPlaying()
-  const { commentaryText, isGeneratingCommentary } = useRadioStore((s) => ({
+  const { commentaryText, isGeneratingCommentary, selectedStation } = useRadioStore((s) => ({
     commentaryText: s.commentaryText,
     isGeneratingCommentary: s.isGeneratingCommentary,
+    selectedStation: s.selectedStation,
   }))
 
   const track = nowPlaying?.track
@@ -46,7 +47,7 @@ export default function NowPlayingPage() {
     if (isSkipping) return
     setIsSkipping(true)
     try {
-      await apiHelpers.skipTrack()
+      await apiHelpers.skipTrack(selectedStation)
       toast.success('Skipped')
     } catch {
       toast.error('Failed to skip')

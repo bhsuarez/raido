@@ -4,6 +4,7 @@ import { SkipForwardIcon, MusicIcon } from 'lucide-react'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
+import { useRadioStore } from '../store/radioStore'
 import { NowPlayingSkeleton } from './LoadingSkeleton'
 
 const FALLBACK_ART = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjMGQwZDFhIi8+CjxjaXJjbGUgY3g9IjE1MCIgY3k9IjE1MCIgcj0iNjAiIGZpbGw9IiMxMzEzMjciLz4KPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTUwIiByPSIyMCIgZmlsbD0iIzFhMWEzMiIvPgo8L3N2Zz4K'
@@ -18,6 +19,7 @@ function formatTime(seconds: number | null | undefined): string {
 
 const NowPlaying: React.FC = () => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
+  const selectedStation = useRadioStore((s) => s.selectedStation)
   const track = nowPlaying?.track
   const progress = nowPlaying?.progress
   const total = track?.duration_sec ?? progress?.total_seconds ?? 0
@@ -40,7 +42,7 @@ const NowPlaying: React.FC = () => {
     if (isSkipping) return
     setIsSkipping(true)
     try {
-      await apiHelpers.skipTrack()
+      await apiHelpers.skipTrack(selectedStation)
       toast.success('Track skipped')
     } catch {
       toast.error('Failed to skip track')
