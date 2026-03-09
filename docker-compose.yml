@@ -27,6 +27,7 @@ services:
       - ICECAST_ADMIN_PASSWORD=hackme
       - ICECAST_PASSWORD=hackme
       - ICECAST_RELAY_PASSWORD=hackme
+      - ICECAST_MAX_SOURCES=10
     volumes:
       - ./logs/icecast:/var/log/icecast
 
