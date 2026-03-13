@@ -54,6 +54,37 @@ async def _write_recent_playlist():
         await asyncio.sleep(3600)
 
 
+async def _write_newreleases_playlist():
+    """Write /shared/newreleases.m3u with tracks released in 2024 or later.
+
+    Uses Track.year >= 2024 as the filter. Runs once on startup then
+    refreshes hourly so the Liquidsoap 'newreleases' station stays current.
+    """
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.tracks import Track
+
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Track.file_path)
+                    .where(Track.year >= 2024)
+                    .where(~Track.file_path.like("liquidsoap://%"))
+                    .order_by(Track.year.desc())
+                )
+                paths = [row[0] for row in result.fetchall()]
+
+            content = "#EXTM3U\n" + "\n".join(paths) + "\n"
+            with open("/shared/newreleases.m3u", "w") as f:
+                f.write(content)
+            logger.info("Wrote newreleases.m3u", track_count=len(paths))
+        except Exception as e:
+            logger.warning("Failed to write newreleases.m3u", error=str(e))
+
+        await asyncio.sleep(3600)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
@@ -68,6 +99,7 @@ async def lifespan(app: FastAPI):
         logger.warning("Database not available on startup; continuing", error=str(e))
 
     asyncio.create_task(_write_recent_playlist())
+    asyncio.create_task(_write_newreleases_playlist())
 
     yield
 
