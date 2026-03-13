@@ -30,12 +30,14 @@ backup_music = playlist(
 
 # Skip Christmas tracks on the main station
 def skip_christmas(m)
-  filename = list.assoc(default="", "filename", m)
-  title = list.assoc(default="", "title", m)
-  is_christmas = string.contains(substring="Now That's What I Call Christmas", filename)
-    or string.contains(substring="Christmas! (Disc", filename)
+  filename = string.lowercase(list.assoc(default="", "filename", m))
+  title    = string.lowercase(list.assoc(default="", "title", m))
+  album    = string.lowercase(list.assoc(default="", "album", m))
+  is_christmas = string.contains(substring="christmas", filename)
+    or string.contains(substring="christmas", title)
+    or string.contains(substring="christmas", album)
   if is_christmas then
-    log("Skipping Christmas track: " ^ title)
+    log("Skipping Christmas track: " ^ list.assoc(default="", "title", m))
     backup_music.skip()
   end
 end
