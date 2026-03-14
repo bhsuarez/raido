@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Development: `make setup && make up-dev && make health`
 - Production: `make setup && make up && make migrate && make health`
 
-For detailed recovery procedures, troubleshooting, and emergency fixes, see **[RECOVERY.md](RECOVERY.md)**.
+For detailed recovery procedures, troubleshooting, and emergency fixes, see **[RECOVERY.md](docs/RECOVERY.md)**.
 
 ## Essential Commands
 

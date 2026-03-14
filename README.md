@@ -194,7 +194,7 @@ See [monitoring/README.md](monitoring/README.md) for setup. Local health check: 
 
 **Web not loading**: `make logs-proxy` → prod: `docker compose build web && make restart`.
 
-For detailed recovery procedures see [RECOVERY.md](RECOVERY.md).
+For detailed recovery procedures see [RECOVERY.md](docs/RECOVERY.md).
 
 ---
 
