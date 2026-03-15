@@ -26,11 +26,14 @@ export const ttsApi = axios.create({
 
 // Request interceptors for both instances
 const requestInterceptor = (config: any) => {
-  // Add auth token if available
-  const token = localStorage.getItem('raido-token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  // Read token from zustand persist store (key: raido-auth, shape: {state:{token}})
+  try {
+    const raw = localStorage.getItem('raido-auth')
+    const token = raw ? JSON.parse(raw)?.state?.token : null
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch {}
   return config
 }
 
@@ -49,9 +52,9 @@ const responseErrorInterceptor = (error: any) => {
   // Don't show error toasts for expected errors
   if (error.response?.status === 401) {
     // Avoid reload loops if no token is set
-    const hadToken = Boolean(localStorage.getItem('raido-token'))
+    const hadToken = Boolean(JSON.parse(localStorage.getItem('raido-auth') || '{}')?.state?.token)
     if (hadToken) {
-      localStorage.removeItem('raido-token')
+      localStorage.removeItem('raido-auth')
       window.location.reload()
     }
     // If no token, surface the error without reloading the page
