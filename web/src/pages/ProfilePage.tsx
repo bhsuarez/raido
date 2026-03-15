@@ -1,11 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useAuthStore } from '../store/authStore'
 import { toast } from 'react-hot-toast'
-import { UserIcon } from 'lucide-react'
 
 export default function ProfilePage() {
   const { email, role, fullName, displayName, avatarUrl, setProfile } = useAuthStore()
+  const location = useLocation()
+  const pwRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    if (location.hash === '#password') {
+      setTimeout(() => pwRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+    }
+  }, [location.hash])
 
   const [form, setForm] = useState({
     full_name: fullName || '',
@@ -152,7 +160,7 @@ export default function ProfilePage() {
       </form>
 
       {/* Change password form */}
-      <form onSubmit={handleChangePassword} className="card p-5 flex flex-col gap-4">
+      <form ref={pwRef} onSubmit={handleChangePassword} className="card p-5 flex flex-col gap-4">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#505070' }}>Change Password</p>
 
         <div className="flex flex-col gap-1">

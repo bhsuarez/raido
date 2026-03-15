@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { MenuIcon, LogIn } from 'lucide-react'
+import { MenuIcon, LogIn, UserIcon, KeyRoundIcon, LogOutIcon } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
@@ -16,6 +16,17 @@ interface LayoutProps {
 export default function Layout({ children, fullscreen = false }: LayoutProps) {
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
   const { isConnected, selectedStation } = useRadioStore((s) => ({
     isConnected: s.isConnected,
     selectedStation: s.selectedStation,
@@ -81,24 +92,69 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
         </div>
 
         {/* Auth */}
-        <div>
+        <div className="relative" ref={menuRef}>
           {isAuthenticated() ? (
-            <Link
-              to="/profile"
-              title="Profile"
-              className="block"
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-6 h-6 rounded-full object-cover" />
-              ) : (
+            <>
+              <button onClick={() => setMenuOpen(o => !o)} className="block" title="Account">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background: '#1a1a32', color: '#38bdf8', border: '1px solid #2a2a48' }}
+                  >
+                    {initials}
+                  </div>
+                )}
+              </button>
+
+              {menuOpen && (
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: '#1a1a32', color: '#38bdf8', border: '1px solid #2a2a48' }}
+                  className="absolute right-0 top-8 flex flex-col py-1 z-50"
+                  style={{
+                    background: 'rgba(8,8,18,0.97)',
+                    border: '1px solid #1a1a32',
+                    borderRadius: '8px',
+                    minWidth: '160px',
+                    backdropFilter: 'blur(16px)',
+                  }}
                 >
-                  {initials}
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors"
+                    style={{ color: '#808090' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#c0c0e0' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#808090' }}
+                  >
+                    <UserIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    Profile
+                  </Link>
+                  <Link
+                    to="/profile#password"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors"
+                    style={{ color: '#808090' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#c0c0e0' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#808090' }}
+                  >
+                    <KeyRoundIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    Change Password
+                  </Link>
+                  <div style={{ height: '1px', background: '#1a1a32', margin: '4px 0' }} />
+                  <button
+                    onClick={() => { setMenuOpen(false); handleLogout() }}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors w-full text-left"
+                    style={{ color: '#808090' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#808090' }}
+                  >
+                    <LogOutIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    Sign Out
+                  </button>
                 </div>
               )}
-            </Link>
+            </>
           ) : (
             <Link
               to="/login"
