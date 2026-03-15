@@ -89,6 +89,42 @@ async def _write_newreleases_playlist():
         await asyncio.sleep(3600)
 
 
+async def _close_stale_sessions():
+    """Background task: close listener sessions with no heartbeat for >90 seconds."""
+    from datetime import timedelta
+    from sqlalchemy import select, and_
+    from app.core.database import AsyncSessionLocal
+    from app.models.listener_session import ListenerSession
+
+    while True:
+        await asyncio.sleep(60)
+        try:
+            from datetime import datetime, timezone
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=90)
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(ListenerSession).where(
+                        and_(
+                            ListenerSession.ended_at.is_(None),
+                            ListenerSession.last_heartbeat_at < cutoff,
+                        )
+                    )
+                )
+                stale = result.scalars().all()
+                now = datetime.now(timezone.utc)
+                for session in stale:
+                    started = session.started_at
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=timezone.utc)
+                    session.ended_at = now
+                    session.duration_seconds = int((now - started).total_seconds())
+                if stale:
+                    await db.commit()
+                    logger.info("Closed stale listener sessions", count=len(stale))
+        except Exception as e:
+            logger.error("Error in stale session cleanup", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
@@ -104,6 +140,7 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(_write_recent_playlist())
     asyncio.create_task(_write_newreleases_playlist())
+    asyncio.create_task(_close_stale_sessions())
 
     yield
 
