@@ -2,6 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+
+> **Implementation status:** COMPLETE — all code was implemented prior to this planning session. This document serves as the design record.
+
 **Goal:** Add a self-registration+approval listener role, Caddy forward_auth stream gating with short-lived tokens, IP-based listener session tracking, and admin analytics pages.
 
 **Architecture:** Short-lived stream tokens (signed JWT, 15-min TTL, separate `STREAM_TOKEN_SECRET`) are issued to authenticated users and validated by Caddy's `forward_auth` before proxying Icecast. Listener sessions are tracked via 30s heartbeat pings in a new `listener_sessions` PostgreSQL table; a background task closes stale sessions after 90s of no heartbeat. GeoIP lookup uses MaxMind GeoLite2-City DB.
@@ -507,8 +510,6 @@ async def _notify_pingos(message: str) -> None:
 @router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(payload: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Self-registration. Creates a pending account awaiting admin approval."""
-    from fastapi import Request
-
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -532,7 +533,7 @@ async def register(payload: RegisterRequest, request: Request, db: AsyncSession 
     return RegisterResponse(message="Registration submitted. Pending admin approval.")
 ```
 
-Note: Add `Request` to the imports at the top of the file and add `request: Request` param (needed for future rate limiting, see Task 6b).
+Note: Add `from fastapi import Request` to the imports at the top of `auth.py`. The `request: Request` parameter is needed by slowapi's rate limiter (added in Task 7).
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -595,17 +596,15 @@ In `auth.py`, import from the shared module:
 from app.core.limiter import limiter
 ```
 
-Decorate the register endpoint:
+Decorate the register endpoint. **`@limiter.limit` must be outermost — place it above `@router.post`:**
 ```python
-@router.post("/register", response_model=RegisterResponse, status_code=201)
 @limiter.limit("5/hour")
+@router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(payload: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
     ...
 ```
 
 - [ ] **Step 4: Restart API and verify rate limiting works**
-
-- [ ] **Step 5: Restart API and verify rate limiting works**
 
 ```bash
 docker compose restart api && sleep 3
@@ -618,10 +617,10 @@ done
 ```
 Expected: First 5 return `201` or `409`, 6th returns `429`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add services/api/app/main.py services/api/app/api/v1/endpoints/auth.py
+git add services/api/app/core/limiter.py services/api/app/main.py services/api/app/api/v1/endpoints/auth.py
 git commit -m "feat: rate-limit /auth/register to 5 requests/hour per IP"
 ```
 
@@ -719,15 +718,20 @@ async def get_me(current_user: User = Depends(get_current_user)):
 ```bash
 # Setup status (no auth required):
 curl -s http://localhost/api/v1/auth/setup-status | python3 -m json.tool
+# Expected: {"needs_setup": false}
 
-# /me requires a valid token — use your admin token:
+# Verify /me no longer returns setup-check (must return 401 without token):
+curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/auth/me
+# Expected: 401 (not {"needs_setup": ...})
+
+# /me with a valid token — use your admin token:
 TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"yourpassword"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 curl -s http://localhost/api/v1/auth/me -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+# Expected: {"id": ..., "email": ..., "role": "admin", "is_active": true, ...}
 ```
-Expected: `setup-status` returns `{"needs_setup": false}`. `/me` returns user object.
 
 - [ ] **Step 4: Commit**
 
@@ -814,9 +818,24 @@ docker compose exec api python -m pytest tests/test_stream_token.py -v 2>&1 | ta
 ```
 Expected: `3 passed`.
 
-- [ ] **Step 5: Add stream token endpoints to stream.py**
+- [ ] **Step 5: Read current stream.py before editing**
 
-Replace the contents of `services/api/app/api/v1/endpoints/stream.py` with the following. **Note:** The `get_db` import and the `get_stream_status` endpoint are kept as-is. Two new endpoints (`/token` and `/validate`) are added alongside.
+```bash
+cat services/api/app/api/v1/endpoints/stream.py
+```
+Confirm the current content, then add the two new endpoints **below** the existing `get_stream_status` endpoint. Do **not** replace the file — only append.
+
+- [ ] **Step 6: Add stream token endpoints to stream.py**
+
+Add the following imports at the top of `stream.py` (after existing imports):
+```python
+from fastapi import Request
+from app.core.deps import get_current_user
+from app.core.security import create_stream_token, validate_stream_token
+from app.models.users import User
+```
+
+Then append the two new endpoints **after** the existing `get_stream_status` function:
 ```python
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -882,7 +901,7 @@ async def validate_stream(request: Request):
     return Response(status_code=200, headers=headers)
 ```
 
-- [ ] **Step 6: Verify token endpoint works**
+- [ ] **Step 7: Verify token endpoint works**
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
@@ -897,7 +916,7 @@ curl -s -o /dev/null -w "%{http_code}" "http://localhost/api/v1/stream/validate?
 ```
 Expected: `200`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add services/api/app/core/security.py services/api/app/api/v1/endpoints/stream.py services/api/tests/test_stream_token.py
