@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { RadioIcon, MusicIcon, ExternalLinkIcon, ClipboardIcon, SettingsIcon, ActivityIcon } from 'lucide-react'
+import { RadioIcon, MusicIcon, ExternalLinkIcon, ClipboardIcon, SettingsIcon, ActivityIcon, SkipForwardIcon } from 'lucide-react'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
 
@@ -30,6 +30,20 @@ const StationControlPanel: React.FC = () => {
     return localStorage.getItem('selectedStation') || 'main'
   })
   const [loading, setLoading] = useState(true)
+  const [isSkipping, setIsSkipping] = useState(false)
+
+  const handleSkip = async () => {
+    if (isSkipping) return
+    setIsSkipping(true)
+    try {
+      await apiHelpers.skipTrack(selectedStation)
+      toast.success('Track skipped')
+    } catch {
+      toast.error('Failed to skip track')
+    } finally {
+      setTimeout(() => setIsSkipping(false), 2000)
+    }
+  }
 
   const loadStations = async () => {
     try {
@@ -271,6 +285,14 @@ const StationControlPanel: React.FC = () => {
                 <SettingsIcon className="w-3.5 h-3.5" />
                 DJ Admin
               </a>
+              <button
+                onClick={handleSkip}
+                disabled={isSkipping || !selected?.is_playing}
+                className="btn-secondary flex items-center gap-1.5 text-sm disabled:opacity-40"
+              >
+                <SkipForwardIcon className="w-3.5 h-3.5" />
+                {isSkipping ? 'Skipping…' : 'Skip Track'}
+              </button>
               <button
                 onClick={() => window.open(`/api/v1/now/?station=${selectedStation}`, '_blank')}
                 className="btn-secondary flex items-center gap-1.5 text-sm"
