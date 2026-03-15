@@ -86,7 +86,16 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Invalid email or password",
         )
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account disabled")
+        if not user.is_verified:
+            # Pending approval — different error for the frontend to detect
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="account_pending",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account disabled",
+        )
 
     # Update login tracking
     user.last_login_at = datetime.now(timezone.utc)
