@@ -1,6 +1,5 @@
-// web/src/components/Layout.tsx
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { MenuIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -8,7 +7,7 @@ import { useAuthStore } from '../store/authStore'
 import DrawerNav from './DrawerNav'
 
 interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
   /** When true, renders children full-screen (no padding). Used by NowPlayingPage. */
   fullscreen?: boolean
 }
@@ -64,12 +63,11 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
           )}
           <Link
             to="/now-playing"
-            className="font-display font-bold tracking-widest text-white uppercase select-none"
+            className="font-bold tracking-widest text-white uppercase select-none"
             style={{ fontSize: '13px', letterSpacing: '0.22em' }}
           >
             RAIDO
           </Link>
-          {/* Live dot */}
           {isConnected && (
             <span
               className="w-1.5 h-1.5 rounded-full"
@@ -103,17 +101,17 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
         </div>
       </header>
 
-      {/* Drawer */}
+      {/* Slide-out Drawer */}
       <DrawerNav open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* Content */}
       {fullscreen ? (
         <div className="flex-1 relative">
-          {children}
+          {children ?? <Outlet />}
         </div>
       ) : (
         <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-6">
-          {children}
+          {children ?? <Outlet />}
         </main>
       )}
     </div>

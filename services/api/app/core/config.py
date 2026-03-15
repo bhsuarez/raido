@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 90
     SESSION_SECRET: str = "your-session-secret-key-here"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
+    STREAM_TOKEN_SECRET: str  # No default — app fails to start if missing
+    STREAM_TOKEN_EXPIRE_MINUTES: int = 15
+    GEOIP_DB_PATH: str = "/app/geoip/GeoLite2-City.mmdb"
     
     # Anthropic
     ANTHROPIC_API_KEY: Optional[str] = None

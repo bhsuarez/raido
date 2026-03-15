@@ -18,6 +18,7 @@ STATION_LIQUIDSOAP_CONFIG = {
     "main": {"host": "liquidsoap", "port": 1234},
     "christmas": {"host": "christmas-liquidsoap", "port": 1235},
     "recent": {"host": "recent-liquidsoap", "port": 1236},
+    "newreleases": {"host": "newreleases-liquidsoap", "port": 1237},
 }
 
 def get_liquidsoap_client(station: str = "main") -> LiquidsoapClient:

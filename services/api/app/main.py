@@ -8,9 +8,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import structlog
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging_config import configure_logging
+from app.core.limiter import limiter
 from app.api.v1 import api_router
 from app.core.websocket_manager import WebSocketManager
 
@@ -54,6 +58,73 @@ async def _write_recent_playlist():
         await asyncio.sleep(3600)
 
 
+async def _write_newreleases_playlist():
+    """Write /shared/newreleases.m3u with tracks released in 2024 or later.
+
+    Uses Track.year >= 2024 as the filter. Runs once on startup then
+    refreshes hourly so the Liquidsoap 'newreleases' station stays current.
+    """
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.tracks import Track
+
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(Track.file_path)
+                    .where(Track.year >= 2024)
+                    .where(~Track.file_path.like("liquidsoap://%"))
+                    .order_by(Track.year.desc())
+                )
+                paths = [row[0] for row in result.fetchall()]
+
+            content = "#EXTM3U\n" + "\n".join(paths) + "\n"
+            with open("/shared/newreleases.m3u", "w") as f:
+                f.write(content)
+            logger.info("Wrote newreleases.m3u", track_count=len(paths))
+        except Exception as e:
+            logger.warning("Failed to write newreleases.m3u", error=str(e))
+
+        await asyncio.sleep(3600)
+
+
+async def _close_stale_sessions():
+    """Background task: close listener sessions with no heartbeat for >90 seconds."""
+    from datetime import timedelta
+    from sqlalchemy import select, and_
+    from app.core.database import AsyncSessionLocal
+    from app.models.listener_session import ListenerSession
+
+    while True:
+        await asyncio.sleep(60)
+        try:
+            from datetime import datetime, timezone
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=90)
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(ListenerSession).where(
+                        and_(
+                            ListenerSession.ended_at.is_(None),
+                            ListenerSession.last_heartbeat_at < cutoff,
+                        )
+                    )
+                )
+                stale = result.scalars().all()
+                now = datetime.now(timezone.utc)
+                for session in stale:
+                    started = session.started_at
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=timezone.utc)
+                    session.ended_at = now
+                    session.duration_seconds = int((now - started).total_seconds())
+                if stale:
+                    await db.commit()
+                    logger.info("Closed stale listener sessions", count=len(stale))
+        except Exception as e:
+            logger.error("Error in stale session cleanup", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
@@ -68,6 +139,8 @@ async def lifespan(app: FastAPI):
         logger.warning("Database not available on startup; continuing", error=str(e))
 
     asyncio.create_task(_write_recent_playlist())
+    asyncio.create_task(_write_newreleases_playlist())
+    asyncio.create_task(_close_stale_sessions())
 
     yield
 
@@ -82,6 +155,10 @@ app = FastAPI(
     redoc_url="/redoc" if settings.APP_ENV == "development" else None,
     lifespan=lifespan
 )
+
+# Setup rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add middleware
 app.add_middleware(

@@ -17,7 +17,11 @@ function formatTime(seconds: number | null | undefined): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const NowPlaying: React.FC = () => {
+interface Props {
+  station?: string
+}
+
+const NowPlaying: React.FC<Props> = ({ station = 'main' }) => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
   const selectedStation = useRadioStore((s) => s.selectedStation)
   const track = nowPlaying?.track

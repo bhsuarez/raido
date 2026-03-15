@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { ExternalLinkIcon } from 'lucide-react'
+import { ExternalLinkIcon, RadioIcon } from 'lucide-react'
 import { apiHelpers } from '../utils/api'
 import { toast } from 'react-hot-toast'
+
+const STREAM_URLS: Record<string, string> = {
+  main: 'http://192.168.1.41/stream/raido.mp3',
+  christmas: 'http://192.168.1.41/stream/christmas.mp3',
+  newreleases: 'http://192.168.1.41/stream/newreleases.mp3',
+  recent: 'http://192.168.1.41/stream/recent.mp3',
+}
 
 interface Props {
   stationIdentifier: string
@@ -20,6 +27,7 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
   const [hasChanges, setHasChanges] = useState(false)
 
   const adminPath = stationIdentifier === 'main' ? '/raido/admin' : `/${stationIdentifier}/admin`
+  const streamUrl = STREAM_URLS[stationIdentifier] ?? null
 
   // Load settings when station changes
   useEffect(() => {
@@ -98,14 +106,26 @@ export default function StationVoicePanel({ stationIdentifier, stationName }: Pr
     <div className="card p-4 mb-3 border border-primary-500/20">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium text-primary-400">DJ — {stationName}</p>
-        <a
-          href={adminPath}
-          className="text-xs text-gray-400 hover:text-gray-100 flex items-center gap-1"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Full admin <ExternalLinkIcon className="h-3 w-3" />
-        </a>
+        <div className="flex items-center gap-3">
+          {streamUrl && (
+            <a
+              href={streamUrl}
+              className="text-xs text-gray-400 hover:text-gray-100 flex items-center gap-1"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <RadioIcon className="h-3 w-3" /> Stream
+            </a>
+          )}
+          <a
+            href={adminPath}
+            className="text-xs text-gray-400 hover:text-gray-100 flex items-center gap-1"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Full admin <ExternalLinkIcon className="h-3 w-3" />
+          </a>
+        </div>
       </div>
 
       <div className="flex items-end gap-3 flex-wrap">

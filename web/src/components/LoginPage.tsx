@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
 const API = '/api/v1'
@@ -19,7 +19,7 @@ export default function LoginPage() {
       navigate('/raido/enrich', { replace: true })
       return
     }
-    fetch(`${API}/auth/me`)
+    fetch(`${API}/auth/setup-status`)
       .then(r => r.json())
       .then(d => setNeedsSetup(d.needs_setup))
       .catch(() => setNeedsSetup(false))
@@ -40,7 +40,13 @@ export default function LoginPage() {
         body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Login failed')
+      if (!res.ok) {
+        if (res.status === 403 && data.detail === 'account_pending') {
+          setError('Your account is pending admin approval. You\'ll be able to log in once it\'s approved.')
+          return
+        }
+        throw new Error(data.detail || 'Login failed')
+      }
       setAuth(data.access_token, data.user_id, data.email, data.role)
       navigate('/raido/enrich', { replace: true })
     } catch (err: any) {
@@ -113,6 +119,14 @@ export default function LoginPage() {
             {loading ? 'Please wait…' : needsSetup ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+        {!needsSetup && (
+          <p className="text-sm text-gray-400 text-center">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-primary-400 hover:text-primary-300">
+              Request access
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )

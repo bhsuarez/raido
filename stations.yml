@@ -76,6 +76,39 @@ stations:
         tags: ["christmas", "holiday", "xmas"]
         genre: ["Christmas", "Holiday"]
 
+  # New Releases station - tracks from 2024 and later
+  newreleases:
+    display_name: "New Releases"
+    identifier: "newreleases"
+    description: "Tracks released in 2024 or later"
+
+    liquidsoap:
+      config_file: "./infra/liquidsoap/newreleases.liq"
+      telnet_port: 1237
+      http_port: null
+      icecast_mount: "/newreleases.mp3"
+
+    dj_worker:
+      enabled: true
+      default_provider: "ollama"
+      default_voice_provider: "kokoro"
+      default_voice: "am_onyx"
+      commentary_interval: 1
+      max_seconds: 30
+      memory_limit: "1g"
+      cpu_limit: "0.50"
+
+    frontend:
+      enabled: false
+      port: null
+      theme: "dark"
+      custom_branding: false
+
+    music:
+      path: "/mnt/music"
+      filter:
+        year_min: 2024
+
   # Example: Add more stations by copying this template
   # jazz:
   #   display_name: "Jazz Lounge"

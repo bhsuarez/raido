@@ -41,6 +41,26 @@ def create_refresh_token(
     return token, token_jti
 
 
+def create_stream_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
+    """Create a short-lived stream token signed with STREAM_TOKEN_SECRET."""
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=settings.STREAM_TOKEN_EXPIRE_MINUTES)
+    )
+    payload = {"user_id": user_id, "type": "stream", "exp": expire}
+    return jwt.encode(payload, settings.STREAM_TOKEN_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+def validate_stream_token(token: str) -> Optional[dict]:
+    """Validate a stream token. Returns payload dict or None if invalid/expired."""
+    try:
+        payload = jwt.decode(token, settings.STREAM_TOKEN_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("type") != "stream":
+            return None
+        return payload
+    except Exception:
+        return None
+
+
 def verify_password(plain_password: str, hashed_password: str | None) -> bool:
     """Compare a plain password with a stored hash."""
     if not hashed_password:
