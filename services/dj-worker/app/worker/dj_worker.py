@@ -574,7 +574,6 @@ class DJWorker:
                     return
                 # Validate generated file looks like audio before proceeding
                 try:
-                    import os
                     file_path = os.path.join(settings.TTS_CACHE_DIR, audio_file if audio_file.endswith('.mp3') or audio_file.endswith('.wav') else audio_file)
                     is_audio = False
                     if os.path.exists(file_path):
