@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { SettingsIcon, LibraryIcon, RadioIcon, XIcon } from 'lucide-react'
+import { SettingsIcon, LibraryIcon, RadioIcon, XIcon, UsersIcon } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
+import { useAuthStore } from '../store/authStore'
 import { apiHelpers } from '../utils/api'
 
 interface Station {
@@ -25,6 +26,8 @@ export default function DrawerNav({ open, onClose }: DrawerNavProps) {
     setSelectedStation: s.setSelectedStation,
     isConnected: s.isConnected,
   }))
+  const { role } = useAuthStore()
+  const isAdmin = role === 'admin'
 
   useEffect(() => {
     apiHelpers.getStations()
@@ -173,6 +176,26 @@ export default function DrawerNav({ open, onClose }: DrawerNavProps) {
             <RadioIcon className="w-4 h-4 flex-shrink-0" />
             Now Playing
           </button>
+
+          {isAdmin && (
+            <>
+              <div className="mx-5 my-4" style={{ height: '1px', background: '#0f0f20' }} />
+              <p className="section-header px-5 mb-3">Admin</p>
+              <button
+                onClick={() => goTo('/admin/users')}
+                className="w-full flex items-center gap-3 px-5 py-3 transition-colors text-sm font-medium"
+                style={{ color: location.pathname === '/admin/users' ? '#38bdf8' : '#505070' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a0a0c0' }}
+                onMouseLeave={e => {
+                  const isActive = location.pathname === '/admin/users'
+                  ;(e.currentTarget as HTMLElement).style.color = isActive ? '#38bdf8' : '#505070'
+                }}
+              >
+                <UsersIcon className="w-4 h-4 flex-shrink-0" />
+                Users
+              </button>
+            </>
+          )}
         </div>
 
         {/* Footer */}
