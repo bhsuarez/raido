@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { HomeIcon, SettingsIcon, RadioIcon, WifiIcon, WifiOffIcon, LibraryIcon, Sparkles, MicIcon, LogOut, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -8,7 +8,7 @@ import { apiHelpers } from '../utils/api'
 import Logo from './Logo'
 
 interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 interface Station {
@@ -25,8 +25,9 @@ export default function Layout({ children }: LayoutProps) {
     isConnected: state.isConnected,
     nowPlaying: state.nowPlaying,
   }))
-  const { isAuthenticated, clearAuth } = useAuthStore()
+  const { isAuthenticated, clearAuth, role } = useAuthStore()
   useWebSocket()
+  const isAdmin = role === 'admin'
 
   const [stations, setStations] = useState<Station[]>([])
   const [selectedStation, setSelectedStation] = useState<string>(() => {
@@ -47,14 +48,16 @@ export default function Layout({ children }: LayoutProps) {
 
   const djAdminHref = selectedStation === 'main' ? '/raido/admin' : `/${selectedStation}/admin`
 
-  const navigation = [
-    { name: 'Now Playing', href: '/now-playing', icon: HomeIcon },
-    { name: 'DJ Admin', href: djAdminHref, icon: SettingsIcon },
-    { name: 'Stations', href: '/stations', icon: RadioIcon },
-    { name: 'Media', href: '/media', icon: LibraryIcon },
-    { name: 'Enrich', href: '/raido/enrich', icon: Sparkles },
-    { name: 'Transcripts', href: '/transcripts', icon: MicIcon },
+  const allNavigation = [
+    { name: 'Now Playing', href: '/now-playing', icon: HomeIcon, adminOnly: false },
+    { name: 'History', href: '/history', icon: MicIcon, adminOnly: false },
+    { name: 'DJ Admin', href: djAdminHref, icon: SettingsIcon, adminOnly: true },
+    { name: 'Stations', href: '/stations', icon: RadioIcon, adminOnly: true },
+    { name: 'Media', href: '/media', icon: LibraryIcon, adminOnly: true },
+    { name: 'Enrich', href: '/raido/enrich', icon: Sparkles, adminOnly: true },
+    { name: 'Transcripts', href: '/transcripts', icon: MicIcon, adminOnly: true },
   ]
+  const navigation = allNavigation.filter(item => !item.adminOnly || isAdmin)
 
   function handleLogout() {
     clearAuth()
@@ -180,7 +183,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {children}
+        {children ?? <Outlet />}
       </main>
 
       {/* Mobile Bottom Navigation */}
