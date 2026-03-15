@@ -8,9 +8,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import structlog
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging_config import configure_logging
+from app.core.limiter import limiter
 from app.api.v1 import api_router
 from app.core.websocket_manager import WebSocketManager
 
@@ -114,6 +118,10 @@ app = FastAPI(
     redoc_url="/redoc" if settings.APP_ENV == "development" else None,
     lifespan=lifespan
 )
+
+# Setup rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add middleware
 app.add_middleware(

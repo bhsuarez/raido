@@ -9,6 +9,7 @@ from sqlalchemy import select
 import structlog
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.models.users import User
 
@@ -104,6 +105,7 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=201)
+@limiter.limit("5/hour")
 async def register(payload: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Self-registration. Creates a pending account awaiting admin approval."""
     result = await db.execute(select(User).where(User.email == payload.email))
