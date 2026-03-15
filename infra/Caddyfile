@@ -41,8 +41,14 @@ raido.zorro.network, raido.zorro.home.local {
 		}
 	}
 
-	# Icecast stream
-	handle_path /stream/* {
+	# Icecast stream (token-gated via forward_auth)
+	@stream path /stream/*
+	route @stream {
+		forward_auth api:8000 {
+			uri /api/v1/stream/validate
+			copy_headers X-User-Id
+		}
+		uri strip_prefix /stream
 		reverse_proxy icecast:8000
 	}
 
@@ -77,7 +83,7 @@ raido.zorro.network, raido.zorro.home.local {
 		Access-Control-Allow-Headers "Content-Type, Authorization"
 		Access-Control-Expose-Headers "X-Total-Count"
 	}
-	
+
 	# CORS for static files
 	header /static/* {
 		Access-Control-Allow-Origin "*"
@@ -181,8 +187,14 @@ christmas.raido.zorro.network, raido.zorro.network:8888, :8888 {
 		}
 	}
 
-	# Icecast stream
-	handle_path /stream/* {
+	# Icecast stream (token-gated via forward_auth)
+	@stream_local path /stream/*
+	route @stream_local {
+		forward_auth api:8000 {
+			uri /api/v1/stream/validate
+			copy_headers X-User-Id
+		}
+		uri strip_prefix /stream
 		reverse_proxy icecast:8000
 	}
 

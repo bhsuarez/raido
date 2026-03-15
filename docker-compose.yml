@@ -21,7 +21,7 @@ services:
   icecast:
     image: infiniteproject/icecast
     restart: unless-stopped
-    ports: ["8000:8000"]
+    # ports: removed - Icecast no longer exposed directly; only accessible via Caddy forward_auth
     environment:
       - ICECAST_SOURCE_PASSWORD=hackme
       - ICECAST_ADMIN_PASSWORD=hackme
