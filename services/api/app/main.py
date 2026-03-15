@@ -75,6 +75,7 @@ async def _write_newreleases_playlist():
                     select(Track.file_path)
                     .where(Track.year >= 2024)
                     .where(~Track.file_path.like("liquidsoap://%"))
+                    .where(~Track.file_path.ilike("%christmas%"))
                     .order_by(Track.year.desc())
                 )
                 paths = [row[0] for row in result.fetchall()]
