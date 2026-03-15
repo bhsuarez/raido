@@ -44,6 +44,7 @@ async def _write_recent_playlist():
                     select(Track.file_path)
                     .where(Track.created_at >= cutoff)
                     .where(~Track.file_path.like("liquidsoap://%"))
+                    .where(~Track.file_path.ilike("%christmas%"))
                     .order_by(Track.created_at.desc())
                 )
                 paths = [row[0] for row in result.fetchall()]
