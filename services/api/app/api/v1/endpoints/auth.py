@@ -189,6 +189,56 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "full_name": current_user.full_name,
         "display_name": current_user.display_name,
+        "avatar_url": current_user.avatar_url,
         "role": current_user.role,
         "is_active": current_user.is_active,
+    }
+
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None
+
+    @field_validator("new_password")
+    @classmethod
+    def new_password_not_too_long(cls, v: str | None) -> str | None:
+        if v is not None and len(v.encode("utf-8")) > _BCRYPT_MAX_BYTES:
+            raise ValueError(f"Password must be {_BCRYPT_MAX_BYTES} bytes or fewer")
+        return v
+
+
+@router.patch("/me")
+async def update_me(
+    payload: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's profile (name, avatar, password)."""
+    if payload.new_password is not None:
+        if not payload.current_password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="current_password is required to set a new password")
+        if not verify_password(payload.current_password, current_user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+        current_user.hashed_password = get_password_hash(payload.new_password)
+
+    if payload.full_name is not None:
+        current_user.full_name = payload.full_name
+    if payload.display_name is not None:
+        current_user.display_name = payload.display_name or None
+    if payload.avatar_url is not None:
+        current_user.avatar_url = payload.avatar_url or None
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "display_name": current_user.display_name,
+        "avatar_url": current_user.avatar_url,
+        "role": current_user.role,
     }

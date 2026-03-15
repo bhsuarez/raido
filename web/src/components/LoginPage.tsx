@@ -6,7 +6,7 @@ const API = '/api/v1'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { setAuth, isAuthenticated } = useAuthStore()
+  const { setAuth, setProfile, isAuthenticated } = useAuthStore()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,6 +48,11 @@ export default function LoginPage() {
         throw new Error(data.detail || 'Login failed')
       }
       setAuth(data.access_token, data.user_id, data.email, data.role)
+      // Fetch full profile (avatar, display name, etc.) and cache it
+      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${data.access_token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(me => { if (me) setProfile({ full_name: me.full_name, display_name: me.display_name, avatar_url: me.avatar_url }) })
+        .catch(() => {})
       navigate('/raido/enrich', { replace: true })
     } catch (err: any) {
       setError(err.message)

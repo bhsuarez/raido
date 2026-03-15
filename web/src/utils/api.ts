@@ -92,6 +92,10 @@ export const apiHelpers = {
   getStats: () => api.get('/admin/stats'),
   getVoices: () => api.get("/admin/voices"),
   
+  // Profile
+  getMe: () => api.get('/auth/me'),
+  updateMe: (data: Record<string, any>) => api.patch('/auth/me', data),
+
   // User management
   getUsers: () => api.get('/admin/users'),
   createUser: (userData: any) => api.post('/admin/users', userData),

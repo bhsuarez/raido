@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { SettingsIcon, LibraryIcon, RadioIcon, XIcon, UsersIcon } from 'lucide-react'
+import { SettingsIcon, LibraryIcon, RadioIcon, XIcon, UsersIcon, UserIcon } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useAuthStore } from '../store/authStore'
 import { apiHelpers } from '../utils/api'
@@ -26,7 +26,7 @@ export default function DrawerNav({ open, onClose }: DrawerNavProps) {
     setSelectedStation: s.setSelectedStation,
     isConnected: s.isConnected,
   }))
-  const { role } = useAuthStore()
+  const { role, fullName, displayName, avatarUrl, email } = useAuthStore()
   const isAdmin = role === 'admin'
 
   useEffect(() => {
@@ -198,16 +198,45 @@ export default function DrawerNav({ open, onClose }: DrawerNavProps) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-5 py-3" style={{ borderTop: '1px solid #0f0f20' }}>
-          <div className="flex items-center gap-2">
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: isConnected ? '#4ade80' : '#503030' }}
-            />
-            <span className="font-mono text-xs" style={{ color: '#303050', letterSpacing: '0.08em', fontSize: '0.6rem' }}>
-              {isConnected ? 'CONNECTED' : 'OFFLINE'}
-            </span>
+        {/* Profile + footer */}
+        <div style={{ borderTop: '1px solid #0f0f20' }}>
+          <button
+            onClick={() => goTo('/profile')}
+            className="w-full flex items-center gap-3 px-5 py-3 transition-colors"
+            style={{ color: location.pathname === '/profile' ? '#38bdf8' : '#505070' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a0a0c0' }}
+            onMouseLeave={e => {
+              const isActive = location.pathname === '/profile'
+              ;(e.currentTarget as HTMLElement).style.color = isActive ? '#38bdf8' : '#505070'
+            }}
+          >
+            {(() => {
+              const label = displayName || fullName || email || ''
+              const initials = label.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+              return avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                  style={{ background: '#1a1a32', color: '#38bdf8', border: '1px solid #2a2a48' }}
+                >
+                  {initials}
+                </div>
+              )
+            })()}
+            <span className="text-sm font-medium">{displayName || fullName || 'Profile'}</span>
+          </button>
+
+          <div className="px-5 pb-3">
+            <div className="flex items-center gap-2">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: isConnected ? '#4ade80' : '#503030' }}
+              />
+              <span className="font-mono text-xs" style={{ color: '#303050', letterSpacing: '0.08em', fontSize: '0.6rem' }}>
+                {isConnected ? 'CONNECTED' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

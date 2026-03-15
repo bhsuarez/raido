@@ -12,6 +12,7 @@ import { RequireAdmin } from './components/RequireAdmin'
 import RegisterPage from './components/RegisterPage'
 import { UserManagement } from './components/admin/UserManagement'
 import { ListenerSessions } from './components/admin/ListenerSessions'
+import ProfilePage from './pages/ProfilePage'
 
 function App() {
   return (
@@ -63,6 +64,9 @@ function App() {
             path="/analytics"
             element={<Layout><Analytics /></Layout>}
           />
+
+          {/* Profile */}
+          <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
 
           {/* Admin-only routes */}
           <Route element={<RequireAdmin />}>

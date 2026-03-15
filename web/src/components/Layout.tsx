@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { MenuIcon, LogOut, LogIn } from 'lucide-react'
+import { MenuIcon, LogIn } from 'lucide-react'
 import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
@@ -20,13 +20,16 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
     isConnected: s.isConnected,
     selectedStation: s.selectedStation,
   }))
-  const { isAuthenticated, clearAuth } = useAuthStore()
+  const { isAuthenticated, clearAuth, avatarUrl, fullName, displayName, email } = useAuthStore()
   useWebSocket()
 
   function handleLogout() {
     clearAuth()
     navigate('/login')
   }
+
+  const profileLabel = displayName || fullName || email || ''
+  const initials = profileLabel.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
 
   const stationLabel = selectedStation === 'main' ? '' : selectedStation.toUpperCase()
 
@@ -80,16 +83,22 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
         {/* Auth */}
         <div>
           {isAuthenticated() ? (
-            <button
-              onClick={handleLogout}
-              title="Sign out"
-              className="p-1.5 transition-colors"
-              style={{ color: '#303050' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a0a0c0' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#303050' }}
+            <Link
+              to="/profile"
+              title="Profile"
+              className="block"
             >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="w-6 h-6 rounded-full object-cover" />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{ background: '#1a1a32', color: '#38bdf8', border: '1px solid #2a2a48' }}
+                >
+                  {initials}
+                </div>
+              )}
+            </Link>
           ) : (
             <Link
               to="/login"
