@@ -519,7 +519,7 @@ class DJWorker:
                 else:
                     # Generate commentary text, streaming tokens to WebSocket clients as they arrive
                     async def _ws_token_callback(token: str) -> None:
-                        await self.api_client.broadcast_ws("commentary_token", {"token": token})
+                        await self.api_client.broadcast_ws("commentary_token", {"token": token, "station": settings.STATION_NAME})
 
                     commentary_payload = await self.commentary_generator.generate(
                         track_info=job.track_info,
@@ -625,6 +625,7 @@ class DJWorker:
                         "audio_url": job.audio_file,
                         "track": job.track_info.get("title"),
                         "artist": job.track_info.get("artist"),
+                        "station": settings.STATION_NAME,
                     })
                 except Exception as bcast_err:
                     logger.debug("commentary_ready broadcast failed (non-critical)", error=str(bcast_err))

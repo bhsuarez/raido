@@ -44,8 +44,10 @@ export function useWebSocket() {
               queryClient.invalidateQueries({ queryKey: ['history'] })
               break
 
-            case 'commentary_token':
-              if (message.data?.token) {
+            case 'commentary_token': {
+              const tokenStation = message.data?.station
+              const activeStation = useRadioStore.getState().selectedStation
+              if (message.data?.token && (!tokenStation || tokenStation === activeStation)) {
                 // If we're not already mid-stream, this is a fresh commentary —
                 // clear the previous one before appending.
                 if (!useRadioStore.getState().isGeneratingCommentary) {
@@ -54,11 +56,17 @@ export function useWebSocket() {
                 appendCommentaryToken(message.data.token)
               }
               break
+            }
 
-            case 'commentary_ready':
-              setCommentaryReady(message.data?.transcript ?? '')
+            case 'commentary_ready': {
+              const readyStation = message.data?.station
+              const activeStation = useRadioStore.getState().selectedStation
+              if (!readyStation || readyStation === activeStation) {
+                setCommentaryReady(message.data?.transcript ?? '')
+              }
               queryClient.invalidateQueries({ queryKey: ['history'] })
               break
+            }
 
             case 'commentary':
               // Legacy event: treat as ready with no transcript
