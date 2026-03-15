@@ -1,7 +1,8 @@
 """Authentication endpoints: login and initial admin setup."""
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,6 +16,18 @@ router = APIRouter()
 logger = structlog.get_logger()
 
 _BCRYPT_MAX_BYTES = 72
+
+
+async def _notify_pingos(message: str) -> None:
+    """Fire-and-forget Pingos notification. Never raises."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                "http://192.168.1.116:8090/api/notify",
+                json={"message": message},
+            )
+    except Exception as e:
+        logger.warning("Pingos notify failed", error=str(e))
 
 
 class LoginRequest(BaseModel):
@@ -41,6 +54,23 @@ class SetupRequest(BaseModel):
         if len(v.encode("utf-8")) > _BCRYPT_MAX_BYTES:
             raise ValueError(f"Password must be {_BCRYPT_MAX_BYTES} bytes or fewer")
         return v
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str = "Listener"
+
+    @field_validator("password")
+    @classmethod
+    def password_not_too_long(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > _BCRYPT_MAX_BYTES:
+            raise ValueError(f"Password must be {_BCRYPT_MAX_BYTES} bytes or fewer")
+        return v
+
+
+class RegisterResponse(BaseModel):
+    message: str
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -71,6 +101,32 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
         email=user.email,
         role=user.role,
     )
+
+
+@router.post("/register", response_model=RegisterResponse, status_code=201)
+async def register(payload: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    """Self-registration. Creates a pending account awaiting admin approval."""
+    result = await db.execute(select(User).where(User.email == payload.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    user = User(
+        email=payload.email,
+        hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name,
+        role="listener",
+        is_active=False,
+        is_verified=False,
+    )
+    db.add(user)
+    await db.commit()
+
+    logger.info("New registration pending approval", email=payload.email)
+    await _notify_pingos(
+        f"New Raido registration: {payload.full_name} ({payload.email}) is waiting for approval."
+    )
+
+    return RegisterResponse(message="Registration submitted. Pending admin approval.")
 
 
 @router.post("/setup", response_model=LoginResponse, status_code=201)
