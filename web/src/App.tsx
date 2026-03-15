@@ -17,6 +17,7 @@ import CommentaryBrowser from './components/CommentaryBrowser'
 import { RequireAuth } from './components/RequireAuth'
 import { RequireAdmin } from './components/RequireAdmin'
 import RegisterPage from './components/RegisterPage'
+import { UserManagement } from './components/admin/UserManagement'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -92,7 +93,7 @@ function App() {
                 />
                 <Route
                   path="/admin/users"
-                  element={<div className="card p-8 text-gray-400">User Management — coming soon</div>}
+                  element={<UserManagement />}
                 />
                 <Route
                   path="/admin/listeners"
