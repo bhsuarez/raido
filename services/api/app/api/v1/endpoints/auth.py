@@ -9,6 +9,7 @@ from sqlalchemy import select
 import structlog
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.models.users import User
@@ -172,9 +173,22 @@ async def setup_admin(payload: SetupRequest, db: AsyncSession = Depends(get_db))
     )
 
 
-@router.get("/me")
-async def get_me(db: AsyncSession = Depends(get_db)):
-    """Check if setup is needed (no users exist yet)."""
+@router.get("/setup-status")
+async def setup_status(db: AsyncSession = Depends(get_db)):
+    """Check if initial admin setup is needed (no users exist yet)."""
     result = await db.execute(select(User).limit(1))
     needs_setup = result.scalar_one_or_none() is None
     return {"needs_setup": needs_setup}
+
+
+@router.get("/me")
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Return the current authenticated user's profile."""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "display_name": current_user.display_name,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+    }
