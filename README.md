@@ -54,7 +54,7 @@ curl -X POST "http://localhost:8001/api/v1/artwork/batch_extract?limit=100"
 | `http://localhost` | Web UI |
 | `http://localhost/raido/admin` | DJ Admin |
 | `http://localhost/api/v1` | API (via proxy) |
-| `http://localhost:8000/raido.mp3` | Stream |
+| `http://localhost/stream/raido.mp3?token=<t>` | Stream (requires stream token) |
 | `/docs` | Swagger UI |
 
 ---
@@ -78,6 +78,32 @@ React Web UI ──► FastAPI ──► PostgreSQL
 
 ---
 
+## Authentication & Access
+
+Raido uses JWT-based auth with two roles:
+
+| Role | Can do |
+|------|--------|
+| **admin** | Everything — DJ settings, user management, listener analytics |
+| **listener** | Listen to the stream, switch stations, view now playing / history |
+
+**Access flow:**
+1. Friends self-register at `/register` (email + password)
+2. Admin gets a Pingos notification and approves via `/admin/users`
+3. Approved users log in and get a stream token (15-min JWT, auto-refreshed by the player)
+4. Caddy validates the stream token via `forward_auth` before proxying Icecast — no token, no audio
+
+**Required `.env` vars for auth:**
+```bash
+JWT_SECRET=...                # Signs user session tokens
+STREAM_TOKEN_SECRET=...       # Signs short-lived stream tokens (separate secret)
+GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb  # Optional — enables IP geolocation
+```
+
+GeoIP: download `GeoLite2-City.mmdb` from MaxMind and mount it at `GEOIP_DB_PATH`. If absent, geo fields are null (graceful degradation).
+
+---
+
 ## Configuration
 
 Key `.env` settings:
@@ -89,6 +115,7 @@ DJ_VOICE_PROVIDER=chatterbox        # chatterbox, kokoro, openai_tts, xtts
 DJ_COMMENTARY_INTERVAL=1            # 1 = after every song
 POSTGRES_PASSWORD=...
 JWT_SECRET=...
+STREAM_TOKEN_SECRET=...             # separate secret for stream tokens
 ```
 
 ---
@@ -128,13 +155,15 @@ Set in DJ Admin (`/raido/admin`). Uses Ollama by default — configure `OLLAMA_B
 | Path | Description |
 |------|-------------|
 | `/now-playing` | Live track with skip |
+| `/history` | Recent history with commentary |
 | `/media` | Library with search + metadata editing |
 | `/media/tracks/:id` | Track permalink |
 | `/raido/admin` | DJ settings, TTS config, voice selection |
 | `/raido/enrich` | Bulk MusicBrainz enrichment |
-| `/analytics` | Play history + stats |
 | `/stations` | Station management |
-| `/history` | Recent history with commentary |
+| `/admin/users` | User approval queue, suspend/create users (**admin only**) |
+| `/admin/listeners` | Active listeners, session history, per-user stats (**admin only**) |
+| `/register` | Self-registration (creates pending account) |
 
 ---
 
@@ -152,6 +181,26 @@ GET  /api/v1/admin/settings         DJ/station settings
 POST /api/v1/admin/settings         Update settings
 GET  /api/v1/admin/voices           Available TTS voices
 GET  /api/v1/admin/tts-status       TTS activity + pagination
+
+POST /api/v1/auth/register          Self-register (creates pending account)
+POST /api/v1/auth/login             Login → access + refresh tokens
+GET  /api/v1/auth/me                Current user profile (authenticated)
+GET  /api/v1/auth/setup-status      Check if initial admin setup needed
+
+GET  /api/v1/stream/token           Issue stream token (authenticated)
+GET  /api/v1/stream/validate        Caddy forward_auth endpoint
+
+GET  /api/v1/admin/users            List all users (admin)
+POST /api/v1/admin/users            Create user (admin)
+POST /api/v1/admin/users/{id}/approve   Approve pending user (admin)
+POST /api/v1/admin/users/{id}/suspend   Suspend user (admin)
+GET  /api/v1/admin/listeners/active     Active listener sessions (admin)
+GET  /api/v1/admin/listeners/sessions   Session history with filters (admin)
+GET  /api/v1/admin/listeners/summary    Per-user listen stats (admin)
+
+POST /api/v1/listeners/sessions         Start listener session
+POST /api/v1/listeners/sessions/{id}/heartbeat  30s keepalive
+DELETE /api/v1/listeners/sessions/{id} End session
 ```
 
 ---
@@ -202,5 +251,6 @@ For detailed recovery procedures see [RECOVERY.md](docs/RECOVERY.md).
 
 - [ ] **MCP write tools** — `queue_track`, `update_dj_persona`, `inject_commentary` endpoints + MCP wiring
 - [ ] **Raido → Pingos fast path** — replace built-in Pingos `check_raido` with full MCP server (port 8811 already running)
-- [ ] **Auth** — most API endpoints are currently unprotected; JWT infrastructure exists in `services/api/app/core/security.py`
+- [ ] **GeoIP DB** — download MaxMind GeoLite2-City.mmdb and mount at `GEOIP_DB_PATH` for listener location tracking
 - [ ] **Lidarr auto-scan** — verify webhook reliably triggers artist folder scan after download completes
+- [ ] **Protect remaining endpoints** — track/metadata endpoints still unprotected; consider requiring auth on write operations
