@@ -116,7 +116,7 @@ export const apiHelpers = {
   },
 
   // Stream controls
-  skipTrack: () => api.post('/liquidsoap/skip'),
+  skipTrack: (station = 'main') => api.post('/liquidsoap/skip', null, { params: { station } }),
 
   // Music library and stations
   getTracks: (params?: Record<string, any>) => api.get('/tracks', { params }),

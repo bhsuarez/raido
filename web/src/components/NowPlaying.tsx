@@ -16,7 +16,11 @@ function formatTime(seconds: number | null | undefined): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const NowPlaying: React.FC = () => {
+interface Props {
+  station?: string
+}
+
+const NowPlaying: React.FC<Props> = ({ station = 'main' }) => {
   const { data: nowPlaying, isLoading, error } = useNowPlaying()
 
   const track = nowPlaying?.track
@@ -41,7 +45,7 @@ const NowPlaying: React.FC = () => {
     if (isSkipping) return
     setIsSkipping(true)
     try {
-      await apiHelpers.skipTrack()
+      await apiHelpers.skipTrack(station)
       toast.success('Track skipped')
     } catch {
       toast.error('Failed to skip track')
