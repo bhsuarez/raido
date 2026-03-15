@@ -3,10 +3,12 @@ import { Pause, Play, Loader2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { shallow } from 'zustand/shallow'
 import { useRadioStore } from '../store/radioStore'
+import { useAuthStore } from '../store/authStore'
+import { apiHelpers } from '../utils/api'
 
 const fallbackStreamPath = '/stream/raido.mp3'
 const configuredStream = ((import.meta as any)?.env?.VITE_STREAM_URL as string | undefined)?.trim()
-const streamSource = configuredStream && configuredStream.length > 0 ? configuredStream : fallbackStreamPath
+const BASE_STREAM_URL = configuredStream && configuredStream.length > 0 ? configuredStream : fallbackStreamPath
 
 const formatTrackDisplay = (title?: string, artist?: string) => {
   if (title && artist) return `${title} — ${artist}`
@@ -20,6 +22,12 @@ const RadioPlayer: React.FC = () => {
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [isBuffering, setIsBuffering] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [streamToken, setStreamToken] = React.useState<string | null>(null)
+  const sessionIdRef = React.useRef<number | null>(null)
+  const heartbeatRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const tokenRefreshRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const token = useAuthStore((state) => state.token)
 
   const { nowPlaying } = useRadioStore(
     (state) => ({
@@ -27,6 +35,102 @@ const RadioPlayer: React.FC = () => {
     }),
     shallow,
   )
+
+  const fetchStreamToken = React.useCallback(async (): Promise<string | null> => {
+    if (!token) return null
+    try {
+      const res = await fetch(apiHelpers.apiUrl('/api/v1/stream/token'), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.token as string
+    } catch {
+      return null
+    }
+  }, [token])
+
+  const startSession = React.useCallback(async () => {
+    if (!token) return
+    try {
+      const res = await fetch(apiHelpers.apiUrl('/api/v1/listeners/sessions'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ station: 'main' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        sessionIdRef.current = data.session_id as number
+      }
+    } catch {}
+  }, [token])
+
+  const sendHeartbeat = React.useCallback(async (): Promise<boolean> => {
+    if (!sessionIdRef.current || !token) return false
+    try {
+      const res = await fetch(
+        apiHelpers.apiUrl(`/api/v1/listeners/sessions/${sessionIdRef.current}/heartbeat`),
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      return res.ok
+    } catch {
+      return false
+    }
+  }, [token])
+
+  const endSession = React.useCallback(async () => {
+    if (!sessionIdRef.current || !token) return
+    try {
+      await fetch(apiHelpers.apiUrl(`/api/v1/listeners/sessions/${sessionIdRef.current}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
+    sessionIdRef.current = null
+  }, [token])
+
+  React.useEffect(() => {
+    if (!token) return
+
+    let mounted = true
+
+    const initialize = async () => {
+      const t = await fetchStreamToken()
+      if (mounted && t) {
+        setStreamToken(t)
+        await startSession()
+
+        // Heartbeat every 30s — restart session if stale
+        heartbeatRef.current = setInterval(async () => {
+          const ok = await sendHeartbeat()
+          if (!ok) {
+            await startSession()
+          }
+        }, 30000)
+
+        // Refresh stream token every 12 minutes (before 15-min expiry)
+        tokenRefreshRef.current = setInterval(async () => {
+          const newToken = await fetchStreamToken()
+          if (mounted && newToken) setStreamToken(newToken)
+        }, 720000)
+      }
+    }
+
+    void initialize()
+
+    return () => {
+      mounted = false
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current)
+      if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current)
+      void endSession()
+    }
+  }, [token, fetchStreamToken, startSession, sendHeartbeat, endSession])
 
   React.useEffect(() => {
     const audio = audioRef.current
@@ -119,6 +223,8 @@ const RadioPlayer: React.FC = () => {
   const trackTitle = nowPlaying?.track?.title
   const trackArtist = nowPlaying?.track?.artist
 
+  const streamUrl = streamToken ? `${BASE_STREAM_URL}?token=${streamToken}` : undefined
+
   return (
     <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
       <div className="w-full max-w-4xl rounded-2xl border border-gray-700 bg-gray-900/95 px-4 py-3 shadow-2xl backdrop-blur">
@@ -163,7 +269,7 @@ const RadioPlayer: React.FC = () => {
 
           <div className="h-12 w-12" aria-hidden />
         </div>
-        <audio ref={audioRef} src={streamSource} preload="none" className="hidden" />
+        <audio ref={audioRef} src={streamUrl} preload="none" className="hidden" />
       </div>
     </div>
   )
