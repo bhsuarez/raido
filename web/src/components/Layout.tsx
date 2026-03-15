@@ -5,6 +5,7 @@ import { useRadioStore } from '../store/radioStore'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuthStore } from '../store/authStore'
 import DrawerNav from './DrawerNav'
+import RadioPlayer from './RadioPlayer'
 
 interface LayoutProps {
   children?: React.ReactNode
@@ -114,6 +115,9 @@ export default function Layout({ children, fullscreen = false }: LayoutProps) {
           {children ?? <Outlet />}
         </main>
       )}
+
+      {/* Persistent audio player — always mounted so audio doesn't interrupt on navigate */}
+      <RadioPlayer />
     </div>
   )
 }
