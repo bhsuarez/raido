@@ -12,8 +12,12 @@ from pathlib import Path
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.deps import require_admin
+from app.core.security import get_password_hash
 from app.schemas.admin import AdminSettingsResponse, AdminStatsResponse
 from app.models import Commentary, Play, Setting, Track
+from app.models.users import User
+from app.models.listener_session import ListenerSession
 import httpx
 try:
     from jinja2 import Template, TemplateSyntaxError
@@ -1543,3 +1547,233 @@ async def list_stations(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error("Failed to list stations", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to list stations: {str(e)}")
+
+
+# --- User Management ---
+
+@router.get("/users")
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """List all non-deleted users."""
+    result = await db.execute(
+        select(User).where(User.deleted_at.is_(None)).order_by(User.created_at.desc())
+    )
+    users = result.scalars().all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "role": u.role,
+            "is_active": u.is_active,
+            "is_verified": u.is_verified,
+            "created_at": u.created_at,
+        }
+        for u in users
+    ]
+
+
+@router.post("/users/{user_id}/approve")
+async def approve_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Approve a pending user."""
+    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = True
+    user.is_verified = True
+    await db.commit()
+    return {"message": "User approved"}
+
+
+@router.post("/users/{user_id}/suspend")
+async def suspend_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Suspend a user."""
+    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = False
+    await db.commit()
+    return {"message": "User suspended"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Soft-delete a user."""
+    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"message": "User deleted"}
+
+
+@router.post("/users")
+async def create_user(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Admin creates a user directly (approved immediately)."""
+    email = payload.get("email")
+    password = payload.get("password")
+    role = payload.get("role", "listener")
+    full_name = payload.get("full_name", "Listener")
+
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="email and password are required")
+
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(password),
+        full_name=full_name,
+        role=role,
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return {"id": user.id, "email": user.email, "role": user.role}
+
+
+# --- Listener Analytics ---
+
+@router.get("/listeners/active")
+async def get_active_listeners(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Get all currently active listener sessions (no ended_at)."""
+    result = await db.execute(
+        select(ListenerSession, User.email)
+        .join(User, ListenerSession.user_id == User.id)
+        .where(ListenerSession.ended_at.is_(None))
+        .order_by(ListenerSession.started_at.desc())
+    )
+    rows = result.all()
+    now = datetime.now(timezone.utc)
+    return [
+        {
+            "session_id": row.ListenerSession.id,
+            "user_id": row.ListenerSession.user_id,
+            "email": row.email,
+            "station": row.ListenerSession.station,
+            "city": row.ListenerSession.city,
+            "country": row.ListenerSession.country,
+            "country_code": row.ListenerSession.country_code,
+            "device_type": row.ListenerSession.device_type,
+            "browser": row.ListenerSession.browser,
+            "started_at": row.ListenerSession.started_at,
+            "duration_seconds": int(
+                (
+                    now - row.ListenerSession.started_at.replace(
+                        tzinfo=timezone.utc if row.ListenerSession.started_at.tzinfo is None
+                        else row.ListenerSession.started_at.tzinfo
+                    )
+                ).total_seconds()
+            ),
+        }
+        for row in rows
+    ]
+
+
+@router.get("/listeners/sessions")
+async def get_listener_sessions(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    from_dt: Optional[str] = Query(None, description="ISO datetime filter (start)"),
+    to_dt: Optional[str] = Query(None, description="ISO datetime filter (end)"),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """List closed listener sessions with pagination and optional date filter."""
+    filters = [ListenerSession.ended_at.is_not(None)]
+    if from_dt:
+        try:
+            filters.append(ListenerSession.started_at >= datetime.fromisoformat(from_dt))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid from_dt format (use ISO datetime)")
+    if to_dt:
+        try:
+            filters.append(ListenerSession.started_at <= datetime.fromisoformat(to_dt))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid to_dt format (use ISO datetime)")
+
+    result = await db.execute(
+        select(ListenerSession, User.email)
+        .join(User, ListenerSession.user_id == User.id)
+        .where(and_(*filters))
+        .order_by(ListenerSession.started_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    rows = result.all()
+    return [
+        {
+            "session_id": row.ListenerSession.id,
+            "user_id": row.ListenerSession.user_id,
+            "email": row.email,
+            "station": row.ListenerSession.station,
+            "city": row.ListenerSession.city,
+            "country": row.ListenerSession.country,
+            "country_code": row.ListenerSession.country_code,
+            "device_type": row.ListenerSession.device_type,
+            "browser": row.ListenerSession.browser,
+            "started_at": row.ListenerSession.started_at,
+            "ended_at": row.ListenerSession.ended_at,
+            "duration_seconds": row.ListenerSession.duration_seconds,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/listeners/summary")
+async def get_listener_summary(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Per-user listener statistics: total sessions, total duration, last seen."""
+    result = await db.execute(
+        select(
+            User.id,
+            User.email,
+            func.count(ListenerSession.id).label("total_sessions"),
+            func.sum(ListenerSession.duration_seconds).label("total_duration_seconds"),
+            func.max(ListenerSession.started_at).label("last_seen_at"),
+        )
+        .join(ListenerSession, ListenerSession.user_id == User.id, isouter=True)
+        .group_by(User.id, User.email)
+        .order_by(func.max(ListenerSession.started_at).desc().nulls_last())
+    )
+    rows = result.all()
+    return [
+        {
+            "user_id": row.id,
+            "email": row.email,
+            "total_sessions": row.total_sessions or 0,
+            "total_duration_seconds": row.total_duration_seconds or 0,
+            "last_seen_at": row.last_seen_at,
+        }
+        for row in rows
+    ]
