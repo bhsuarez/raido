@@ -18,6 +18,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { RequireAdmin } from './components/RequireAdmin'
 import RegisterPage from './components/RegisterPage'
 import { UserManagement } from './components/admin/UserManagement'
+import { ListenerSessions } from './components/admin/ListenerSessions'
 // import DJSettings from './components/DJSettings' // Removed - functionality moved to TTSMonitor
 
 function App() {
@@ -97,7 +98,7 @@ function App() {
                 />
                 <Route
                   path="/admin/listeners"
-                  element={<div className="card p-8 text-gray-400">Listener Analytics — coming soon</div>}
+                  element={<ListenerSessions />}
                 />
               </Route>
 
