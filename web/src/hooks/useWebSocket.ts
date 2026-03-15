@@ -36,7 +36,9 @@ export function useWebSocket() {
             case 'now_playing':
             case 'track_change':
               updateNowPlaying(message.data)
-              clearCommentary()
+              // Don't clear commentary here — it was generated 30s early for
+              // this just-started track and is still relevant. It will be cleared
+              // when the first token of the *next* commentary arrives.
               queryClient.invalidateQueries({ queryKey: ['nowPlaying'] })
               queryClient.invalidateQueries({ queryKey: ['nextUp'] })
               queryClient.invalidateQueries({ queryKey: ['history'] })
@@ -44,6 +46,11 @@ export function useWebSocket() {
 
             case 'commentary_token':
               if (message.data?.token) {
+                // If we're not already mid-stream, this is a fresh commentary —
+                // clear the previous one before appending.
+                if (!useRadioStore.getState().isGeneratingCommentary) {
+                  clearCommentary()
+                }
                 appendCommentaryToken(message.data.token)
               }
               break
