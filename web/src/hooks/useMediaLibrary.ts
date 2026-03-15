@@ -53,6 +53,7 @@ export interface TrackFilters {
   page?: number
   per_page?: number
   no_artwork?: boolean
+  no_genre?: boolean
 }
 
 export interface TracksResult {

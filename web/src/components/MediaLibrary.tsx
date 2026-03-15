@@ -56,6 +56,7 @@ export default function MediaLibrary() {
   const [page, setPage] = useState(1)
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [noArtwork, setNoArtwork] = useState(false)
+  const [noGenre, setNoGenre] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [voicingStatuses, setVoicingStatuses] = useState<Record<string, string | null>>({})
   const [showVoicingEngine, setShowVoicingEngine] = useState(false)
@@ -88,6 +89,7 @@ export default function MediaLibrary() {
     page,
     per_page: 100,
     no_artwork: noArtwork || undefined,
+    no_genre: noGenre || undefined,
   }
 
   const { data: tracksResult, isLoading, isError } = useTracks(filters)
@@ -191,6 +193,19 @@ export default function MediaLibrary() {
           >
             <span className="text-base leading-none">🖼</span>
             Missing artwork
+          </button>
+
+          {/* No genre filter */}
+          <button
+            onClick={() => { setNoGenre(f => !f); setPage(1) }}
+            className={`w-full text-left text-sm px-3 py-2 rounded-xl border transition-colors flex items-center gap-2 ${
+              noGenre
+                ? 'bg-primary-500/20 border-primary-500/40 text-primary-400'
+                : 'border-gray-700 text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+            }`}
+          >
+            <span className="text-base leading-none">🎵</span>
+            Missing genre
           </button>
 
           {/* Genre filter */}

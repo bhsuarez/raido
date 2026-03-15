@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { XIcon, SearchIcon, CheckIcon, MusicIcon, ExternalLinkIcon, MicIcon, RefreshCwIcon } from 'lucide-react'
-import { Track, MBCandidate, useMusicBrainzSearch, useUpdateTrack } from '../hooks/useMediaLibrary'
+import { Track, MBCandidate, useMusicBrainzSearch, useUpdateTrack, useTrackFacets } from '../hooks/useMediaLibrary'
 import { apiHelpers } from '../utils/api'
 
 interface VoicingCache {
@@ -88,6 +88,7 @@ export default function TrackMetadataPanel({ track, onClose, onTrackUpdated }: P
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const { voicing, loading: voicingLoading, error: voicingError, regenerate } = useTrackVoicing(track.id)
   const [regenerating, setRegenerating] = useState(false)
+  const { data: facets } = useTrackFacets()
   const [manualMbid, setManualMbid] = useState('')
   const [manualLoading, setManualLoading] = useState(false)
   const [manualError, setManualError] = useState('')
@@ -253,7 +254,14 @@ export default function TrackMetadataPanel({ track, onClose, onTrackUpdated }: P
                     className="input w-full text-sm"
                     value={form.genre}
                     onChange={e => setForm(f => ({ ...f, genre: e.target.value }))}
+                    list="genre-suggestions"
+                    placeholder="e.g. Rock"
                   />
+                  {facets && (
+                    <datalist id="genre-suggestions">
+                      {facets.genres.map(g => <option key={g} value={g} />)}
+                    </datalist>
+                  )}
                 </div>
               </div>
               <button

@@ -57,6 +57,7 @@ async def list_tracks(
     page: int = Query(1, ge=1),
     per_page: int = Query(100, ge=1, le=500),
     no_artwork: bool = Query(False),
+    no_genre: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ):
     """List tracks with optional filtering, sorting, and pagination."""
@@ -83,6 +84,10 @@ async def list_tracks(
         count_q = count_q.where(Track.album == album)
     if no_artwork:
         cond = (Track.artwork_url.is_(None)) | (Track.artwork_url == '')
+        q = q.where(cond)
+        count_q = count_q.where(cond)
+    if no_genre:
+        cond = (Track.genre.is_(None)) | (Track.genre == '') | (Track.genre.ilike('unknown'))
         q = q.where(cond)
         count_q = count_q.where(cond)
     if station:
