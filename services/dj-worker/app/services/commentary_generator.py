@@ -147,9 +147,21 @@ Keep it conversational and exciting. No SSML tags needed.""".strip()
             # Generate commentary based on provider
             if provider == "anthropic" and self.anthropic_client:
                 res = await self._generate_with_anthropic(prompt_context, dj_settings, token_callback=token_callback)
-                if isinstance(res, dict):
-                    res["provider_used"] = "anthropic"
-                return res
+                if res is not None:
+                    if isinstance(res, dict):
+                        res["provider_used"] = "anthropic"
+                    return res
+                logger.warning("Anthropic generation failed; falling back to Ollama")
+                result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
+                if result:
+                    if isinstance(result, dict):
+                        result["provider_used"] = "ollama"
+                    return result
+                logger.warning("Ollama also failed; falling back to templates")
+                fallback = await self._generate_with_templates(prompt_context, dj_settings)
+                if isinstance(fallback, dict):
+                    fallback["provider_used"] = "templates"
+                return fallback
             elif provider == "anthropic" and not self.anthropic_client:
                 logger.warning("Anthropic provider selected but no API key configured; falling back to Ollama")
                 result = await self._generate_with_ollama(prompt_context, dj_settings, token_callback=token_callback)
