@@ -13,6 +13,7 @@ import RegisterPage from './components/RegisterPage'
 import { UserManagement } from './components/admin/UserManagement'
 import { ListenerSessions } from './components/admin/ListenerSessions'
 import ProfilePage from './pages/ProfilePage'
+import ListenPage from './pages/ListenPage'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/listen" element={<ListenPage />} />
 
         {/* All authenticated routes */}
         <Route element={<RequireAuth />}>
