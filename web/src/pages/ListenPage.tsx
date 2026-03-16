@@ -20,7 +20,8 @@ export default function ListenPage() {
   const [streamToken, setStreamToken] = React.useState<string | null>(null)
   const [tokenError, setTokenError] = React.useState(false)
   const [tokenLoading, setTokenLoading] = React.useState(true)
-  const refreshRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const refreshRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retryCountRef = React.useRef(0)
 
   // Poll now-playing data — station hardcoded to 'main', no Zustand dependency
   const { data: nowPlaying } = useQuery<NowPlaying>({
@@ -48,19 +49,25 @@ export default function ListenPage() {
       setStreamToken(data.token)
       setTokenError(false)
       setTokenLoading(false)
-      // Schedule next refresh at 80% of TTL
-      if (refreshRef.current) clearInterval(refreshRef.current)
-      refreshRef.current = setInterval(fetchToken, data.expires_in * 0.8 * 1000)
+      retryCountRef.current = 0
+      // Schedule next refresh at 80% of TTL (one-shot, no accumulation)
+      refreshRef.current = setTimeout(fetchToken, data.expires_in * 0.8 * 1000)
     } catch {
-      setTokenError(true)
-      setTokenLoading(false)
+      if (retryCountRef.current < 3) {
+        retryCountRef.current += 1
+        const delay = Math.min(1000 * 2 ** retryCountRef.current, 30000)
+        refreshRef.current = setTimeout(fetchToken, delay)
+      } else {
+        setTokenError(true)
+        setTokenLoading(false)
+      }
     }
   }, [])
 
   React.useEffect(() => {
     void fetchToken()
     return () => {
-      if (refreshRef.current) clearInterval(refreshRef.current)
+      if (refreshRef.current) clearTimeout(refreshRef.current)
     }
   }, [fetchToken])
 
