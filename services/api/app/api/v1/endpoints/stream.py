@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.limiter import limiter
 from app.core.security import create_stream_token, validate_stream_token
 from app.models.users import User
 from app.schemas.stream import StreamStatus
@@ -34,6 +36,14 @@ async def get_stream_token(current_user: User = Depends(get_current_user)):
     return {"token": token, "expires_in": 900}  # 900 seconds = 15 min
 
 
+@router.get("/guest-token")
+@limiter.limit("20/minute")
+async def get_guest_stream_token(request: Request):
+    """Issue a short-lived stream token for unauthenticated (guest) listeners."""
+    token = create_stream_token(user_id=0)
+    return {"token": token, "expires_in": settings.STREAM_TOKEN_EXPIRE_MINUTES * 60}
+
+
 @router.get("/validate")
 async def validate_stream(request: Request):
     """Caddy forward_auth endpoint. Reads token from X-Forwarded-Uri query string.
@@ -59,5 +69,5 @@ async def validate_stream(request: Request):
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid or expired stream token")
 
-    headers = {"X-User-Id": str(payload["user_id"])}
+    headers = {"X-User-Id": str(payload.get("user_id", ""))}
     return Response(status_code=200, headers=headers)
