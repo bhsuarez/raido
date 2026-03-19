@@ -11,6 +11,8 @@ Add a jazz radio station to Raido following the exact multi-station pattern alre
 
 ### 1. `stations.yml` entry
 
+> **Note:** `stations.yml` already contains a commented-out jazz template at line 113 that assigns `telnet_port: 1236`. That port is owned by `recent`. Do not use that stub — add the block defined below instead.
+
 New `jazz` block:
 
 ```yaml
@@ -23,7 +25,7 @@ jazz:
     config_file: "./infra/liquidsoap/jazz.liq"
     telnet_port: 1238
     http_port: null
-    icecast_mount: "/jazz"
+    icecast_mount: "/jazz.mp3"
 
   dj_worker:
     enabled: true
@@ -56,7 +58,7 @@ Port 1238 is the next available telnet port (1234=main, 1235=christmas, 1236=rec
 
 ### 2. `infra/liquidsoap/jazz.liq`
 
-Modeled on `radio.liq` with one addition: a `skip_non_jazz` function that checks the `genre` metadata field (same pattern as `skip_christmas` in `radio.liq`). If the genre doesn't contain "jazz" (case-insensitive), the track is skipped.
+Modeled on `radio.liq` with one addition: a `skip_non_jazz` function. Unlike `skip_christmas` (which checks filename/title/album for a keyword), `skip_non_jazz` checks the `genre` ID3 metadata field — if it doesn't contain "jazz" (case-insensitive), the track is skipped. Genre tags are the reliable signal for a broad music category like jazz; filename/title heuristics would produce too many false negatives.
 
 Key elements:
 - Telnet on port 1238
@@ -92,7 +94,7 @@ Two new services, identical in structure to existing station services:
   → jazz-dj-worker polls → Ollama generates commentary → Kokoro TTS → MP3
   → telnet inject into jazz Liquidsoap (port 1238)
   → TTS queue plays before next track
-  → Icecast /jazz mount
+  → Icecast /jazz.mp3 mount
 ```
 
 ## Out of Scope
