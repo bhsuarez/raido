@@ -39,8 +39,49 @@ Copy the jazz station config and adapt it. Key things to customize:
 - TTS queue id: `tts_{name}` (must be unique across all stations)
 - Station identifier in API payload: `\"station\":\"{name}\"`
 - Icecast mount: `/{name}.mp3`
-- Genre filter function name and logic (or remove entirely for unfiltered stations)
+- Playlist source (see Genre Filtering section below)
 - Log emoji/station name strings
+
+### Genre filtering: use a pre-generated playlist file
+
+**Do NOT use `source.on_track` + `skip()` for genre filtering.** It seems like it should work but doesn't — the skip loop rapid-fires through 99%+ non-matching tracks, exhausts Liquidsoap's request queue, and the station falls back to the sine beep.
+
+**The correct approach for genre-filtered stations:**
+1. Generate a text file of matching file paths from the database
+2. Point Liquidsoap at that file with `playlist("/shared/{name}_tracks.txt")`
+3. Set up a cron job on PCT 127 to regenerate the file every 30 min
+
+```bash
+# Generate the initial playlist (run on Proxmox host):
+pct exec 127 -- bash << 'EOF'
+cd /opt/raido && docker compose exec -T db psql -U raido -d raido -t -c \
+  "SELECT file_path FROM tracks WHERE genre = '{Genre}' ORDER BY artist, album;" \
+  | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' \
+  > /var/lib/docker/volumes/raido_shared/_data/{name}_tracks.txt
+wc -l /var/lib/docker/volumes/raido_shared/_data/{name}_tracks.txt
+EOF
+
+# Install cron job to refresh it (run on Proxmox host):
+cat << 'SCRIPT' > /tmp/update-{name}-playlist.sh
+#!/bin/bash
+cd /opt/raido
+PLAYLIST=/var/lib/docker/volumes/raido_shared/_data/{name}_tracks.txt
+docker compose exec -T db psql -U raido -d raido -t -c \
+  "SELECT file_path FROM tracks WHERE genre = '{Genre}' ORDER BY artist, album;" \
+  | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${PLAYLIST}.tmp"
+COUNT=$(wc -l < "${PLAYLIST}.tmp")
+[ "$COUNT" -gt 10 ] && mv "${PLAYLIST}.tmp" "$PLAYLIST" || rm -f "${PLAYLIST}.tmp"
+echo "$(date): Updated {name} playlist — $COUNT tracks"
+SCRIPT
+pct push 127 /tmp/update-{name}-playlist.sh /opt/raido/scripts/update-{name}-playlist.sh
+pct exec 127 -- chmod +x /opt/raido/scripts/update-{name}-playlist.sh
+pct exec 127 -- bash -c '(crontab -l 2>/dev/null | grep -v "update-{name}-playlist"; echo "*/30 * * * * /opt/raido/scripts/update-{name}-playlist.sh >> /var/log/{name}-playlist.log 2>&1") | crontab -'
+```
+
+For **unfiltered stations** (plays all music), just use:
+```liquidsoap
+{name}_music = playlist(mode="random", reload=300, "/mnt/music")
+```
 
 ### Full template (Liquidsoap 2.2.x compatible):
 
@@ -63,29 +104,14 @@ settings.server.telnet.port := {PORT}
 # ---------- Sources ----------
 tts_q = request.queue(id="tts_{name}", timeout=30.0, interactive=true)
 
-all_music = playlist(
+# Genre-filtered: pre-generated playlist from DB, reloaded every 30 min by cron.
+# For unfiltered stations, replace with: playlist(mode="random", reload=300, "/mnt/music")
+{name}_music = playlist(
   mode="random",
-  reload=300,
-  "/mnt/music"
+  reload=1800,
+  reload_mode="watch",
+  "/shared/{name}_tracks.txt"
 )
-
-# --- Genre filter (omit this block for unfiltered stations) ---
-# IMPORTANT: string.lowercase does NOT exist in Liquidsoap v2.2.5
-# Use multiple string.contains checks for case variants instead.
-def skip_non_{name}(m)
-  genre = list.assoc(default="", "genre", m)
-  is_{name} = string.contains(substring="{Genre}", genre)
-    or string.contains(substring="{genre}", genre)
-    or string.contains(substring="{GENRE}", genre)
-  if not is_{name} then
-    log("⏭️ Skipping non-{name} track: " ^ list.assoc(default="", "title", m) ^ " (genre: " ^ genre ^ ")")
-    all_music.skip()
-  end
-end
-
-{name}_music = source.on_track(all_music, skip_non_{name})
-# --- End genre filter ---
-# (If no filter: use `music_src = all_music` directly)
 
 # Helpers
 def meta_get(m, k, d)
@@ -111,7 +137,7 @@ def update_metadata(m)
 end
 
 # ---------- Chain / processing ----------
-music = metadata.map(update_metadata, {name}_music)  # or all_music if no filter
+music = metadata.map(update_metadata, {name}_music)
 music_inj = insert_metadata(music)
 
 def track_change_handler(m)
@@ -308,18 +334,14 @@ curl -s http://192.168.1.41/api/v1/stations/ | python3 -m json.tool | grep {name
 
 ## Known Gotchas
 
+### DO NOT use `source.on_track` + `skip()` for genre filtering
+It looks like it should work but causes a sine beep fallback. When only ~1% of tracks match the genre, the skip loop rapid-fires through hundreds of non-matching tracks, exhausts Liquidsoap's internal request queue, the music source becomes unavailable, and `sine_src` kicks in.
+
+**Use a pre-generated playlist file instead** — see Step 2 above.
+
 ### `string.lowercase` does not exist in Liquidsoap v2.2.5
 Error: `this value has no method 'lowercase'`
-Fix: Use explicit case variants with `string.contains`:
-```liquidsoap
-# WRONG:
-is_jazz = string.contains(substring="jazz", string.lowercase(genre))
-
-# CORRECT:
-is_jazz = string.contains(substring="jazz", genre)
-  or string.contains(substring="Jazz", genre)
-  or string.contains(substring="JAZZ", genre)
-```
+(Only relevant if you're doing any string case checks — not needed with the playlist approach.)
 
 ### `docker compose up -d` doesn't restart Liquidsoap if only `.liq` changed
 If you push a `.liq` fix after initial deploy, you must explicitly restart:
@@ -354,4 +376,4 @@ Common Kokoro voices:
 
 ---
 
-*Last updated: 2026-03-18 — jazz station implementation*
+*Last updated: 2026-03-19 — fixed genre filtering approach (playlist file, not skip loop)*
