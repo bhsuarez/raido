@@ -42,16 +42,17 @@ services:
     command: ["liquidsoap","/radio.liq"]
     ports: ["1234:1234","8080:8080"]
 
-  christmas-liquidsoap:
-    image: savonet/liquidsoap:v2.2.5
-    restart: unless-stopped
-    depends_on: [icecast]
-    volumes:
-      - /mnt/music:/mnt/music:ro
-      - ./infra/liquidsoap/christmas.liq:/christmas.liq:ro
-      - shared:/shared
-    command: ["liquidsoap","/christmas.liq"]
-    ports: ["1235:1235"]
+  # christmas-liquidsoap: disabled off-season — re-enable December
+  # christmas-liquidsoap:
+  #   image: savonet/liquidsoap:v2.2.5
+  #   restart: unless-stopped
+  #   depends_on: [icecast]
+  #   volumes:
+  #     - /mnt/music:/mnt/music:ro
+  #     - ./infra/liquidsoap/christmas.liq:/christmas.liq:ro
+  #     - shared:/shared
+  #   command: ["liquidsoap","/christmas.liq"]
+  #   ports: ["1235:1235"]
 
   recent-liquidsoap:
     image: savonet/liquidsoap:v2.2.5
@@ -161,26 +162,21 @@ services:
     mem_limit: "1g"
     cpus: "0.50"
 
-  christmas-dj-worker:
-    build: ./services/dj-worker
-    restart: unless-stopped
-    env_file: .env
-    depends_on:
-      api:
-        condition: service_healthy
-    volumes: [shared:/shared]
-    environment:
-      - STATION_NAME=christmas
-      - LIQUIDSOAP_HOST=christmas-liquidsoap
-      - LIQUIDSOAP_PORT=1235
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://api:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    mem_limit: "1g"
-    cpus: "0.50"
+  # christmas-dj-worker: disabled off-season — re-enable December
+  # christmas-dj-worker:
+  #   build: ./services/dj-worker
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   volumes: [shared:/shared]
+  #   environment:
+  #     - STATION_NAME=christmas
+  #     - LIQUIDSOAP_HOST=christmas-liquidsoap
+  #     - LIQUIDSOAP_PORT=1235
+  #   mem_limit: "1g"
+  #   cpus: "0.50"
 
   recent-dj-worker:
     build: ./services/dj-worker
