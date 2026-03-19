@@ -26,10 +26,12 @@ all_music = playlist(
 )
 
 # Skip non-jazz tracks based on genre ID3 tag.
-# "jazz" substring covers: Jazz, Smooth Jazz, Bebop, Cool Jazz, Jazz Fusion, etc.
+# Checks lowercase, titlecase, and uppercase variants (string.lowercase not available in v2.2.x).
 def skip_non_jazz(m)
-  genre = string.lowercase(list.assoc(default="", "genre", m))
+  genre = list.assoc(default="", "genre", m)
   is_jazz = string.contains(substring="jazz", genre)
+    or string.contains(substring="Jazz", genre)
+    or string.contains(substring="JAZZ", genre)
   if not is_jazz then
     log("⏭️ Skipping non-jazz track: " ^ list.assoc(default="", "title", m) ^ " (genre: " ^ genre ^ ")")
     all_music.skip()
