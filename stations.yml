@@ -109,6 +109,44 @@ stations:
       filter:
         year_min: 2024
 
+  # Jazz station - smooth jazz 24/7
+  jazz:
+    display_name: "Jazz Lounge"
+    identifier: "jazz"
+    description: "Smooth jazz 24/7 — late-night vibes, live commentary"
+
+    liquidsoap:
+      config_file: "./infra/liquidsoap/jazz.liq"
+      telnet_port: 1238
+      http_port: null
+      icecast_mount: "/jazz.mp3"
+
+    dj_worker:
+      enabled: true
+      default_provider: "ollama"
+      default_voice_provider: "kokoro"
+      default_voice: "am_onyx"
+      commentary_interval: 1
+      max_seconds: 30
+      memory_limit: "1g"
+      cpu_limit: "0.50"
+      prompt_template: |
+        You're a smooth late-night jazz radio DJ introducing the NEXT track coming up.
+        Create a brief 15-20 second intro for "{{song_title}}" by {{artist}} from the album {{album}} ({{year}}).
+        Share ONE interesting fact — the recording session, the label, a notable collaborator, or the era it defined.
+        Keep it mellow, unhurried, and knowledgeable. No hype, just cool.
+
+    frontend:
+      enabled: true
+      port: null
+      theme: "dark"
+      custom_branding: false
+
+    music:
+      path: "/mnt/music"
+      filter:
+        genre: ["Jazz", "Smooth Jazz", "Bebop", "Cool Jazz", "Jazz Fusion"]
+
   # Example: Add more stations by copying this template
   # jazz:
   #   display_name: "Jazz Lounge"
