@@ -224,6 +224,38 @@ services:
     mem_limit: "1g"
     cpus: "0.50"
 
+  jazz-liquidsoap:
+    image: savonet/liquidsoap:v2.2.5
+    restart: unless-stopped
+    depends_on: [icecast]
+    volumes:
+      - /mnt/music:/mnt/music:ro
+      - ./infra/liquidsoap/jazz.liq:/jazz.liq:ro
+      - shared:/shared
+    command: ["liquidsoap","/jazz.liq"]
+    ports: ["1238:1238"]
+
+  jazz-dj-worker:
+    build: ./services/dj-worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes: [shared:/shared]
+    environment:
+      - STATION_NAME=jazz
+      - LIQUIDSOAP_HOST=jazz-liquidsoap
+      - LIQUIDSOAP_PORT=1238
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://api:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: "1g"
+    cpus: "0.50"
+
   mb-enricher:
     build: ./services/mb-enricher
     restart: unless-stopped
