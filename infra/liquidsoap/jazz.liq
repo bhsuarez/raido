@@ -21,6 +21,7 @@ tts_q = request.queue(id="tts_jazz", timeout=30.0, interactive=true)
 all_music = playlist(
   mode="random",
   reload=300,
+  reload_mode="watch",
   "/mnt/music"
 )
 
