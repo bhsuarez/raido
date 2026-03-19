@@ -1,8 +1,9 @@
 #!/usr/bin/liquidsoap
 
 # ----- Liquidsoap 2.2.x config for Raido Jazz Lounge -----
-# Plays jazz tracks from /mnt/music filtered by genre ID3 tag.
-# Tracks whose genre doesn't contain "jazz" (case-insensitive) are skipped.
+# Plays jazz tracks from a pre-filtered playlist (/shared/jazz_tracks.txt).
+# The playlist is regenerated every 30 min by a cron job on the Proxmox host.
+# Liquidsoap reloads it automatically via reload_mode="watch".
 
 settings.decoder.priorities.ffmpeg := 10
 settings.decoder.priorities.mad    := 1
@@ -18,27 +19,14 @@ settings.server.telnet.port := 1238
 # ---------- Sources ----------
 tts_q = request.queue(id="tts_jazz", timeout=30.0, interactive=true)
 
-all_music = playlist(
+# Pre-filtered playlist — only jazz tracks (genre="Jazz" in DB).
+# Reloaded automatically when the file changes (cron updates it every 30 min).
+jazz_music = playlist(
   mode="random",
-  reload=300,
+  reload=1800,
   reload_mode="watch",
-  "/mnt/music"
+  "/shared/jazz_tracks.txt"
 )
-
-# Skip non-jazz tracks based on genre ID3 tag.
-# Checks lowercase, titlecase, and uppercase variants (string.lowercase not available in v2.2.x).
-def skip_non_jazz(m)
-  genre = list.assoc(default="", "genre", m)
-  is_jazz = string.contains(substring="jazz", genre)
-    or string.contains(substring="Jazz", genre)
-    or string.contains(substring="JAZZ", genre)
-  if not is_jazz then
-    log("⏭️ Skipping non-jazz track: " ^ list.assoc(default="", "title", m) ^ " (genre: " ^ genre ^ ")")
-    all_music.skip()
-  end
-end
-
-jazz_music = source.on_track(all_music, skip_non_jazz)
 
 # Helpers
 def meta_get(m, k, d)
@@ -66,7 +54,6 @@ def update_metadata(m)
 end
 
 # ---------- Chain / processing ----------
-# Normalize metadata
 music = metadata.map(update_metadata, jazz_music)
 
 # Wrap with insert_metadata so we can inject per-track StreamUrl (for artwork in players like Triode)
